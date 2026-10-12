@@ -9,8 +9,8 @@ import {
   jobs,
   projects,
   stageRuns,
-} from '../../../src/core/db/schema';
-import { createTestDb, type TestDb } from '../../helpers/db';
+} from '../../../src/core/db/schema.ts';
+import { createTestDb, type TestDb } from '../../helpers/db.ts';
 
 const NOW = '2026-10-12T00:00:00.000Z';
 let t: TestDb;

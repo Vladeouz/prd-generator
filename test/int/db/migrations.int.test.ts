@@ -9,7 +9,7 @@ import {
   MAIN_DATABASE_PATH,
   MIGRATIONS_FOLDER,
   openDatabase,
-} from '../../../src/core/db/client';
+} from '../../../src/core/db/client.ts';
 
 const dirs: string[] = [];
 function tempDir() {

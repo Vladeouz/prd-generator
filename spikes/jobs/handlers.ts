@@ -6,7 +6,7 @@ import {
   moduleLoadedAt,
   SpikeJobConflict,
   startJob,
-} from './job-store';
+} from './job-store.ts';
 
 function meta() {
   const store = getStore();

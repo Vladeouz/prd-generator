@@ -17,14 +17,16 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test:unit": "vitest run",
     "test:int": "vitest run --config vitest.int.config.ts",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "claude:smoke": "node src/claude/smoke.ts"
   },
   "dependencies": {
     "better-sqlite3": "13.0.3",
     "drizzle-orm": "0.45.4",
     "next": "16.4.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

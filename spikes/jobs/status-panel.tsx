@@ -1,7 +1,7 @@
 'use client';
 // Spike T-002: panel status yang mem-polling /api/spike/jobs setiap detik.
 import { useEffect, useState } from 'react';
-import type { SpikeJob } from './job-store';
+import type { SpikeJob } from './job-store.ts';
 
 type ListResponse = { serverPid: number; moduleId: string; jobs: SpikeJob[] };
 

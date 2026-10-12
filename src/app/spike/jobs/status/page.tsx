@@ -1,6 +1,6 @@
 // Spike T-002, dihapus bersama spikes/ di T-019.
 import Link from 'next/link';
-import { StatusPanel } from '../../../../../spikes/jobs/status-panel';
+import { StatusPanel } from '../../../../../spikes/jobs/status-panel.tsx';
 
 export default function SpikeJobsStatusPage() {
   return (

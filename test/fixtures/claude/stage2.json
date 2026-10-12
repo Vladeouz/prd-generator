@@ -1,0 +1,43 @@
+{
+  "type": "result",
+  "subtype": "success",
+  "is_error": false,
+  "duration_ms": 18959,
+  "num_turns": 1,
+  "result": "{\n  \"clarity\": 2,\n  \"clarity_reason\": \"Konteksnya sudah jelas (membership untuk satu gym), tapi masalah utama, siapa pengguna utamanya, dan fitur inti yang dibutuhkan belum disebutkan sama sekali.\",\n  \"questions\": [\n    {\n      \"id\": \"q1\",\n      \"topic\": \"masalah\",\n      \"question\": \"Masalah apa yang paling ingin kamu selesaikan dulu lewat aplikasi ini?\",\n      \"type\": \"single\",\n      \"options\": [\n        \"Susah memantau member mana yang masih aktif dan mana yang sudah habis masa berlakunya\",\n        \"Banyak member lupa memperpanjang membership sampai akhirnya berhenti\",\n        \"Pencatatan kehadiran member masih manual dan sering berantakan\",\n        \"Member susah melihat info paket dan jadwal kelas\"\n      ],\n      \"recommended_default\": \"Susah memantau member mana yang masih aktif dan mana yang sudah habis masa berlakunya\",\n      \"why_it_matters\": \"Masalah utama menentukan fitur mana yang harus ada di versi pertama dan mana yang bisa ditunda.\"\n    },\n    {\n      \"id\": \"q2\",\n      \"topic\": \"pengguna\",\n      \"question\": \"Siapa yang paling sering memakai aplikasi ini di versi pertama?\",\n      \"type\": \"single\",\n      \"options\": [\n        \"Pemilik atau admin gym saja\",\n        \"Member gym saja\",\n        \"Admin gym dan member\",\n        \"Admin, member, dan personal trainer\"\n      ],\n      \"recommended_default\": \"Pemilik atau admin gym saja\",\n      \"why_it_matters\": \"Fokus ke satu jenis pengguna dulu bikin versi pertama lebih kecil, lebih cepat jadi, dan lebih gampang diuji.\"\n    },\n    {\n      \"id\": \"q3\",\n      \"topic\": \"aksi_pertama\",\n      \"question\": \"Waktu pertama kali buka aplikasi, hal pertama apa yang harus bisa langsung dilakukan?\",\n      \"type\": \"single\",\n      \"options\": [\n        \"Menambahkan data member baru beserta paket dan tanggal berakhirnya\",\n        \"Melihat daftar member yang masa berlakunya hampir atau sudah habis\",\n        \"Mencatat member yang datang hari ini\",\n        \"Melihat status membership sendiri (untuk member)\"\n      ],\n      \"recommended_default\": \"Menambahkan data member baru beserta paket dan tanggal berakhirnya\",\n      \"why_it_matters\": \"Aksi pertama ini jadi jalur utama yang harus mulus. Kalau bagian ini gagal, aplikasinya terasa nggak berguna.\"\n    },\n    {\n      \"id\": \"q4\",\n      \"topic\": \"fitur_wajib\",\n      \"question\": \"Selain aksi pertama tadi, fitur apa saja yang wajib ada di versi pertama? Pilih maksimal 3.\",\n      \"type\": \"multi\",\n      \"options\": [\n        \"Daftar member dengan status aktif atau habis\",\n        \"Perpanjangan membership\",\n        \"Pengaturan jenis paket (bulanan, 3 bulan, tahunan)\",\n        \"Catatan kehadiran atau check-in member\",\n        \"Catatan pembayaran membership\",\n        \"Ringkasan jumlah member aktif dan pendapatan\"\n      ],\n      \"recommended_default\": [\n        \"Daftar member dengan status aktif atau habis\",\n        \"Perpanjangan membership\"\n      ],\n      \"why_it_matters\": \"Membatasi fitur wajib menjaga versi pertama tetap kecil tapi sudah bisa menyelesaikan masalah utamanya.\"\n    }\n  ],\n  \"assumptions\": [\n    \"Aplikasi dipakai untuk satu gym saja, bukan banyak cabang dan bukan marketplace yang menampung banyak gym.\",\n    \"Pembeda dari cara lama cukup berupa kerapian dan kemudahan dibanding catatan manual atau spreadsheet. Belum perlu fitur unik lain di versi pertama.\",\n    \"Pembayaran belum diproses di dalam aplikasi di versi pertama. Paling jauh hanya dicatat.\",\n    \"Kelas grup, booking personal trainer, dan program latihan belum masuk versi pertama.\"\n  ],\n  \"deferred_technical\": []\n}",
+  "session_id": "fixture-gym-stage2",
+  "total_cost_usd": 0.0985286,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 8112,
+    "cache_read_input_tokens": 16023,
+    "output_tokens": 1521,
+    "output_tokens_details": {
+      "thinking_tokens": 217
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 8112,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 1521,
+        "cache_read_input_tokens": 16023,
+        "cache_creation_input_tokens": 8112,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 8112
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  }
+}

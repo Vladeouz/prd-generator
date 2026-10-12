@@ -19,7 +19,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `drizzle.config.ts`, `drizzle/**`, `src/core/db/**`, `vitest.int.config.ts`, `test/int/db/**`, `test/helpers/db.ts`
   - done when: semua tabel, CHECK, partial unique index (`is_current`, satu job aktif), dan cascade di bagian 4 PRD terbukti oleh integration test; integration test memakai file database sementara yang tidak menyentuh database utama; migrasi idempoten; `drizzle-kit generate` ulang tidak menghasilkan perubahan; build script `better-sqlite3` diatur eksplisit lewat `allowBuilds` dan `pnpm install --frozen-lockfile` exit 0; `pnpm check` menjalankan integration test dan hijau
 
-- [ ] T-004 Port `ClaudeRunner`: runner CLI, runner palsu, dan pengaman test
+- [x] T-004 Port `ClaudeRunner`: runner CLI, runner palsu, dan pengaman test
   - layer: claude · depends_on: T-001 · refs: FR-02, NFR-02, D-07, bagian 3 PRD (Pemanggilan Claude Code)
   - files: `src/claude/**`, `test/unit/claude/**`, `test/int/claude/**`, `test/fixtures/claude/**`, `test/helpers/fake-claude-cli.mjs`
   - done when: runner CLI terbukti (integration test dengan script Node palsu sebagai perintah `claude`) mengirim prompt lewat stdin, memakai bentuk perintah Windows dan non-Windows sesuai bagian 3 PRD, berjalan di folder sementara kosong, membaca `result` dan `usage` dari envelope, dan mengembalikan error yang jelas untuk exit code bukan 0, envelope rusak, `is_error`, dan batas waktu; runner palsu membaca fixture yang dibangun dari `docs/reference/e2e-output/`; memanggil runner CLI saat `NODE_ENV=test` gagal keras (NFR-02); **(manual)** satu pemanggilan sungguhan dengan prompt kecil dari script yang disediakan task ini berhasil dan mencatat token serta durasi; `pnpm check` hijau

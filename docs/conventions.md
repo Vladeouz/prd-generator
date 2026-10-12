@@ -30,6 +30,7 @@ Library dipin ke versi pasti (tanpa `^` atau `~`) saat pertama dipasang, lalu di
 | `drizzle-orm` | 0.45.4 | T-003 |
 | `drizzle-kit` | 0.31.11 | T-003 |
 | `@types/better-sqlite3` | 9.6.0 | T-003 |
+| `zod` | 4.6.5 | T-004 |
 
 Pasang dengan `pnpm add -E <nama>` (atau `-D -E`) agar versi langsung pasti. Paket yang butuh build script saat install didaftarkan di `allowBuilds` pada `pnpm-workspace.yaml` (saat ini `esbuild`, dipakai drizzle-kit); tanpa itu pnpm 12 keluar dengan `ERR_PNPM_IGNORED_BUILDS`. Build script yang tidak dibutuhkan didaftarkan dengan nilai `false` beserta alasannya di komentar: `better-sqlite3` 13 membawa binary prebuilt yang dimuat lebih dulu, sedangkan build script-nya hanya `node-gyp rebuild` yang butuh Python dan compiler C++. Jangan biarkan nilai placeholder `set this to true or false` yang ditulis pnpm.
 
@@ -54,6 +55,7 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 | `pnpm typecheck` | `next typegen` lalu `tsc --noEmit` |
 | `pnpm test:unit` | Vitest, `test/unit/**/*.test.ts` |
 | `pnpm test:int` | Vitest, `test/int/**/*.int.test.ts` (`vitest.int.config.ts`) |
+| `pnpm claude:smoke` | Satu pemanggilan `claude` sungguhan dengan prompt kecil (memakai kuota; hanya untuk verifikasi manual) |
 | `pnpm db:generate` | `drizzle-kit generate`: membuat migrasi di `drizzle/` dari `src/core/db/schema.ts` |
 
 - Semua script otomatisasi ditulis dalam Node (`.mjs`) di `scripts/`, bukan shell. Nama file sama dengan nama script-nya (`pnpm prereq` → `scripts/prereq.mjs`); modul pendukung di `scripts/lib/`.
@@ -72,7 +74,8 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 
 ## TypeScript dan Next.js
 
-- `strict` + `noUncheckedIndexedAccess`, `verbatimModuleSyntax` (`import type` untuk tipe), alias `@/*` → `src/*`. `next typegen` / `next dev` menambah `esModuleInterop` ke `tsconfig.json` bila belum ada; biarkan.
+- `strict` + `noUncheckedIndexedAccess`, `verbatimModuleSyntax` (`import type` untuk tipe), alias `@/*` → `src/*`.
+- Import relatif selalu dengan ekstensi file sumbernya (`./schema.ts`, `./status-panel.tsx`), dipaksa Biome (`useImportExtensions`) dan diizinkan `allowImportingTsExtensions`. Dengan begitu modul di `src/` bisa dijalankan Node 24 langsung (type stripping), misalnya `node src/claude/smoke.ts`, tanpa tsx. Akibatnya, kode yang mungkin dijalankan Node langsung tidak boleh memakai sintaks TypeScript yang perlu ditransformasi (`enum`, `namespace`, parameter property di constructor). `next typegen` / `next dev` menambah `esModuleInterop` ke `tsconfig.json` bila belum ada; biarkan.
 - File `.mjs` di `scripts/` ikut di-typecheck (`allowJs`); tipe parameter yang tidak bisa disimpulkan ditulis dengan JSDoc (contoh: `scripts/lib/prereq-checks.mjs`).
 - `next.config.ts` memakai `agentRules: false`, karena tanpa itu `next dev` 16.4 membuat `AGENTS.md` di root. Aturan agent hanya di `CLAUDE.md`.
 - Styling dengan Tailwind CSS 4 lewat `@tailwindcss/postcss` (`postcss.config.mjs`, `src/app/globals.css`).
@@ -85,6 +88,15 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - Setiap kolom enum dibatasi CHECK. Daftar nilainya diekspor dari `schema.ts` (`STAGES`, `JOB_STATUSES`, dll.) untuk dipakai ulang oleh Zod; jangan menulis ulang daftarnya. Aturan "satu baris aktif" memakai partial unique index (contoh: `jobs_one_active_idx` pada ekspresi `(1)` dengan `WHERE status in ('queued', 'running')`).
 - Id (`text`) dan timestamp (ISO 8601 UTC) diisi aplikasi, tanpa default di database.
 - drizzle-kit 0.31 di Windows salah menangani `--out` dengan path absolut dan tetap keluar dengan exit 0; pakai path relatif dan periksa pesannya.
+
+## Claude Code
+
+- Aplikasi hanya bergantung pada port `ClaudeRunner` (`src/claude/types.ts`). Implementasinya `CliClaudeRunner` (`cli-runner.ts`, perintah sungguhan sesuai PRD bagian 3) dan `FakeClaudeRunner` (`fake-runner.ts`, antrean respons, tidak pernah menjalankan proses).
+- Kegagalan selalu `ClaudeRunError` dengan `code` (`EXIT_CODE`, `INVALID_ENVELOPE`, `IS_ERROR`, `TIMEOUT`, `SPAWN_FAILED`, `FORBIDDEN_IN_TEST`) dan `message` berbahasa Indonesia yang menyebut penyebabnya, siap ditampilkan sebagai error job (FR-02).
+- Token input dicatat termasuk cache (`input_tokens` + `cache_creation_input_tokens` + `cache_read_input_tokens`), karena `input_tokens` saja hampir selalu 1–3. `costUsd` adalah `total_cost_usd` dari envelope, perkiraan, bukan tagihan.
+- Di Windows, proses dihentikan dengan `taskkill /PID <pid> /T /F`. `child.kill()` hanya mematikan `cmd.exe` dan membiarkan `claude` berjalan (spike T-002). Jangan memakai `detached: true`.
+- NFR-02: `CliClaudeRunner` menolak perintah `claude` sungguhan (`claude`, `claude.cmd`, path ke sana) saat `NODE_ENV=test`. Integration test memakai `test/helpers/fake-claude-cli.mjs` sebagai perintah (perilaku diatur `FAKE_CLAUDE_MODE`).
+- Fixture `test/fixtures/claude/<tahap>.json` adalah envelope lengkap, dibaca lewat `loadClaudeFixture()` dan parser yang sama dengan output sungguhan. Fixture dari uji nyata dibangun ulang dengan `node test/fixtures/claude/build-fixtures.mjs` (sumber: `docs/reference/e2e-output/`); file JSON-nya dikecualikan dari Biome.
 
 ## Test
 
