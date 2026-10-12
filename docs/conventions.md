@@ -89,6 +89,15 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - Id (`text`) dan timestamp (ISO 8601 UTC) diisi aplikasi, tanpa default di database.
 - drizzle-kit 0.31 di Windows salah menangani `--out` dengan path absolut dan tetap keluar dengan exit 0; pakai path relatif dan periksa pesannya.
 
+## Error, jam, dan job
+
+- Error domain memakai `AppError` (`src/core/errors.ts`) dengan kode format error PRD bagian 5. `status` memberi status HTTP-nya, dan `toBody()` menghasilkan `{ error: { code, message, details? } }`. Pesan dalam Bahasa Indonesia dan siap ditampilkan ke user.
+- Timestamp hanya dari `Clock` (`src/core/clock.ts`, `systemClock` di aplikasi), yang disuntikkan ke modul yang menyimpan waktu. Test memakai jam tetap. Jangan memanggil `new Date()` untuk kolom database.
+- Job tahap dijalankan `JobQueue` (`src/jobs/job-queue.ts`) di proses server (D-03). Instance tunggalnya `getJobQueue()` (`src/jobs/instance.ts`), disimpan di `globalThis`. `src/instrumentation.ts` menandai job aktif dari proses sebelumnya sebagai `interrupted` sekali saat server start, dan tidak berjalan saat `next build`.
+- Tahap didefinisikan sebagai `StageDefinition` (`src/stages/run-stage.ts`): `stage`, `promptVersion`, `buildPrompt`, `parse`, `validate`, lalu didaftarkan di `stageRegistry` (`src/jobs/instance.ts`). `runStage` menangani percobaan ulang sekali dengan daftar error (D-08) dan pencatatan `stage_runs`; definisi tahap tidak menulis `stage_runs` sendiri.
+- Kegagalan runner (`ClaudeRunError`) tidak dicoba ulang: job `failed` dengan pesan runner, dicatat sebagai `stage_runs` gagal tanpa output, dan output tahap yang berlaku sebelumnya tetap berlaku. Hanya kegagalan parse dan validasi yang dicoba ulang.
+- Contoh test: `test/int/jobs/job-queue.int.test.ts` (runner palsu, fixture nyata, `GatedRunner` untuk menahan job tetap berjalan).
+
 ## Claude Code
 
 - Aplikasi hanya bergantung pada port `ClaudeRunner` (`src/claude/types.ts`). Implementasinya `CliClaudeRunner` (`cli-runner.ts`, perintah sungguhan sesuai PRD bagian 3) dan `FakeClaudeRunner` (`fake-runner.ts`, antrean respons, tidak pernah menjalankan proses).
