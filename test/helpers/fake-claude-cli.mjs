@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Pengganti perintah `claude` untuk integration test runner CLI. Tidak pernah memanggil Claude.
-// Perilaku diatur lewat variabel lingkungan:
+// `--version` mencetak versi palsu lalu keluar. Selain itu, perilaku diatur lewat variabel lingkungan:
 //
 //   FAKE_CLAUDE_MODE  ok (bawaan) | exit | bad-json | bad-envelope | is-error | hang
 //   FAKE_CLAUDE_PID_FILE  bila diisi, pid proses ini ditulis ke file itu (untuk memeriksa kill)
@@ -8,6 +8,11 @@
 // Mode `ok` mengembalikan envelope yang `result`-nya JSON berisi yang diterima script: argumen,
 // isi stdin, cwd, dan isi folder cwd. Dengan begitu test bisa memeriksa cara runner memanggilnya.
 import { readdirSync, writeFileSync } from 'node:fs';
+
+if (process.argv.includes('--version')) {
+  process.stdout.write('9.9.9 (Claude Code palsu)\n');
+  process.exit(0);
+}
 
 const mode = process.env.FAKE_CLAUDE_MODE ?? 'ok';
 if (process.env.FAKE_CLAUDE_PID_FILE) {
