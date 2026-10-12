@@ -12,10 +12,14 @@ import { type ClaudeResult, ClaudeRunError, type ClaudeRunner } from '../claude/
 import type { Clock } from '../core/clock.ts';
 import type { Db } from '../core/db/client.ts';
 import { type STAGES, stageRuns } from '../core/db/schema.ts';
+import { brandedInstanceCheck } from '../core/errors.ts';
 
 export type Stage = (typeof STAGES)[number];
 
 export type StageContext = { db: Db; projectId: string };
+
+/** Transaksi Drizzle di dalam `db.transaction`. */
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 export type StageValidation = { errors: string[]; warnings?: string[] };
 
@@ -23,13 +27,36 @@ export type StageDefinition<T = unknown> = {
   stage: Stage;
   /** `version` dari front matter prompt di prompts/. */
   promptVersion: string;
+  /**
+   * Prasyarat sebelum tahap boleh dijalankan; mengembalikan alasan (Bahasa Indonesia) bila belum
+   * terpenuhi, yang dikirim ke user sebagai 409.
+   */
+  notReadyReason?(context: StageContext): string | null;
   buildPrompt(context: StageContext): string;
   /** Mengubah teks `result` menjadi output; melempar error bila tidak bisa. */
   parse(result: string): T;
   validate(output: T): StageValidation;
+  /** Dijalankan di transaksi yang sama dengan pencatatan output yang berlaku. */
+  onSuccess?(context: { tx: Tx; projectId: string; output: T; now: string }): void;
 };
 
 export const MAX_ATTEMPTS = 2;
+
+/** Output tahap yang sedang berlaku (`is_current = 1`), atau null bila belum ada. */
+export function currentOutput<T>(db: Db, projectId: string, stage: Stage): T | null {
+  const run = db
+    .select({ outputJson: stageRuns.outputJson })
+    .from(stageRuns)
+    .where(
+      and(
+        eq(stageRuns.projectId, projectId),
+        eq(stageRuns.stage, stage),
+        eq(stageRuns.isCurrent, 1),
+      ),
+    )
+    .get();
+  return run?.outputJson ? (JSON.parse(run.outputJson) as T) : null;
+}
 
 /** Prompt percobaan ulang: prompt awal ditambah daftar error (pola uji end-to-end). */
 export function retryPrompt(prompt: string, errors: string[]): string {
@@ -47,7 +74,13 @@ export function summarizeErrors(errors: string[], max = 3): string {
 }
 
 /** Tahap gagal: pesan berbahasa Indonesia yang menyebut penyebabnya, untuk `jobs.error`. */
+const STAGE_FAILED_ERROR = Symbol.for('prd-generator.StageFailedError');
+
 export class StageFailedError extends Error {
+  // Dikenali lewat penanda agar `instanceof` benar lintas bundle Next.js (lihat core/errors.ts).
+  static [Symbol.hasInstance] = brandedInstanceCheck(STAGE_FAILED_ERROR);
+  readonly [STAGE_FAILED_ERROR] = true;
+
   constructor(message: string) {
     super(message);
     this.name = 'StageFailedError';
@@ -140,6 +173,7 @@ export async function runStage<T>(
             finishedAt: clock(),
           })
           .run();
+        definition.onSuccess?.({ tx, projectId, output: checked.output as T, now: clock() });
       });
       return { output: checked.output as T, stageRunId: measured.id, attempts: attempt };
     }

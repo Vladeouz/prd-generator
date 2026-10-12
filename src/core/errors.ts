@@ -11,7 +11,23 @@ export const ERROR_STATUS = {
 
 export type ErrorCode = keyof typeof ERROR_STATUS;
 
+const APP_ERROR = Symbol.for('prd-generator.AppError');
+
+/**
+ * Next.js membundel `instrumentation.ts` (yang membuat antrean job) terpisah dari route, sehingga
+ * satu kelas bisa punya dua salinan dan `instanceof` biasa gagal (error 409 menjadi 500). Kelas error
+ * di aplikasi ini dikenali lewat penanda `Symbol.for` agar `instanceof` tetap benar lintas bundle.
+ */
+export function brandedInstanceCheck(brand: symbol) {
+  return (value: unknown): boolean =>
+    typeof value === 'object' &&
+    value !== null &&
+    (value as Record<symbol, unknown>)[brand] === true;
+}
+
 export class AppError extends Error {
+  static [Symbol.hasInstance] = brandedInstanceCheck(APP_ERROR);
+  readonly [APP_ERROR] = true;
   readonly code: ErrorCode;
   readonly details: unknown;
 

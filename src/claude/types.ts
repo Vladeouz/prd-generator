@@ -3,6 +3,7 @@
 //
 // File di folder ini bisa dijalankan langsung oleh Node 24 (type stripping, lihat smoke.ts), jadi
 // tidak boleh memakai sintaks TypeScript yang perlu ditransformasi (enum, parameter property).
+import { brandedInstanceCheck } from '../core/errors.ts';
 
 export type ClaudeResult = {
   /** Isi `result` dari envelope: teks jawaban model. */
@@ -42,7 +43,12 @@ export type ClaudeErrorDetails = {
 };
 
 /** Kegagalan pemanggilan; `message` dalam Bahasa Indonesia dan menyebut penyebabnya (FR-02). */
+const CLAUDE_RUN_ERROR = Symbol.for('prd-generator.ClaudeRunError');
+
 export class ClaudeRunError extends Error {
+  // Dikenali lewat penanda agar `instanceof` benar lintas bundle Next.js (lihat core/errors.ts).
+  static [Symbol.hasInstance] = brandedInstanceCheck(CLAUDE_RUN_ERROR);
+  readonly [CLAUDE_RUN_ERROR] = true;
   readonly code: ClaudeErrorCode;
   readonly details: ClaudeErrorDetails;
 
