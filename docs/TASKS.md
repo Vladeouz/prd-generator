@@ -24,7 +24,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `src/claude/**`, `test/unit/claude/**`, `test/int/claude/**`, `test/fixtures/claude/**`, `test/helpers/fake-claude-cli.mjs`
   - done when: runner CLI terbukti (integration test dengan script Node palsu sebagai perintah `claude`) mengirim prompt lewat stdin, memakai bentuk perintah Windows dan non-Windows sesuai bagian 3 PRD, berjalan di folder sementara kosong, membaca `result` dan `usage` dari envelope, dan mengembalikan error yang jelas untuk exit code bukan 0, envelope rusak, `is_error`, dan batas waktu; runner palsu membaca fixture yang dibangun dari `docs/reference/e2e-output/`; memanggil runner CLI saat `NODE_ENV=test` gagal keras (NFR-02); **(manual)** satu pemanggilan sungguhan dengan prompt kecil dari script yang disediakan task ini berhasil dan mencatat token serta durasi; `pnpm check` hijau
 
-- [ ] T-005 Antrean job dan eksekusi tahap generik
+- [x] T-005 Antrean job dan eksekusi tahap generik
   - layer: jobs · depends_on: T-002, T-003, T-004 · refs: FR-02, D-03, D-08
   - files: `src/jobs/**`, `src/stages/run-stage.ts`, `test/unit/jobs/**`, `test/int/jobs/**`
   - done when: integration test dengan runner palsu membuktikan setiap kriteria FR-02: satu job dalam satu waktu (`409`), percobaan ulang sekali dengan daftar error lalu keduanya tercatat di `stage_runs`, job `running` menjadi `interrupted` saat startup, kegagalan runner menjadi `failed` tanpa output setengah jadi; eksekusi mencatat versi prompt, output mentah, token, dan durasi; implementasi mengikuti rekomendasi spike T-002; `pnpm check` hijau
