@@ -3,19 +3,32 @@
 ## Di awal setiap sesi
 
 - Baca `docs/PRD.md`, `docs/conventions.md` (jika sudah ada), dan log task terakhir di `docs/logs/`.
-- Pastikan working tree bersih (`git status`). Jika ada perubahan yang belum di-commit, laporkan ke user; jangan meng-commit-nya sendiri.
+- Pastikan berada di `master`, working tree bersih (`git status`), dan `master` sama dengan remote (`git pull --ff-only`). Jika ada perubahan yang belum di-commit, laporkan ke user; jangan meng-commit-nya sendiri.
 - Ambil task berikutnya dari `docs/TASKS.md`: task pertama yang belum dicentang dan semua `depends_on`-nya sudah dicentang.
-- Sebelum mulai, periksa apakah sudah ada branch untuk task itu (`git branch --list "*t-xxx*"`). Jika ada, jangan mengerjakan ulang; laporkan ke user dan tanyakan apakah branch itu perlu digabung dulu.
+- Sebelum mulai, periksa apakah sudah ada branch untuk task itu (`git branch -a --list "*t-xxx*"`). Jika ada, jangan mengerjakan ulang; laporkan ke user.
 
 ## Mengerjakan task
 
-- Kerjakan SATU task per sesi. Setelah task selesai atau terhenti, berhenti dan lapor, lalu tunggu instruksi user.
-- Buat branch baru dari `master` bernama `<type>/t-xxx-<ringkas>` (type: feat, fix, chore, docs, test). Pesan commit: `<type>: <ringkasan> (T-xxx)`. Jangan merge ke `master`; merge dilakukan user setelah meninjau hasilnya.
+- Secara bawaan, kerjakan SATU task per sesi, lalu berhenti dan lapor.
+- **Mode fase:** jika user meminta menyelesaikan satu fase (misalnya "Kerjakan semua task Fase 1"), setelah satu task selesai dan berhasil di-merge serta di-push, lanjutkan ke task berikutnya di fase yang sama. Sebelum setiap task berikutnya, baca ulang bagian PRD yang dirujuk task itu dan log task sebelumnya. Berhenti dan lapor bila:
+  - task punya kriteria **(manual)**: tuliskan langkahnya, tunggu konfirmasi user, lalu lanjutkan setelah dikonfirmasi;
+  - task adalah spike: hasilnya memengaruhi keputusan di PRD dan perlu ditinjau user;
+  - ada kriteria yang tidak bisa dipenuhi, atau `pnpm check` tidak bisa dibuat hijau;
+  - dibutuhkan keputusan user (mengubah keputusan PRD atau kriteria, `.env` atau secret, konflik merge, push ditolak);
+  - semua task di fase itu selesai. Jangan memulai fase berikutnya tanpa perintah user.
 - Ikuti konvensi di bagian 3 PRD dan `docs/conventions.md`. Jika konvensi belum mengatur sesuatu, pilih yang paling sederhana, catat di log sebagai keputusan mandiri, dan usulkan agar ditambahkan ke `docs/conventions.md`.
 - Hanya sentuh file yang relevan dengan task. Jika perlu membuat file di luar daftar `files`, sebutkan beserta alasannya di log.
 - Jangan membuat atau mengubah `.env` dan secret apa pun. Jika dibutuhkan, minta user melakukannya.
 - Jangan mengubah keputusan di bagian Assumptions & Decisions PRD atau kriteria *done when* tanpa persetujuan user. Jika ada kendala, jelaskan dan tawarkan pilihan beserta konsekuensinya.
 - Bahan rujukan di `docs/reference/` (prompt, validator, dan output nyata dari uji sebelumnya) adalah titik awal untuk tahap 2 sampai 7. Turunkan dari sana, jangan menulis ulang dari nol, dan catat setiap perbedaan beserta alasannya di log.
+
+## Git
+
+- Kerjakan setiap task di branch baru dari `master` bernama `<type>/t-xxx-<ringkas>` (type: feat, fix, chore, docs, test). Pesan commit: `<type>: <ringkasan> (T-xxx)`.
+- **Task selesai** (semua *done when* terbukti, `pnpm check` hijau, log ditulis, task dicentang): commit, lalu `git checkout master`, `git merge --no-ff <branch>`, dan `git push`. Tulis hash commit merge di laporan.
+- **Task terhenti atau belum selesai:** commit di branch-nya dan push branch itu saja (`git push -u origin <branch>`); jangan di-merge ke `master`.
+- Jangan pernah `push --force`, rebase `master`, atau mengubah riwayat yang sudah di-push. Jika merge konflik atau push ditolak, berhenti dan lapor ke user.
+- Remote `origin` disiapkan user. Jika belum ada, laporkan; jangan membuat repo remote sendiri.
 
 ## Claude Code sebagai dependency
 
