@@ -1,0 +1,265 @@
+{
+  "product_name": "Aplikasi Membership Gym",
+  "mvp_features": [
+    {
+      "id": "F-01",
+      "name": "Akun dan login admin",
+      "description": "Pemilik dan staf admin login sebelum memakai aplikasi, baik di HP maupun di web. Data akun dibuat otomatis saat pertama kali masuk.",
+      "source": "fondasi",
+      "sub_features": [
+        "Login dan logout dengan email dan password lewat Firebase Auth",
+        "Reset password",
+        "Akun pengguna dibuat otomatis di server saat request pertama berdasarkan firebase_uid",
+        "Pengecekan token di setiap request ke server"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": "F-02",
+      "name": "Pengelolaan gym dan peran",
+      "description": "Satu gym sebagai organisasi dengan dua peran. Pemilik bisa melakukan semuanya, sedangkan staf admin hanya bisa mengelola member dan perpanjangan.",
+      "source": "fondasi",
+      "sub_features": [
+        "Setup profil gym saat pertama kali dipakai (nama gym, zona waktu, default WIB)",
+        "Pemilik mengundang atau menambahkan staf admin",
+        "Pemilik menonaktifkan atau menghapus akses staf",
+        "Pengecekan hak akses per peran di server untuk setiap aksi",
+        "Semua data diberi penanda gym supaya terisolasi per organisasi"
+      ],
+      "depends_on": [
+        "F-01"
+      ]
+    },
+    {
+      "id": "F-03",
+      "name": "Master paket membership",
+      "description": "Daftar paket (misalnya bulanan, 3 bulan, tahunan) yang dipakai saat menambah member dan saat perpanjangan, supaya tanggal berakhir bisa dihitung otomatis.",
+      "source": "fondasi",
+      "sub_features": [
+        "Pemilik menambah, mengubah, dan menonaktifkan paket",
+        "Setiap paket punya nama, durasi, dan harga acuan",
+        "Paket yang sudah pernah dipakai tidak bisa dihapus permanen, hanya dinonaktifkan"
+      ],
+      "depends_on": [
+        "F-02"
+      ]
+    },
+    {
+      "id": "F-04",
+      "name": "Tambah dan kelola data member",
+      "description": "Admin menambahkan member baru beserta paket dan tanggal berakhirnya, lalu bisa mengubah data member itu kapan saja.",
+      "source": "user",
+      "sub_features": [
+        "Form tambah member: nama, nomor HP, paket, tanggal mulai",
+        "Tanggal berakhir dihitung otomatis dari paket, dan bisa disesuaikan manual",
+        "Opsi mencatat status pembayaran awal (lunas atau belum)",
+        "Edit data member",
+        "Halaman detail member"
+      ],
+      "depends_on": [
+        "F-02",
+        "F-03"
+      ]
+    },
+    {
+      "id": "F-05",
+      "name": "Daftar member dengan status aktif atau habis",
+      "description": "Daftar semua member dengan status yang dihitung di server dari tanggal berakhir paket terakhir, memakai zona waktu gym.",
+      "source": "user",
+      "sub_features": [
+        "Status aktif, akan habis (misalnya 7 hari lagi), dan habis dihitung di server",
+        "Filter berdasarkan status",
+        "Pencarian berdasarkan nama atau nomor HP",
+        "Urutkan berdasarkan tanggal berakhir",
+        "Ringkasan jumlah member aktif dan habis"
+      ],
+      "depends_on": [
+        "F-04"
+      ]
+    },
+    {
+      "id": "F-06",
+      "name": "Perpanjangan membership",
+      "description": "Admin memperpanjang membership member dengan memilih paket. Tanggal berakhir baru dihitung otomatis, status pembayaran dicatat, dan riwayat perpanjangan tetap disimpan.",
+      "source": "user",
+      "sub_features": [
+        "Pilih paket perpanjangan dari master paket",
+        "Tanggal mulai baru otomatis: lanjut dari tanggal berakhir lama kalau masih aktif, atau dari hari ini kalau sudah habis",
+        "Catat status pembayaran (lunas atau belum) dan nominal secara manual",
+        "Riwayat perpanjangan per member",
+        "Catatan siapa admin yang melakukan perpanjangan"
+      ],
+      "depends_on": [
+        "F-04",
+        "F-05"
+      ]
+    },
+    {
+      "id": "F-07",
+      "name": "Notifikasi di dalam aplikasi",
+      "description": "Admin mendapat notifikasi di dalam aplikasi tentang member yang akan habis dan yang sudah habis masa berlakunya.",
+      "source": "user",
+      "sub_features": [
+        "Job terjadwal harian (pg-boss) yang mengecek member akan habis dan sudah habis berdasarkan zona waktu gym",
+        "Daftar notifikasi di dalam aplikasi dengan penanda sudah dibaca atau belum",
+        "Tap notifikasi untuk membuka detail member",
+        "Mencegah notifikasi ganda untuk kejadian yang sama"
+      ],
+      "depends_on": [
+        "F-05"
+      ]
+    },
+    {
+      "id": "F-08",
+      "name": "Push notification ke HP admin",
+      "description": "Notifikasi yang sama dikirim sebagai push notification ke HP pemilik dan staf admin lewat FCM.",
+      "source": "user",
+      "sub_features": [
+        "Minta izin notifikasi dan daftarkan token perangkat saat login",
+        "Hapus token saat logout",
+        "Kirim push via FCM saat notifikasi in-app dibuat",
+        "Pengaturan sederhana untuk menyalakan atau mematikan push per akun"
+      ],
+      "depends_on": [
+        "F-01",
+        "F-07"
+      ]
+    },
+    {
+      "id": "F-09",
+      "name": "Ekspor dan penghapusan data member",
+      "description": "Karena aplikasi menyimpan data pribadi member (nama, nomor HP), pemilik bisa mengekspor data member dan menghapus data member secara permanen.",
+      "source": "fondasi",
+      "sub_features": [
+        "Ekspor daftar member beserta riwayat perpanjangan ke file CSV (khusus pemilik)",
+        "Hapus data member secara permanen beserta riwayatnya, dengan konfirmasi",
+        "Hanya pemilik yang bisa melakukan ekspor dan hapus permanen"
+      ],
+      "depends_on": [
+        "F-02",
+        "F-06"
+      ]
+    }
+  ],
+  "recommended_features": [
+    {
+      "id": "R-01",
+      "name": "Pengingat WhatsApp atau SMS ke member",
+      "reason": "Member bisa langsung diingatkan sebelum masa berlakunya habis, jadi peluang perpanjangan lebih tinggi tanpa admin harus menghubungi satu per satu."
+    },
+    {
+      "id": "R-02",
+      "name": "Check-in kehadiran member (misalnya lewat QR)",
+      "reason": "Membantu memastikan hanya member aktif yang masuk, sekaligus memberi data seberapa sering member datang."
+    },
+    {
+      "id": "R-03",
+      "name": "Laporan pendapatan dan tren perpanjangan",
+      "reason": "Pemilik bisa melihat pemasukan per bulan dan tingkat perpanjangan dari data perpanjangan yang sudah tercatat."
+    },
+    {
+      "id": "R-04",
+      "name": "Impor data member dari spreadsheet",
+      "reason": "Mempercepat perpindahan dari catatan manual atau spreadsheet lama ke aplikasi."
+    },
+    {
+      "id": "R-05",
+      "name": "Portal atau aplikasi untuk member",
+      "reason": "Member bisa mengecek sendiri masa berlakunya, tapi ini butuh perubahan besar di akun dan peran."
+    },
+    {
+      "id": "R-06",
+      "name": "Pembayaran online di dalam aplikasi",
+      "reason": "Perpanjangan bisa langsung dibayar dan statusnya otomatis lunas tanpa dicatat manual."
+    },
+    {
+      "id": "R-07",
+      "name": "Log aktivitas admin",
+      "reason": "Pemilik bisa melihat detail siapa mengubah apa di data member, berguna kalau ada selisih data."
+    },
+    {
+      "id": "R-08",
+      "name": "Dukungan banyak cabang",
+      "reason": "Kalau gym membuka cabang baru, data bisa dipisah per cabang dengan tetap dikelola satu pemilik."
+    }
+  ],
+  "non_goals": [
+    "Member tidak bisa login atau punya aplikasi sendiri di versi pertama",
+    "Pembayaran tidak diproses di dalam aplikasi, hanya dicatat statusnya",
+    "Tidak mendukung banyak cabang atau banyak gym (marketplace)",
+    "Tidak ada kelas grup, booking personal trainer, atau program latihan",
+    "Tidak ada integrasi pihak ketiga, data member diinput manual",
+    "Tidak ada mode offline dan tidak ada pembaruan realtime",
+    "Tidak ada pengingat WhatsApp atau SMS ke member",
+    "Tidak ada check-in kehadiran member",
+    "Tidak ada laporan pendapatan dan tren perpanjangan",
+    "Tidak ada impor data dari spreadsheet",
+    "Tidak ada log aktivitas admin yang detail di luar pencatatan admin pada perpanjangan"
+  ],
+  "phases": [
+    {
+      "phase": 0,
+      "name": "Fondasi",
+      "goal": "Menyiapkan monorepo, skema database awal, login admin, setup gym dengan peran pemilik dan staf, serta master paket membership.",
+      "feature_ids": [
+        "F-01",
+        "F-02",
+        "F-03"
+      ]
+    },
+    {
+      "phase": 1,
+      "name": "Data Member",
+      "goal": "Admin bisa menambahkan member baru beserta paket dan tanggal berakhir, lalu mengubah datanya.",
+      "feature_ids": [
+        "F-04"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Status dan Perpanjangan",
+      "goal": "Admin bisa memantau member aktif atau habis, memperpanjang membership dengan riwayat tersimpan, dan pemilik bisa mengekspor atau menghapus data member.",
+      "feature_ids": [
+        "F-05",
+        "F-06",
+        "F-09"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Notifikasi",
+      "goal": "Admin mendapat notifikasi di dalam aplikasi dan push notification ke HP untuk member yang akan habis atau sudah habis.",
+      "feature_ids": [
+        "F-07",
+        "F-08"
+      ]
+    }
+  ],
+  "technical_decisions": [
+    "Monorepo dengan tiga bagian: aplikasi Flutter (web, Android, iOS), API Hono dengan TypeScript, dan paket kontrak OpenAPI yang menghasilkan client Dart",
+    "Flutter memakai Clean Architecture per fitur, go_router, get_it dengan registrasi manual, Bloc/Cubit, dan error sebagai sealed Result",
+    "Backend memakai Clean Architecture per fitur, dan Zod di route menjadi sumber OpenAPI lewat @hono/zod-openapi",
+    "PostgreSQL dengan Drizzle dan drizzle-kit untuk migrasi, lokal dijalankan lewat Docker Compose",
+    "Login lewat Firebase Auth di aplikasi, server memverifikasi ID token, dan tabel users tanpa password dibuat saat request pertama berdasarkan firebase_uid",
+    "Peran (pemilik, staf) dan keanggotaan gym disimpan di PostgreSQL dan dicek di server untuk setiap aksi",
+    "Semua tabel data bisnis punya kolom gym_id walaupun versi pertama hanya untuk satu gym",
+    "Status membership dihitung di server dari tanggal berakhir periode terakhir memakai zona waktu gym (default Asia/Jakarta), bukan disimpan sebagai kolom statis",
+    "Setiap perpanjangan disimpan sebagai baris periode membership baru, jadi riwayat tidak pernah ditimpa",
+    "Pengecekan member akan habis dan sudah habis dijalankan harian lewat pg-boss di API yang selalu hidup",
+    "Push notification dikirim lewat FCM ke token perangkat admin, dan notifikasi in-app disimpan di PostgreSQL",
+    "API dideploy sebagai container yang selalu hidup, Flutter web di hosting statis, aplikasi HP lewat store",
+    "Testing memakai Vitest untuk API, serta flutter_test, bloc_test, dan mocktail untuk aplikasi, dengan Firebase Auth Emulator untuk lokal"
+  ],
+  "open_questions": [
+    "Apakah masalah utamanya memang susah memantau member aktif dan habis? Ini masih tebakan dan belum dikonfirmasi.",
+    "Apakah benar hanya pemilik dan admin gym yang memakai aplikasi, dan member tidak perlu login sama sekali?",
+    "Berapa hari sebelum masa berlaku habis admin perlu diingatkan (misalnya 7 hari, 3 hari, atau di hari H)?",
+    "Jam berapa notifikasi harian sebaiknya dikirim ke admin?",
+    "Kalau member memperpanjang sebelum masa berlakunya habis, apakah periode baru lanjut dari tanggal berakhir lama atau mulai dari hari perpanjangan?",
+    "Apakah staf boleh mengubah tanggal berakhir secara manual, atau hanya pemilik?",
+    "Apakah staf juga menerima push notification, atau hanya pemilik?",
+    "Apakah ada paket khusus seperti cuti atau freeze membership yang perlu didukung?",
+    "Data member apa saja yang wajib dicatat selain nama dan nomor HP (misalnya foto, tanggal lahir, alamat)?",
+    "Apakah admin lebih sering memakai web di komputer atau aplikasi HP? Ini berpengaruh ke seberapa andal push notification bisa diterima."
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "questions": [
+    {
+      "id": "t1",
+      "topic": "platform",
+      "question": "Aplikasi ini mau dipakai di mana?",
+      "type": "single",
+      "options": [
+        "Di HP (Android dan iOS) dan di web",
+        "Web saja, dibuka lewat browser di komputer atau HP",
+        "HP saja (Android dan iOS)"
+      ],
+      "recommended_default": "Di HP (Android dan iOS) dan di web",
+      "default_reason": "Idenya belum menyebut platform. Pakai HP dan web sekaligus membuat admin bisa cek member dari meja resepsionis atau dari HP-nya sendiri.",
+      "why_it_matters": "Pilihan ini menentukan aplikasi apa saja yang dibuat dan dirilis, termasuk perlu tidaknya masuk ke Play Store dan App Store.",
+      "affects": [
+        "profil",
+        "deployment"
+      ]
+    },
+    {
+      "id": "t2",
+      "topic": "peran_akses",
+      "question": "Siapa saja yang login ke aplikasi, dan apa bedanya hak akses mereka?",
+      "type": "single",
+      "options": [
+        "Pemilik gym dan staf admin. Pemilik bisa semuanya, staf hanya mengelola member dan perpanjangan. Member tidak login.",
+        "Cukup satu jenis akun admin dengan akses penuh",
+        "Admin gym dan member. Member bisa login untuk melihat status dan tanggal berakhir membership-nya sendiri."
+      ],
+      "recommended_default": "Pemilik gym dan staf admin. Pemilik bisa semuanya, staf hanya mengelola member dan perpanjangan. Member tidak login.",
+      "default_reason": "Penggunanya diperkirakan hanya pemilik atau admin gym. Dua peran ini yang paling sederhana dan tetap membuat pemilik pegang kendali, misalnya untuk mengatur paket dan akun staf.",
+      "why_it_matters": "Kalau member ikut login, aplikasi butuh alur pendaftaran dan login untuk member, aturan agar tiap member hanya melihat datanya sendiri, dan tampilan khusus member.",
+      "affects": [
+        "arsitektur",
+        "skema"
+      ]
+    },
+    {
+      "id": "t3",
+      "topic": "notifikasi",
+      "question": "Perlu pengingat saat membership member hampir habis atau sudah habis?",
+      "type": "single",
+      "options": [
+        "Ya, notifikasi di dalam aplikasi ditambah push notification ke HP admin",
+        "Ya, tapi cukup notifikasi di dalam aplikasi saja",
+        "Tidak perlu, cukup lihat status di daftar member",
+        "Ya, dan pengingat juga dikirim langsung ke member lewat WhatsApp atau email (butuh integrasi tambahan)"
+      ],
+      "recommended_default": "Ya, notifikasi di dalam aplikasi ditambah push notification ke HP admin",
+      "default_reason": "Masalah utamanya susah memantau membership yang habis. Pengingat otomatis ke admin paling langsung menyelesaikan itu tanpa perlu layanan pihak ketiga.",
+      "why_it_matters": "Pengingat butuh proses terjadwal di server yang rutin mengecek tanggal berakhir. Kalau dikirim ke member lewat WhatsApp atau email, perlu integrasi dan data kontak tambahan.",
+      "affects": [
+        "arsitektur",
+        "skema",
+        "deployment"
+      ]
+    }
+  ],
+  "profile_recommendation": {
+    "profile": "A",
+    "status": "supported",
+    "reason": "Ini alat internal untuk admin gym, jadi SEO tidak penting. Aplikasi HP juga masuk akal dipakai sekarang atau nanti. Apa pun jawaban soal platform, Flutter untuk web, iOS, dan Android dengan backend API tetap cocok.",
+    "depends_on_questions": [],
+    "fallback_if_unsupported": ""
+  },
+  "detected_risks": [
+    "Masalah dan target pengguna (hanya pemilik atau admin gym) masih TEBAKAN. Kalau ternyata member juga harus bisa login, peran, skema akun, dan penerima notifikasi berubah cukup besar.",
+    "Rekomendasi peran pemilik dan staf dibuat berdasarkan tebakan target pengguna, jadi perlu dikonfirmasi.",
+    "Push notification ke admin hanya berjalan kalau admin memasang aplikasi HP dan mengizinkan notifikasi. Di web, dukungan push terbatas, terutama di iOS Safari.",
+    "Status aktif atau habis harus dihitung di server dengan zona waktu gym yang konsisten (misalnya WIB). Kalau tidak, status bisa salah di sekitar tengah malam."
+  ],
+  "assumptions": [
+    "Hanya untuk satu gym, bukan banyak cabang atau marketplace. Data tetap disimpan dengan penanda gym supaya terisolasi per organisasi dan mudah dikembangkan nanti.",
+    "Pembayaran terjadi di luar aplikasi. Aplikasi hanya mencatat status pembayaran saat perpanjangan.",
+    "Tidak ada integrasi pihak ketiga di versi pertama; data member diinput manual oleh admin.",
+    "Keamanan data standar: wajib login, lewat HTTPS, dan hak akses dicek per akun. Karena menyimpan data pribadi member (nama, nomor HP), disediakan ekspor data dan penghapusan data member.",
+    "Tidak perlu mode offline dan tidak perlu pembaruan realtime. Status membership dan validasi penting dihitung di server.",
+    "Status membership (aktif atau habis) ditentukan dari tanggal berakhir paket terakhir. Riwayat perpanjangan tetap disimpan.",
+    "Kelas grup, booking personal trainer, dan program latihan tidak masuk versi pertama."
+  ]
+}

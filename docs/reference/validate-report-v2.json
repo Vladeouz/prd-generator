@@ -1,0 +1,1002 @@
+{
+  "promptVersion": "v2",
+  "runs": 3,
+  "results": [
+    {
+      "ideaIndex": 0,
+      "run": 1,
+      "ms": 15352,
+      "exitCode": 0,
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "isError": false,
+      "numTurns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 8593,
+        "cache_read_input_tokens": 16023,
+        "output_tokens": 1236,
+        "output_tokens_details": {
+          "thinking_tokens": 218
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 8593,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1236,
+            "cache_read_input_tokens": 16023,
+            "cache_creation_input_tokens": 8593,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 8593
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "costEstimateUsd": 0.0966766,
+      "rawResult": "{\"clarity\":3,\"clarity_reason\":\"Ide sudah menyebut pengguna dan fitur inti tetapi belum menjelaskan masalah utama yang ingin diselesaikan dan apa yang membedakannya dari alat manajemen tugas lain.\",\"questions\":[{\"id\":\"q1\",\"topic\":\"masalah\",\"question\":\"Masalah utama apa yang paling sering dialami tim kecil Anda saat mengelola tugas saat ini?\",\"type\":\"single\",\"options\":[\"Tugas sering terlupa atau terlambat\",\"Tidak jelas siapa mengerjakan apa\",\"Progres tugas sulit dipantau\",\"Koordinasi tersebar di banyak chat\",\"Alat yang ada terlalu rumit\"],\"recommended_default\":\"Tugas sering terlupa atau terlambat\",\"why_it_matters\":\"Masalah utama menentukan fitur mana yang menjadi prioritas dan bagaimana keberhasilan produk diukur di PRD.\"},{\"id\":\"q2\",\"topic\":\"aksi_pertama\",\"question\":\"Apa hal pertama yang dilakukan pengguna setelah mulai memakai aplikasi?\",\"type\":\"single\",\"options\":[\"Membuat tugas dan langsung menugaskannya ke anggota\",\"Membuat tim lalu mengundang anggota\",\"Melihat daftar tugas yang ditugaskan ke dirinya\",\"Membuat proyek lalu menambahkan tugas\"],\"recommended_default\":\"Membuat tugas dan langsung menugaskannya ke anggota\",\"why_it_matters\":\"Aksi pertama menentukan alur onboarding dan layar utama yang harus dirancang paling dulu.\"},{\"id\":\"q3\",\"topic\":\"pembeda\",\"question\":\"Apa yang ingin membuat aplikasi ini berbeda dari alat manajemen tugas yang sudah ada?\",\"type\":\"single\",\"options\":[\"Sangat sederhana dan cepat dipakai\",\"Fokus pada pengingat deadline\",\"Khusus untuk tim berukuran kecil\",\"Gratis tanpa fitur berlebihan\",\"Tampilan ringkas beban kerja tiap anggota\"],\"recommended_default\":\"Sangat sederhana dan cepat dipakai\",\"why_it_matters\":\"Pembeda menjadi dasar keputusan scope dan membantu menolak fitur yang tidak mendukung nilai utama produk.\"}],\"assumptions\":[\"Pengguna adalah tim kecil sekitar 2 sampai 10 orang dengan satu pembuat tugas dan beberapa anggota penerima tugas.\",\"Fitur wajib versi pertama adalah membuat tugas dan menugaskannya ke anggota serta menetapkan deadline dan mengingatkan anggota saat deadline mendekat.\"],\"deferred_technical\":[\"Ide menyebut aplikasi web; platform perlu dikonfirmasi di tahap teknis.\",\"Ide menyebut notifikasi; channel pengiriman notifikasi perlu ditentukan di tahap teknis.\"]}",
+      "data": {
+        "clarity": 3,
+        "clarity_reason": "Ide sudah menyebut pengguna dan fitur inti tetapi belum menjelaskan masalah utama yang ingin diselesaikan dan apa yang membedakannya dari alat manajemen tugas lain.",
+        "questions": [
+          {
+            "id": "q1",
+            "topic": "masalah",
+            "question": "Masalah utama apa yang paling sering dialami tim kecil Anda saat mengelola tugas saat ini?",
+            "type": "single",
+            "options": [
+              "Tugas sering terlupa atau terlambat",
+              "Tidak jelas siapa mengerjakan apa",
+              "Progres tugas sulit dipantau",
+              "Koordinasi tersebar di banyak chat",
+              "Alat yang ada terlalu rumit"
+            ],
+            "recommended_default": "Tugas sering terlupa atau terlambat",
+            "why_it_matters": "Masalah utama menentukan fitur mana yang menjadi prioritas dan bagaimana keberhasilan produk diukur di PRD."
+          },
+          {
+            "id": "q2",
+            "topic": "aksi_pertama",
+            "question": "Apa hal pertama yang dilakukan pengguna setelah mulai memakai aplikasi?",
+            "type": "single",
+            "options": [
+              "Membuat tugas dan langsung menugaskannya ke anggota",
+              "Membuat tim lalu mengundang anggota",
+              "Melihat daftar tugas yang ditugaskan ke dirinya",
+              "Membuat proyek lalu menambahkan tugas"
+            ],
+            "recommended_default": "Membuat tugas dan langsung menugaskannya ke anggota",
+            "why_it_matters": "Aksi pertama menentukan alur onboarding dan layar utama yang harus dirancang paling dulu."
+          },
+          {
+            "id": "q3",
+            "topic": "pembeda",
+            "question": "Apa yang ingin membuat aplikasi ini berbeda dari alat manajemen tugas yang sudah ada?",
+            "type": "single",
+            "options": [
+              "Sangat sederhana dan cepat dipakai",
+              "Fokus pada pengingat deadline",
+              "Khusus untuk tim berukuran kecil",
+              "Gratis tanpa fitur berlebihan",
+              "Tampilan ringkas beban kerja tiap anggota"
+            ],
+            "recommended_default": "Sangat sederhana dan cepat dipakai",
+            "why_it_matters": "Pembeda menjadi dasar keputusan scope dan membantu menolak fitur yang tidak mendukung nilai utama produk."
+          }
+        ],
+        "assumptions": [
+          "Pengguna adalah tim kecil sekitar 2 sampai 10 orang dengan satu pembuat tugas dan beberapa anggota penerima tugas.",
+          "Fitur wajib versi pertama adalah membuat tugas dan menugaskannya ke anggota serta menetapkan deadline dan mengingatkan anggota saat deadline mendekat."
+        ],
+        "deferred_technical": [
+          "Ide menyebut aplikasi web; platform perlu dikonfirmasi di tahap teknis.",
+          "Ide menyebut notifikasi; channel pengiriman notifikasi perlu ditentukan di tahap teknis."
+        ]
+      }
+    },
+    {
+      "ideaIndex": 0,
+      "run": 2,
+      "ms": 15004,
+      "exitCode": 0,
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "isError": false,
+      "numTurns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 24616,
+        "output_tokens": 1275,
+        "output_tokens_details": {
+          "thinking_tokens": 237
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1275,
+            "cache_read_input_tokens": 24616,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "costEstimateUsd": 0.030431200000000002,
+      "rawResult": "{\"clarity\":3,\"clarity_reason\":\"Ide sudah menyebut pengguna (tim kecil) dan fitur inti (pembagian tugas, deadline, notifikasi), tetapi belum menjelaskan masalah utama yang ingin diatasi, alur awal pengguna, dan apa yang membuatnya berbeda.\",\"questions\":[{\"id\":\"q1\",\"topic\":\"masalah\",\"question\":\"Masalah apa yang paling sering dialami tim Anda saat mengelola tugas saat ini?\",\"type\":\"single\",\"options\":[\"Tugas sering terlewat deadline\",\"Tidak jelas siapa mengerjakan apa\",\"Progres tugas sulit dipantau\",\"Tugas tersebar di banyak chat dan catatan\",\"Beban kerja anggota tidak merata\"],\"recommended_default\":\"Tidak jelas siapa mengerjakan apa\",\"why_it_matters\":\"Masalah utama menentukan fokus nilai produk dan metrik keberhasilan di PRD.\"},{\"id\":\"q2\",\"topic\":\"aksi_pertama\",\"question\":\"Apa hal pertama yang dilakukan pengguna setelah mulai memakai aplikasi?\",\"type\":\"single\",\"options\":[\"Membuat tugas lalu menunjuk anggota\",\"Mengundang anggota tim ke ruang kerja\",\"Melihat daftar tugas yang ditugaskan kepadanya\",\"Membuat proyek lalu mengisi tugas\"],\"recommended_default\":\"Membuat tugas lalu menunjuk anggota\",\"why_it_matters\":\"Aksi pertama menentukan alur onboarding dan layar yang wajib ada di versi pertama.\"},{\"id\":\"q3\",\"topic\":\"pembeda\",\"question\":\"Apa yang membuat aplikasi ini lebih cocok untuk tim kecil dibanding alat manajemen tugas yang sudah ada?\",\"type\":\"single\",\"options\":[\"Sangat sederhana tanpa fitur berlebih\",\"Bisa langsung dipakai tanpa pengaturan\",\"Fokus pada pengingat deadline\",\"Gratis untuk tim kecil\",\"Tampilan dalam Bahasa Indonesia\"],\"recommended_default\":\"Sangat sederhana tanpa fitur berlebih\",\"why_it_matters\":\"Pembeda menjadi dasar keputusan apa yang masuk dan apa yang dikeluarkan dari scope.\"}],\"assumptions\":[\"Pengguna utama adalah tim kecil berisi sekitar 3 sampai 10 orang dengan satu orang yang membagi tugas ke anggota.\",\"Fitur wajib versi pertama: membuat tugas, menugaskan tugas ke anggota, menetapkan deadline, menandai tugas selesai, dan pengingat saat deadline mendekat atau tugas baru diberikan.\"],\"deferred_technical\":[\"Ide menyebut aplikasi web; pilihan platform perlu dikonfirmasi di tahap teknis.\",\"Ide menyebut notifikasi; saluran pengiriman notifikasi perlu ditentukan di tahap teknis.\"]}",
+      "data": {
+        "clarity": 3,
+        "clarity_reason": "Ide sudah menyebut pengguna (tim kecil) dan fitur inti (pembagian tugas, deadline, notifikasi), tetapi belum menjelaskan masalah utama yang ingin diatasi, alur awal pengguna, dan apa yang membuatnya berbeda.",
+        "questions": [
+          {
+            "id": "q1",
+            "topic": "masalah",
+            "question": "Masalah apa yang paling sering dialami tim Anda saat mengelola tugas saat ini?",
+            "type": "single",
+            "options": [
+              "Tugas sering terlewat deadline",
+              "Tidak jelas siapa mengerjakan apa",
+              "Progres tugas sulit dipantau",
+              "Tugas tersebar di banyak chat dan catatan",
+              "Beban kerja anggota tidak merata"
+            ],
+            "recommended_default": "Tidak jelas siapa mengerjakan apa",
+            "why_it_matters": "Masalah utama menentukan fokus nilai produk dan metrik keberhasilan di PRD."
+          },
+          {
+            "id": "q2",
+            "topic": "aksi_pertama",
+            "question": "Apa hal pertama yang dilakukan pengguna setelah mulai memakai aplikasi?",
+            "type": "single",
+            "options": [
+              "Membuat tugas lalu menunjuk anggota",
+              "Mengundang anggota tim ke ruang kerja",
+              "Melihat daftar tugas yang ditugaskan kepadanya",
+              "Membuat proyek lalu mengisi tugas"
+            ],
+            "recommended_default": "Membuat tugas lalu menunjuk anggota",
+            "why_it_matters": "Aksi pertama menentukan alur onboarding dan layar yang wajib ada di versi pertama."
+          },
+          {
+            "id": "q3",
+            "topic": "pembeda",
+            "question": "Apa yang membuat aplikasi ini lebih cocok untuk tim kecil dibanding alat manajemen tugas yang sudah ada?",
+            "type": "single",
+            "options": [
+              "Sangat sederhana tanpa fitur berlebih",
+              "Bisa langsung dipakai tanpa pengaturan",
+              "Fokus pada pengingat deadline",
+              "Gratis untuk tim kecil",
+              "Tampilan dalam Bahasa Indonesia"
+            ],
+            "recommended_default": "Sangat sederhana tanpa fitur berlebih",
+            "why_it_matters": "Pembeda menjadi dasar keputusan apa yang masuk dan apa yang dikeluarkan dari scope."
+          }
+        ],
+        "assumptions": [
+          "Pengguna utama adalah tim kecil berisi sekitar 3 sampai 10 orang dengan satu orang yang membagi tugas ke anggota.",
+          "Fitur wajib versi pertama: membuat tugas, menugaskan tugas ke anggota, menetapkan deadline, menandai tugas selesai, dan pengingat saat deadline mendekat atau tugas baru diberikan."
+        ],
+        "deferred_technical": [
+          "Ide menyebut aplikasi web; pilihan platform perlu dikonfirmasi di tahap teknis.",
+          "Ide menyebut notifikasi; saluran pengiriman notifikasi perlu ditentukan di tahap teknis."
+        ]
+      }
+    },
+    {
+      "ideaIndex": 0,
+      "run": 3,
+      "ms": 16010,
+      "exitCode": 0,
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "isError": false,
+      "numTurns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 24616,
+        "output_tokens": 1230,
+        "output_tokens_details": {
+          "thinking_tokens": 199
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1230,
+            "cache_read_input_tokens": 24616,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "costEstimateUsd": 0.0295312,
+      "rawResult": "{\"clarity\":3,\"clarity_reason\":\"Pengguna dan fitur inti seperti pembagian tugas dan deadline sudah disebut tetapi pembeda serta batas fitur versi pertama belum jelas.\",\"questions\":[{\"id\":\"q1\",\"topic\":\"fitur_wajib\",\"question\":\"Selain membuat tugas dan menugaskan anggota dengan deadline apa saja yang wajib ada di versi pertama?\",\"type\":\"multi\",\"options\":[\"Status tugas sederhana (belum/sedang/selesai)\",\"Komentar di tugas\",\"Lampiran file\",\"Prioritas tugas\",\"Tampilan papan kanban\",\"Daftar tugas saya\"],\"recommended_default\":[\"Status tugas sederhana (belum/sedang/selesai)\",\"Daftar tugas saya\"],\"why_it_matters\":\"Menentukan batas scope versi pertama dan daftar kebutuhan fungsional di PRD.\"},{\"id\":\"q2\",\"topic\":\"aksi_pertama\",\"question\":\"Apa hal pertama yang dilakukan pengguna setelah masuk ke aplikasi untuk pertama kali?\",\"type\":\"single\",\"options\":[\"Membuat tugas pertama\",\"Mengundang anggota tim\",\"Membuat proyek atau daftar tugas\",\"Melihat tugas yang ditugaskan kepadanya\"],\"recommended_default\":\"Membuat tugas pertama\",\"why_it_matters\":\"Menentukan alur onboarding dan momen pertama pengguna merasakan manfaat aplikasi.\"},{\"id\":\"q3\",\"topic\":\"pembeda\",\"question\":\"Apa yang membuat aplikasi ini lebih cocok untuk tim kecil dibanding alat manajemen tugas yang sudah ada?\",\"type\":\"single\",\"options\":[\"Sangat sederhana dan cepat dipakai\",\"Gratis untuk tim kecil\",\"Fokus pada pengingat deadline\",\"Berbahasa Indonesia\",\"Tanpa pengaturan rumit\"],\"recommended_default\":\"Sangat sederhana dan cepat dipakai\",\"why_it_matters\":\"Pembeda menjadi dasar positioning dan panduan untuk memutuskan fitur mana yang dibuang.\"}],\"assumptions\":[\"Pengguna utama adalah tim kecil sekitar 2 sampai 10 orang dengan satu orang yang membagi tugas dan anggota yang mengerjakan.\",\"Masalah utama adalah tugas tim tercecer dan deadline sering terlewat karena tidak ada satu tempat untuk mencatat siapa mengerjakan apa.\",\"Notifikasi di versi pertama cukup untuk tugas baru yang ditugaskan dan deadline yang mendekat.\"],\"deferred_technical\":[\"Ide menyebut aplikasi web sehingga platform perlu dikonfirmasi di tahap teknis.\",\"Saluran pengiriman notifikasi perlu ditentukan di tahap teknis.\",\"Cara anggota bergabung ke tim dan masuk ke aplikasi perlu dibahas di tahap teknis.\"]}",
+      "data": {
+        "clarity": 3,
+        "clarity_reason": "Pengguna dan fitur inti seperti pembagian tugas dan deadline sudah disebut tetapi pembeda serta batas fitur versi pertama belum jelas.",
+        "questions": [
+          {
+            "id": "q1",
+            "topic": "fitur_wajib",
+            "question": "Selain membuat tugas dan menugaskan anggota dengan deadline apa saja yang wajib ada di versi pertama?",
+            "type": "multi",
+            "options": [
+              "Status tugas sederhana (belum/sedang/selesai)",
+              "Komentar di tugas",
+              "Lampiran file",
+              "Prioritas tugas",
+              "Tampilan papan kanban",
+              "Daftar tugas saya"
+            ],
+            "recommended_default": [
+              "Status tugas sederhana (belum/sedang/selesai)",
+              "Daftar tugas saya"
+            ],
+            "why_it_matters": "Menentukan batas scope versi pertama dan daftar kebutuhan fungsional di PRD."
+          },
+          {
+            "id": "q2",
+            "topic": "aksi_pertama",
+            "question": "Apa hal pertama yang dilakukan pengguna setelah masuk ke aplikasi untuk pertama kali?",
+            "type": "single",
+            "options": [
+              "Membuat tugas pertama",
+              "Mengundang anggota tim",
+              "Membuat proyek atau daftar tugas",
+              "Melihat tugas yang ditugaskan kepadanya"
+            ],
+            "recommended_default": "Membuat tugas pertama",
+            "why_it_matters": "Menentukan alur onboarding dan momen pertama pengguna merasakan manfaat aplikasi."
+          },
+          {
+            "id": "q3",
+            "topic": "pembeda",
+            "question": "Apa yang membuat aplikasi ini lebih cocok untuk tim kecil dibanding alat manajemen tugas yang sudah ada?",
+            "type": "single",
+            "options": [
+              "Sangat sederhana dan cepat dipakai",
+              "Gratis untuk tim kecil",
+              "Fokus pada pengingat deadline",
+              "Berbahasa Indonesia",
+              "Tanpa pengaturan rumit"
+            ],
+            "recommended_default": "Sangat sederhana dan cepat dipakai",
+            "why_it_matters": "Pembeda menjadi dasar positioning dan panduan untuk memutuskan fitur mana yang dibuang."
+          }
+        ],
+        "assumptions": [
+          "Pengguna utama adalah tim kecil sekitar 2 sampai 10 orang dengan satu orang yang membagi tugas dan anggota yang mengerjakan.",
+          "Masalah utama adalah tugas tim tercecer dan deadline sering terlewat karena tidak ada satu tempat untuk mencatat siapa mengerjakan apa.",
+          "Notifikasi di versi pertama cukup untuk tugas baru yang ditugaskan dan deadline yang mendekat."
+        ],
+        "deferred_technical": [
+          "Ide menyebut aplikasi web sehingga platform perlu dikonfirmasi di tahap teknis.",
+          "Saluran pengiriman notifikasi perlu ditentukan di tahap teknis.",
+          "Cara anggota bergabung ke tim dan masuk ke aplikasi perlu dibahas di tahap teknis."
+        ]
+      }
+    },
+    {
+      "ideaIndex": 1,
+      "run": 1,
+      "ms": 15146,
+      "exitCode": 0,
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "isError": false,
+      "numTurns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 7072,
+        "cache_read_input_tokens": 17535,
+        "output_tokens": 1190,
+        "output_tokens_details": {
+          "thinking_tokens": 206
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7072,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1190,
+            "cache_read_input_tokens": 17535,
+            "cache_creation_input_tokens": 7072,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 7072
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "costEstimateUsd": 0.08389100000000001,
+      "rawResult": "{\n  \"clarity\": 3,\n  \"clarity_reason\": \"Inti produk (booking lapangan futsal) dan dua jenis pengguna sudah jelas tetapi masalah utama yang diselesaikan dan cakupan fitur versi pertama belum dijelaskan.\",\n  \"questions\": [\n    {\n      \"id\": \"q1\",\n      \"topic\": \"fitur_wajib\",\n      \"question\": \"Fitur apa saja yang wajib ada di versi pertama?\",\n      \"type\": \"multi\",\n      \"options\": [\"Lihat jadwal slot kosong\", \"Booking slot oleh pemain\", \"Kelola jadwal dan harga oleh pemilik\", \"Pembayaran DP atau lunas di aplikasi\", \"Pembatalan dan reschedule\", \"Laporan pendapatan untuk pemilik\"],\n      \"recommended_default\": [\"Lihat jadwal slot kosong\", \"Booking slot oleh pemain\", \"Kelola jadwal dan harga oleh pemilik\"],\n      \"why_it_matters\": \"Menentukan batas scope MVP dan daftar kebutuhan fungsional di PRD.\"\n    },\n    {\n      \"id\": \"q2\",\n      \"topic\": \"masalah\",\n      \"question\": \"Masalah utama apa yang paling ingin diselesaikan?\",\n      \"type\": \"single\",\n      \"options\": [\"Pemain sulit tahu slot yang masih kosong\", \"Pemilik repot mencatat booking manual\", \"Sering terjadi jadwal bentrok atau dobel booking\", \"Banyak pemain batal tanpa kabar\"],\n      \"recommended_default\": \"Sering terjadi jadwal bentrok atau dobel booking\",\n      \"why_it_matters\": \"Masalah utama menjadi dasar tujuan produk dan metrik keberhasilan di PRD.\"\n    },\n    {\n      \"id\": \"q3\",\n      \"topic\": \"aksi_pertama\",\n      \"question\": \"Apa aksi pertama yang dilakukan pemain saat membuka aplikasi?\",\n      \"type\": \"single\",\n      \"options\": [\"Pilih lapangan lalu lihat jadwal\", \"Pilih tanggal dan jam lalu cari lapangan tersedia\", \"Langsung lihat jadwal satu lapangan tertentu\"],\n      \"recommended_default\": \"Langsung lihat jadwal satu lapangan tertentu\",\n      \"why_it_matters\": \"Menentukan alur utama pengguna dan apakah versi pertama melayani satu atau banyak lapangan.\"\n    }\n  ],\n  \"assumptions\": [\n    \"Pengguna terdiri dari dua peran yaitu pemilik lapangan yang mengelola jadwal dan pemain yang melakukan booking.\"\n  ],\n  \"deferred_technical\": [\n    \"Ide menyebut aplikasi bisa diakses di HP dan web; pilihan platform perlu dibahas di tahap teknis.\"\n  ]\n}",
+      "data": {
+        "clarity": 3,
+        "clarity_reason": "Inti produk (booking lapangan futsal) dan dua jenis pengguna sudah jelas tetapi masalah utama yang diselesaikan dan cakupan fitur versi pertama belum dijelaskan.",
+        "questions": [
+          {
+            "id": "q1",
+            "topic": "fitur_wajib",
+            "question": "Fitur apa saja yang wajib ada di versi pertama?",
+            "type": "multi",
+            "options": [
+              "Lihat jadwal slot kosong",
+              "Booking slot oleh pemain",
+              "Kelola jadwal dan harga oleh pemilik",
+              "Pembayaran DP atau lunas di aplikasi",
+              "Pembatalan dan reschedule",
+              "Laporan pendapatan untuk pemilik"
+            ],
+            "recommended_default": [
+              "Lihat jadwal slot kosong",
+              "Booking slot oleh pemain",
+              "Kelola jadwal dan harga oleh pemilik"
+            ],
+            "why_it_matters": "Menentukan batas scope MVP dan daftar kebutuhan fungsional di PRD."
+          },
+          {
+            "id": "q2",
+            "topic": "masalah",
+            "question": "Masalah utama apa yang paling ingin diselesaikan?",
+            "type": "single",
+            "options": [
+              "Pemain sulit tahu slot yang masih kosong",
+              "Pemilik repot mencatat booking manual",
+              "Sering terjadi jadwal bentrok atau dobel booking",
+              "Banyak pemain batal tanpa kabar"
+            ],
+            "recommended_default": "Sering terjadi jadwal bentrok atau dobel booking",
+            "why_it_matters": "Masalah utama menjadi dasar tujuan produk dan metrik keberhasilan di PRD."
+          },
+          {
+            "id": "q3",
+            "topic": "aksi_pertama",
+            "question": "Apa aksi pertama yang dilakukan pemain saat membuka aplikasi?",
+            "type": "single",
+            "options": [
+              "Pilih lapangan lalu lihat jadwal",
+              "Pilih tanggal dan jam lalu cari lapangan tersedia",
+              "Langsung lihat jadwal satu lapangan tertentu"
+            ],
+            "recommended_default": "Langsung lihat jadwal satu lapangan tertentu",
+            "why_it_matters": "Menentukan alur utama pengguna dan apakah versi pertama melayani satu atau banyak lapangan."
+          }
+        ],
+        "assumptions": [
+          "Pengguna terdiri dari dua peran yaitu pemilik lapangan yang mengelola jadwal dan pemain yang melakukan booking."
+        ],
+        "deferred_technical": [
+          "Ide menyebut aplikasi bisa diakses di HP dan web; pilihan platform perlu dibahas di tahap teknis."
+        ]
+      }
+    },
+    {
+      "ideaIndex": 1,
+      "run": 2,
+      "ms": 14206,
+      "exitCode": 0,
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "isError": false,
+      "numTurns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 24607,
+        "output_tokens": 1081,
+        "output_tokens_details": {
+          "thinking_tokens": 199
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1081,
+            "cache_read_input_tokens": 24607,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "costEstimateUsd": 0.0265494,
+      "rawResult": "{\"clarity\":3,\"clarity_reason\":\"Ide sudah menyebut fungsi inti (booking lapangan futsal) dan dua kelompok pengguna, tetapi belum menjelaskan masalah utama, fitur wajib versi pertama, dan pembedanya.\",\"questions\":[{\"id\":\"q1\",\"topic\":\"fitur_wajib\",\"question\":\"Fitur apa saja yang wajib ada di versi pertama?\",\"type\":\"multi\",\"options\":[\"Lihat jadwal lapangan yang kosong\",\"Booking slot jam\",\"Konfirmasi booking oleh pemilik\",\"Pembayaran uang muka\",\"Kelola harga per jam\",\"Riwayat booking\"],\"recommended_default\":[\"Lihat jadwal lapangan yang kosong\",\"Booking slot jam\",\"Konfirmasi booking oleh pemilik\"],\"why_it_matters\":\"Fitur wajib menentukan cakupan utama PRD dan batas versi pertama.\"},{\"id\":\"q2\",\"topic\":\"masalah\",\"question\":\"Masalah utama apa yang paling ingin diselesaikan?\",\"type\":\"single\",\"options\":[\"Pemain sulit tahu jadwal yang kosong\",\"Pemilik repot mencatat booking secara manual\",\"Sering terjadi jadwal bentrok atau dobel booking\",\"Banyak pemain batal tanpa kabar\"],\"recommended_default\":\"Pemain sulit tahu jadwal yang kosong\",\"why_it_matters\":\"Masalah utama menjadi dasar tujuan produk dan ukuran keberhasilannya.\"},{\"id\":\"q3\",\"topic\":\"aksi_pertama\",\"question\":\"Apa hal pertama yang dilakukan pemain saat membuka aplikasi?\",\"type\":\"single\",\"options\":[\"Memilih tanggal dan melihat slot kosong\",\"Mencari lapangan terdekat\",\"Memilih lapangan dari daftar\",\"Langsung booking di lapangan langganan\"],\"recommended_default\":\"Memilih tanggal dan melihat slot kosong\",\"why_it_matters\":\"Aksi pertama menentukan alur utama pengguna yang harus dirancang paling mulus.\"}],\"assumptions\":[\"Pengguna terdiri dari dua peran: pemilik lapangan yang mengelola jadwal dan pemain yang memesan slot.\",\"Pembeda di versi pertama cukup berupa kemudahan melihat slot kosong dan booking tanpa perlu menghubungi pemilik secara manual.\"],\"deferred_technical\":[\"Ide menyebut aplikasi bisa dipakai di HP dan web. Pilihan platform ditentukan di tahap teknis.\"]}",
+      "data": {
+        "clarity": 3,
+        "clarity_reason": "Ide sudah menyebut fungsi inti (booking lapangan futsal) dan dua kelompok pengguna, tetapi belum menjelaskan masalah utama, fitur wajib versi pertama, dan pembedanya.",
+        "questions": [
+          {
+            "id": "q1",
+            "topic": "fitur_wajib",
+            "question": "Fitur apa saja yang wajib ada di versi pertama?",
+            "type": "multi",
+            "options": [
+              "Lihat jadwal lapangan yang kosong",
+              "Booking slot jam",
+              "Konfirmasi booking oleh pemilik",
+              "Pembayaran uang muka",
+              "Kelola harga per jam",
+              "Riwayat booking"
+            ],
+            "recommended_default": [
+              "Lihat jadwal lapangan yang kosong",
+              "Booking slot jam",
+              "Konfirmasi booking oleh pemilik"
+            ],
+            "why_it_matters": "Fitur wajib menentukan cakupan utama PRD dan batas versi pertama."
+          },
+          {
+            "id": "q2",
+            "topic": "masalah",
+            "question": "Masalah utama apa yang paling ingin diselesaikan?",
+            "type": "single",
+            "options": [
+              "Pemain sulit tahu jadwal yang kosong",
+              "Pemilik repot mencatat booking secara manual",
+              "Sering terjadi jadwal bentrok atau dobel booking",
+              "Banyak pemain batal tanpa kabar"
+            ],
+            "recommended_default": "Pemain sulit tahu jadwal yang kosong",
+            "why_it_matters": "Masalah utama menjadi dasar tujuan produk dan ukuran keberhasilannya."
+          },
+          {
+            "id": "q3",
+            "topic": "aksi_pertama",
+            "question": "Apa hal pertama yang dilakukan pemain saat membuka aplikasi?",
+            "type": "single",
+            "options": [
+              "Memilih tanggal dan melihat slot kosong",
+              "Mencari lapangan terdekat",
+              "Memilih lapangan dari daftar",
+              "Langsung booking di lapangan langganan"
+            ],
+            "recommended_default": "Memilih tanggal dan melihat slot kosong",
+            "why_it_matters": "Aksi pertama menentukan alur utama pengguna yang harus dirancang paling mulus."
+          }
+        ],
+        "assumptions": [
+          "Pengguna terdiri dari dua peran: pemilik lapangan yang mengelola jadwal dan pemain yang memesan slot.",
+          "Pembeda di versi pertama cukup berupa kemudahan melihat slot kosong dan booking tanpa perlu menghubungi pemilik secara manual."
+        ],
+        "deferred_technical": [
+          "Ide menyebut aplikasi bisa dipakai di HP dan web. Pilihan platform ditentukan di tahap teknis."
+        ]
+      }
+    },
+    {
+      "ideaIndex": 1,
+      "run": 3,
+      "ms": 18290,
+      "exitCode": 0,
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "isError": false,
+      "numTurns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 24607,
+        "output_tokens": 1637,
+        "output_tokens_details": {
+          "thinking_tokens": 736
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1637,
+            "cache_read_input_tokens": 24607,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "costEstimateUsd": 0.0376694,
+      "rawResult": "{\"clarity\":3,\"clarity_reason\":\"Jenis produk dan dua kelompok pengguna sudah jelas tetapi masalah utama yang diselesaikan cakupan fitur versi pertama dan alur awal pemain belum dijelaskan.\",\"questions\":[{\"id\":\"q1\",\"topic\":\"fitur_wajib\",\"question\":\"Fitur apa saja yang wajib ada di versi pertama?\",\"type\":\"multi\",\"options\":[\"Lihat jadwal slot yang kosong\",\"Booking slot per jam\",\"Konfirmasi booking oleh pemilik\",\"Pembayaran uang muka\",\"Atur harga per jam oleh pemilik\",\"Riwayat booking\"],\"recommended_default\":[\"Lihat jadwal slot yang kosong\",\"Booking slot per jam\",\"Konfirmasi booking oleh pemilik\"],\"why_it_matters\":\"Daftar fitur wajib menentukan batas scope dan isi utama PRD versi pertama.\"},{\"id\":\"q2\",\"topic\":\"masalah\",\"question\":\"Masalah utama apa yang paling ingin diselesaikan aplikasi ini?\",\"type\":\"single\",\"options\":[\"Pemilik kewalahan mencatat booking secara manual\",\"Sering terjadi booking bentrok\",\"Pemain sulit tahu jadwal yang kosong\",\"Banyak pemain batal tanpa kabar\"],\"recommended_default\":\"Pemilik kewalahan mencatat booking secara manual\",\"why_it_matters\":\"Masalah utama menjadi dasar tujuan produk dan ukuran keberhasilan di PRD.\"},{\"id\":\"q3\",\"topic\":\"aksi_pertama\",\"question\":\"Apa hal pertama yang dilakukan pemain saat membuka aplikasi?\",\"type\":\"single\",\"options\":[\"Melihat jadwal kosong di satu lapangan\",\"Mencari lapangan dari banyak pemilik\",\"Langsung memilih jam dan booking\"],\"recommended_default\":\"Melihat jadwal kosong di satu lapangan\",\"why_it_matters\":\"Aksi pertama menentukan apakah produk melayani satu tempat futsal atau menjadi marketplace banyak lapangan.\"}],\"assumptions\":[\"Pengguna terdiri dari dua peran yaitu pemilik lapangan yang mengelola jadwal dan pemain yang melakukan booking.\",\"Untuk versi pertama pembeda utamanya adalah kemudahan melihat jadwal dan booking tanpa perlu menghubungi pemilik secara langsung.\"],\"deferred_technical\":[\"Ide menyebut aplikasi harus bisa diakses di HP dan web sehingga pilihan platform perlu dibahas di tahap teknis.\"]}",
+      "data": {
+        "clarity": 3,
+        "clarity_reason": "Jenis produk dan dua kelompok pengguna sudah jelas tetapi masalah utama yang diselesaikan cakupan fitur versi pertama dan alur awal pemain belum dijelaskan.",
+        "questions": [
+          {
+            "id": "q1",
+            "topic": "fitur_wajib",
+            "question": "Fitur apa saja yang wajib ada di versi pertama?",
+            "type": "multi",
+            "options": [
+              "Lihat jadwal slot yang kosong",
+              "Booking slot per jam",
+              "Konfirmasi booking oleh pemilik",
+              "Pembayaran uang muka",
+              "Atur harga per jam oleh pemilik",
+              "Riwayat booking"
+            ],
+            "recommended_default": [
+              "Lihat jadwal slot yang kosong",
+              "Booking slot per jam",
+              "Konfirmasi booking oleh pemilik"
+            ],
+            "why_it_matters": "Daftar fitur wajib menentukan batas scope dan isi utama PRD versi pertama."
+          },
+          {
+            "id": "q2",
+            "topic": "masalah",
+            "question": "Masalah utama apa yang paling ingin diselesaikan aplikasi ini?",
+            "type": "single",
+            "options": [
+              "Pemilik kewalahan mencatat booking secara manual",
+              "Sering terjadi booking bentrok",
+              "Pemain sulit tahu jadwal yang kosong",
+              "Banyak pemain batal tanpa kabar"
+            ],
+            "recommended_default": "Pemilik kewalahan mencatat booking secara manual",
+            "why_it_matters": "Masalah utama menjadi dasar tujuan produk dan ukuran keberhasilan di PRD."
+          },
+          {
+            "id": "q3",
+            "topic": "aksi_pertama",
+            "question": "Apa hal pertama yang dilakukan pemain saat membuka aplikasi?",
+            "type": "single",
+            "options": [
+              "Melihat jadwal kosong di satu lapangan",
+              "Mencari lapangan dari banyak pemilik",
+              "Langsung memilih jam dan booking"
+            ],
+            "recommended_default": "Melihat jadwal kosong di satu lapangan",
+            "why_it_matters": "Aksi pertama menentukan apakah produk melayani satu tempat futsal atau menjadi marketplace banyak lapangan."
+          }
+        ],
+        "assumptions": [
+          "Pengguna terdiri dari dua peran yaitu pemilik lapangan yang mengelola jadwal dan pemain yang melakukan booking.",
+          "Untuk versi pertama pembeda utamanya adalah kemudahan melihat jadwal dan booking tanpa perlu menghubungi pemilik secara langsung."
+        ],
+        "deferred_technical": [
+          "Ide menyebut aplikasi harus bisa diakses di HP dan web sehingga pilihan platform perlu dibahas di tahap teknis."
+        ]
+      }
+    },
+    {
+      "ideaIndex": 2,
+      "run": 1,
+      "ms": 14334,
+      "exitCode": 0,
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "isError": false,
+      "numTurns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 7043,
+        "cache_read_input_tokens": 17535,
+        "output_tokens": 1106,
+        "output_tokens_details": {
+          "thinking_tokens": 125
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7043,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1106,
+            "cache_read_input_tokens": 17535,
+            "cache_creation_input_tokens": 7043,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 7043
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "costEstimateUsd": 0.081979,
+      "rawResult": "{\"clarity\":2,\"clarity_reason\":\"Ide hanya menyebut kategori produk dan penggunanya secara umum tanpa menjelaskan masalah utama fitur inti atau pembeda.\",\"questions\":[{\"id\":\"q1\",\"topic\":\"masalah\",\"question\":\"Masalah utama apa yang paling ingin diselesaikan oleh catatan keuangan ini?\",\"type\":\"single\",\"options\":[\"Tidak tahu uang habis ke mana\",\"Sering melebihi anggaran bulanan\",\"Sulit menabung untuk tujuan tertentu\",\"Lupa membayar tagihan rutin\",\"Pencatatan manual terasa merepotkan\"],\"recommended_default\":\"Tidak tahu uang habis ke mana\",\"why_it_matters\":\"Masalah utama menentukan fokus nilai produk dan metrik keberhasilan di PRD.\"},{\"id\":\"q2\",\"topic\":\"fitur_wajib\",\"question\":\"Fitur apa yang wajib ada di versi pertama?\",\"type\":\"multi\",\"options\":[\"Catat pemasukan dan pengeluaran\",\"Kategori transaksi\",\"Ringkasan bulanan\",\"Anggaran per kategori\",\"Target tabungan\",\"Pengingat tagihan\"],\"recommended_default\":[\"Catat pemasukan dan pengeluaran\",\"Kategori transaksi\",\"Ringkasan bulanan\"],\"why_it_matters\":\"Daftar fitur wajib membatasi scope versi pertama agar tidak melebar.\"},{\"id\":\"q3\",\"topic\":\"aksi_pertama\",\"question\":\"Apa hal pertama yang dilakukan pengguna setelah membuka produk untuk pertama kali?\",\"type\":\"single\",\"options\":[\"Langsung mencatat transaksi pertama\",\"Mengisi saldo awal\",\"Membuat anggaran bulanan\",\"Memilih kategori pengeluaran\"],\"recommended_default\":\"Langsung mencatat transaksi pertama\",\"why_it_matters\":\"Aksi pertama menentukan alur onboarding dan seberapa cepat pengguna merasakan manfaat.\"},{\"id\":\"q4\",\"topic\":\"pembeda\",\"question\":\"Apa yang membuat produk ini berbeda dari aplikasi catatan keuangan yang sudah ada?\",\"type\":\"single\",\"options\":[\"Pencatatan super cepat dalam hitungan detik\",\"Tampilan sangat sederhana tanpa fitur berlebih\",\"Laporan yang mudah dipahami orang awam\",\"Fokus pada kebiasaan menabung\",\"Belum ada pembeda khusus\"],\"recommended_default\":\"Pencatatan super cepat dalam hitungan detik\",\"why_it_matters\":\"Pembeda menjadi dasar positioning dan prioritas pengalaman pengguna di PRD.\"}],\"assumptions\":[\"Pengguna adalah individu yang mencatat keuangannya sendiri tanpa berbagi dengan orang lain.\"],\"deferred_technical\":[]}",
+      "data": {
+        "clarity": 2,
+        "clarity_reason": "Ide hanya menyebut kategori produk dan penggunanya secara umum tanpa menjelaskan masalah utama fitur inti atau pembeda.",
+        "questions": [
+          {
+            "id": "q1",
+            "topic": "masalah",
+            "question": "Masalah utama apa yang paling ingin diselesaikan oleh catatan keuangan ini?",
+            "type": "single",
+            "options": [
+              "Tidak tahu uang habis ke mana",
+              "Sering melebihi anggaran bulanan",
+              "Sulit menabung untuk tujuan tertentu",
+              "Lupa membayar tagihan rutin",
+              "Pencatatan manual terasa merepotkan"
+            ],
+            "recommended_default": "Tidak tahu uang habis ke mana",
+            "why_it_matters": "Masalah utama menentukan fokus nilai produk dan metrik keberhasilan di PRD."
+          },
+          {
+            "id": "q2",
+            "topic": "fitur_wajib",
+            "question": "Fitur apa yang wajib ada di versi pertama?",
+            "type": "multi",
+            "options": [
+              "Catat pemasukan dan pengeluaran",
+              "Kategori transaksi",
+              "Ringkasan bulanan",
+              "Anggaran per kategori",
+              "Target tabungan",
+              "Pengingat tagihan"
+            ],
+            "recommended_default": [
+              "Catat pemasukan dan pengeluaran",
+              "Kategori transaksi",
+              "Ringkasan bulanan"
+            ],
+            "why_it_matters": "Daftar fitur wajib membatasi scope versi pertama agar tidak melebar."
+          },
+          {
+            "id": "q3",
+            "topic": "aksi_pertama",
+            "question": "Apa hal pertama yang dilakukan pengguna setelah membuka produk untuk pertama kali?",
+            "type": "single",
+            "options": [
+              "Langsung mencatat transaksi pertama",
+              "Mengisi saldo awal",
+              "Membuat anggaran bulanan",
+              "Memilih kategori pengeluaran"
+            ],
+            "recommended_default": "Langsung mencatat transaksi pertama",
+            "why_it_matters": "Aksi pertama menentukan alur onboarding dan seberapa cepat pengguna merasakan manfaat."
+          },
+          {
+            "id": "q4",
+            "topic": "pembeda",
+            "question": "Apa yang membuat produk ini berbeda dari aplikasi catatan keuangan yang sudah ada?",
+            "type": "single",
+            "options": [
+              "Pencatatan super cepat dalam hitungan detik",
+              "Tampilan sangat sederhana tanpa fitur berlebih",
+              "Laporan yang mudah dipahami orang awam",
+              "Fokus pada kebiasaan menabung",
+              "Belum ada pembeda khusus"
+            ],
+            "recommended_default": "Pencatatan super cepat dalam hitungan detik",
+            "why_it_matters": "Pembeda menjadi dasar positioning dan prioritas pengalaman pengguna di PRD."
+          }
+        ],
+        "assumptions": [
+          "Pengguna adalah individu yang mencatat keuangannya sendiri tanpa berbagi dengan orang lain."
+        ],
+        "deferred_technical": []
+      }
+    },
+    {
+      "ideaIndex": 2,
+      "run": 2,
+      "ms": 14065,
+      "exitCode": 0,
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "isError": false,
+      "numTurns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 24578,
+        "output_tokens": 1141,
+        "output_tokens_details": {
+          "thinking_tokens": 133
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1141,
+            "cache_read_input_tokens": 24578,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "costEstimateUsd": 0.0277436,
+      "rawResult": "{\"clarity\":2,\"clarity_reason\":\"Ide sudah menyebut domain dan pengguna (individu yang mencatat keuangannya sendiri), tetapi belum menjelaskan masalah utama, fitur inti, atau apa yang membuatnya berbeda.\",\"questions\":[{\"id\":\"q1\",\"topic\":\"masalah\",\"question\":\"Masalah utama apa yang paling ingin diselesaikan oleh catatan keuangan pribadi ini?\",\"type\":\"single\",\"options\":[\"Tidak tahu uang habis ke mana\",\"Sering melebihi anggaran bulanan\",\"Sulit menabung untuk tujuan tertentu\",\"Lupa membayar tagihan rutin\",\"Catatan tersebar di banyak tempat\"],\"recommended_default\":\"Tidak tahu uang habis ke mana\",\"why_it_matters\":\"Masalah utama menentukan tujuan produk dan metrik keberhasilan di PRD.\"},{\"id\":\"q2\",\"topic\":\"fitur_wajib\",\"question\":\"Fitur apa saja yang wajib ada di versi pertama?\",\"type\":\"multi\",\"options\":[\"Catat pemasukan dan pengeluaran\",\"Kategori transaksi\",\"Ringkasan bulanan\",\"Anggaran per kategori\",\"Target tabungan\",\"Pengingat tagihan\"],\"recommended_default\":[\"Catat pemasukan dan pengeluaran\",\"Kategori transaksi\",\"Ringkasan bulanan\"],\"why_it_matters\":\"Daftar fitur wajib membatasi scope versi pertama dan menjadi inti bagian kebutuhan fungsional.\"},{\"id\":\"q3\",\"topic\":\"aksi_pertama\",\"question\":\"Apa hal pertama yang dilakukan pengguna saat pertama kali memakai produk ini?\",\"type\":\"single\",\"options\":[\"Langsung mencatat transaksi pertama\",\"Mengisi saldo awal\",\"Membuat anggaran bulanan\",\"Memilih kategori pengeluaran\"],\"recommended_default\":\"Langsung mencatat transaksi pertama\",\"why_it_matters\":\"Aksi pertama menentukan alur onboarding dan seberapa cepat pengguna merasakan manfaat produk.\"},{\"id\":\"q4\",\"topic\":\"pembeda\",\"question\":\"Apa yang membuat produk ini berbeda dari aplikasi pencatat keuangan yang sudah ada?\",\"type\":\"single\",\"options\":[\"Pencatatan sangat cepat dan sederhana\",\"Tampilan ringkasan yang mudah dipahami\",\"Fokus pada kebiasaan menabung\",\"Tanpa fitur berlebihan\",\"Belum ada pembeda khusus\"],\"recommended_default\":\"Pencatatan sangat cepat dan sederhana\",\"why_it_matters\":\"Pembeda menentukan positioning produk dan fitur mana yang harus paling dipoles.\"}],\"assumptions\":[\"Pengguna adalah individu yang mencatat keuangannya sendiri, bukan keluarga atau bisnis.\"],\"deferred_technical\":[]}",
+      "data": {
+        "clarity": 2,
+        "clarity_reason": "Ide sudah menyebut domain dan pengguna (individu yang mencatat keuangannya sendiri), tetapi belum menjelaskan masalah utama, fitur inti, atau apa yang membuatnya berbeda.",
+        "questions": [
+          {
+            "id": "q1",
+            "topic": "masalah",
+            "question": "Masalah utama apa yang paling ingin diselesaikan oleh catatan keuangan pribadi ini?",
+            "type": "single",
+            "options": [
+              "Tidak tahu uang habis ke mana",
+              "Sering melebihi anggaran bulanan",
+              "Sulit menabung untuk tujuan tertentu",
+              "Lupa membayar tagihan rutin",
+              "Catatan tersebar di banyak tempat"
+            ],
+            "recommended_default": "Tidak tahu uang habis ke mana",
+            "why_it_matters": "Masalah utama menentukan tujuan produk dan metrik keberhasilan di PRD."
+          },
+          {
+            "id": "q2",
+            "topic": "fitur_wajib",
+            "question": "Fitur apa saja yang wajib ada di versi pertama?",
+            "type": "multi",
+            "options": [
+              "Catat pemasukan dan pengeluaran",
+              "Kategori transaksi",
+              "Ringkasan bulanan",
+              "Anggaran per kategori",
+              "Target tabungan",
+              "Pengingat tagihan"
+            ],
+            "recommended_default": [
+              "Catat pemasukan dan pengeluaran",
+              "Kategori transaksi",
+              "Ringkasan bulanan"
+            ],
+            "why_it_matters": "Daftar fitur wajib membatasi scope versi pertama dan menjadi inti bagian kebutuhan fungsional."
+          },
+          {
+            "id": "q3",
+            "topic": "aksi_pertama",
+            "question": "Apa hal pertama yang dilakukan pengguna saat pertama kali memakai produk ini?",
+            "type": "single",
+            "options": [
+              "Langsung mencatat transaksi pertama",
+              "Mengisi saldo awal",
+              "Membuat anggaran bulanan",
+              "Memilih kategori pengeluaran"
+            ],
+            "recommended_default": "Langsung mencatat transaksi pertama",
+            "why_it_matters": "Aksi pertama menentukan alur onboarding dan seberapa cepat pengguna merasakan manfaat produk."
+          },
+          {
+            "id": "q4",
+            "topic": "pembeda",
+            "question": "Apa yang membuat produk ini berbeda dari aplikasi pencatat keuangan yang sudah ada?",
+            "type": "single",
+            "options": [
+              "Pencatatan sangat cepat dan sederhana",
+              "Tampilan ringkasan yang mudah dipahami",
+              "Fokus pada kebiasaan menabung",
+              "Tanpa fitur berlebihan",
+              "Belum ada pembeda khusus"
+            ],
+            "recommended_default": "Pencatatan sangat cepat dan sederhana",
+            "why_it_matters": "Pembeda menentukan positioning produk dan fitur mana yang harus paling dipoles."
+          }
+        ],
+        "assumptions": [
+          "Pengguna adalah individu yang mencatat keuangannya sendiri, bukan keluarga atau bisnis."
+        ],
+        "deferred_technical": []
+      }
+    },
+    {
+      "ideaIndex": 2,
+      "run": 3,
+      "ms": 13671,
+      "exitCode": 0,
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "isError": false,
+      "numTurns": 1,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 24578,
+        "output_tokens": 1113,
+        "output_tokens_details": {
+          "thinking_tokens": 120
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1113,
+            "cache_read_input_tokens": 24578,
+            "cache_creation_input_tokens": 0,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 0
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "costEstimateUsd": 0.027183600000000002,
+      "rawResult": "{\"clarity\":2,\"clarity_reason\":\"Ide menyebut kategori produk dan penggunanya (individu) tetapi belum menjelaskan masalah utama, fitur inti, dan pembedanya.\",\"questions\":[{\"id\":\"q1\",\"topic\":\"masalah\",\"question\":\"Masalah keuangan apa yang paling ingin diselesaikan pengguna dengan produk ini?\",\"type\":\"single\",\"options\":[\"Tidak tahu uang habis ke mana\",\"Sering melebihi anggaran bulanan\",\"Sulit menabung untuk tujuan tertentu\",\"Lupa membayar tagihan rutin\",\"Utang dan piutang tidak tercatat\"],\"recommended_default\":\"Tidak tahu uang habis ke mana\",\"why_it_matters\":\"Masalah utama menentukan tujuan produk dan metrik keberhasilan di PRD.\"},{\"id\":\"q2\",\"topic\":\"fitur_wajib\",\"question\":\"Fitur apa saja yang wajib ada di versi pertama?\",\"type\":\"multi\",\"options\":[\"Catat pemasukan dan pengeluaran\",\"Kategori transaksi\",\"Ringkasan bulanan\",\"Anggaran per kategori\",\"Target tabungan\",\"Pengingat tagihan\"],\"recommended_default\":[\"Catat pemasukan dan pengeluaran\",\"Kategori transaksi\",\"Ringkasan bulanan\"],\"why_it_matters\":\"Daftar fitur wajib membatasi scope versi pertama dan menjadi inti kebutuhan fungsional.\"},{\"id\":\"q3\",\"topic\":\"aksi_pertama\",\"question\":\"Apa hal pertama yang dilakukan pengguna saat pertama kali memakai produk?\",\"type\":\"single\",\"options\":[\"Langsung mencatat transaksi pertama\",\"Mengisi saldo awal\",\"Membuat anggaran bulanan\",\"Memilih kategori yang dipakai\"],\"recommended_default\":\"Langsung mencatat transaksi pertama\",\"why_it_matters\":\"Aksi pertama menentukan alur onboarding dan seberapa cepat pengguna merasakan manfaat.\"},{\"id\":\"q4\",\"topic\":\"pembeda\",\"question\":\"Apa yang membuat produk ini berbeda dari aplikasi pencatat keuangan yang sudah ada?\",\"type\":\"single\",\"options\":[\"Pencatatan super cepat dan sederhana\",\"Tampilan ringkasan yang mudah dipahami\",\"Fokus pada kebiasaan menabung\",\"Tanpa iklan dan tanpa fitur berlebihan\",\"Belum ada pembeda khusus\"],\"recommended_default\":\"Pencatatan super cepat dan sederhana\",\"why_it_matters\":\"Pembeda mengarahkan prioritas desain dan positioning produk di PRD.\"}],\"assumptions\":[\"Pengguna adalah individu yang mencatat keuangannya sendiri dan tidak berbagi dengan orang lain atau dipakai untuk bisnis.\"],\"deferred_technical\":[]}",
+      "data": {
+        "clarity": 2,
+        "clarity_reason": "Ide menyebut kategori produk dan penggunanya (individu) tetapi belum menjelaskan masalah utama, fitur inti, dan pembedanya.",
+        "questions": [
+          {
+            "id": "q1",
+            "topic": "masalah",
+            "question": "Masalah keuangan apa yang paling ingin diselesaikan pengguna dengan produk ini?",
+            "type": "single",
+            "options": [
+              "Tidak tahu uang habis ke mana",
+              "Sering melebihi anggaran bulanan",
+              "Sulit menabung untuk tujuan tertentu",
+              "Lupa membayar tagihan rutin",
+              "Utang dan piutang tidak tercatat"
+            ],
+            "recommended_default": "Tidak tahu uang habis ke mana",
+            "why_it_matters": "Masalah utama menentukan tujuan produk dan metrik keberhasilan di PRD."
+          },
+          {
+            "id": "q2",
+            "topic": "fitur_wajib",
+            "question": "Fitur apa saja yang wajib ada di versi pertama?",
+            "type": "multi",
+            "options": [
+              "Catat pemasukan dan pengeluaran",
+              "Kategori transaksi",
+              "Ringkasan bulanan",
+              "Anggaran per kategori",
+              "Target tabungan",
+              "Pengingat tagihan"
+            ],
+            "recommended_default": [
+              "Catat pemasukan dan pengeluaran",
+              "Kategori transaksi",
+              "Ringkasan bulanan"
+            ],
+            "why_it_matters": "Daftar fitur wajib membatasi scope versi pertama dan menjadi inti kebutuhan fungsional."
+          },
+          {
+            "id": "q3",
+            "topic": "aksi_pertama",
+            "question": "Apa hal pertama yang dilakukan pengguna saat pertama kali memakai produk?",
+            "type": "single",
+            "options": [
+              "Langsung mencatat transaksi pertama",
+              "Mengisi saldo awal",
+              "Membuat anggaran bulanan",
+              "Memilih kategori yang dipakai"
+            ],
+            "recommended_default": "Langsung mencatat transaksi pertama",
+            "why_it_matters": "Aksi pertama menentukan alur onboarding dan seberapa cepat pengguna merasakan manfaat."
+          },
+          {
+            "id": "q4",
+            "topic": "pembeda",
+            "question": "Apa yang membuat produk ini berbeda dari aplikasi pencatat keuangan yang sudah ada?",
+            "type": "single",
+            "options": [
+              "Pencatatan super cepat dan sederhana",
+              "Tampilan ringkasan yang mudah dipahami",
+              "Fokus pada kebiasaan menabung",
+              "Tanpa iklan dan tanpa fitur berlebihan",
+              "Belum ada pembeda khusus"
+            ],
+            "recommended_default": "Pencatatan super cepat dan sederhana",
+            "why_it_matters": "Pembeda mengarahkan prioritas desain dan positioning produk di PRD."
+          }
+        ],
+        "assumptions": [
+          "Pengguna adalah individu yang mencatat keuangannya sendiri dan tidak berbagi dengan orang lain atau dipakai untuk bisnis."
+        ],
+        "deferred_technical": []
+      }
+    }
+  ]
+}

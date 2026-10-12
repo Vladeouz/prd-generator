@@ -1,0 +1,74 @@
+{
+  "clarity": 2,
+  "clarity_reason": "Konteksnya sudah jelas (membership untuk satu gym), tapi masalah utama, siapa pengguna utamanya, dan fitur inti yang dibutuhkan belum disebutkan sama sekali.",
+  "questions": [
+    {
+      "id": "q1",
+      "topic": "masalah",
+      "question": "Masalah apa yang paling ingin kamu selesaikan dulu lewat aplikasi ini?",
+      "type": "single",
+      "options": [
+        "Susah memantau member mana yang masih aktif dan mana yang sudah habis masa berlakunya",
+        "Banyak member lupa memperpanjang membership sampai akhirnya berhenti",
+        "Pencatatan kehadiran member masih manual dan sering berantakan",
+        "Member susah melihat info paket dan jadwal kelas"
+      ],
+      "recommended_default": "Susah memantau member mana yang masih aktif dan mana yang sudah habis masa berlakunya",
+      "why_it_matters": "Masalah utama menentukan fitur mana yang harus ada di versi pertama dan mana yang bisa ditunda."
+    },
+    {
+      "id": "q2",
+      "topic": "pengguna",
+      "question": "Siapa yang paling sering memakai aplikasi ini di versi pertama?",
+      "type": "single",
+      "options": [
+        "Pemilik atau admin gym saja",
+        "Member gym saja",
+        "Admin gym dan member",
+        "Admin, member, dan personal trainer"
+      ],
+      "recommended_default": "Pemilik atau admin gym saja",
+      "why_it_matters": "Fokus ke satu jenis pengguna dulu bikin versi pertama lebih kecil, lebih cepat jadi, dan lebih gampang diuji."
+    },
+    {
+      "id": "q3",
+      "topic": "aksi_pertama",
+      "question": "Waktu pertama kali buka aplikasi, hal pertama apa yang harus bisa langsung dilakukan?",
+      "type": "single",
+      "options": [
+        "Menambahkan data member baru beserta paket dan tanggal berakhirnya",
+        "Melihat daftar member yang masa berlakunya hampir atau sudah habis",
+        "Mencatat member yang datang hari ini",
+        "Melihat status membership sendiri (untuk member)"
+      ],
+      "recommended_default": "Menambahkan data member baru beserta paket dan tanggal berakhirnya",
+      "why_it_matters": "Aksi pertama ini jadi jalur utama yang harus mulus. Kalau bagian ini gagal, aplikasinya terasa nggak berguna."
+    },
+    {
+      "id": "q4",
+      "topic": "fitur_wajib",
+      "question": "Selain aksi pertama tadi, fitur apa saja yang wajib ada di versi pertama? Pilih maksimal 3.",
+      "type": "multi",
+      "options": [
+        "Daftar member dengan status aktif atau habis",
+        "Perpanjangan membership",
+        "Pengaturan jenis paket (bulanan, 3 bulan, tahunan)",
+        "Catatan kehadiran atau check-in member",
+        "Catatan pembayaran membership",
+        "Ringkasan jumlah member aktif dan pendapatan"
+      ],
+      "recommended_default": [
+        "Daftar member dengan status aktif atau habis",
+        "Perpanjangan membership"
+      ],
+      "why_it_matters": "Membatasi fitur wajib menjaga versi pertama tetap kecil tapi sudah bisa menyelesaikan masalah utamanya."
+    }
+  ],
+  "assumptions": [
+    "Aplikasi dipakai untuk satu gym saja, bukan banyak cabang dan bukan marketplace yang menampung banyak gym.",
+    "Pembeda dari cara lama cukup berupa kerapian dan kemudahan dibanding catatan manual atau spreadsheet. Belum perlu fitur unik lain di versi pertama.",
+    "Pembayaran belum diproses di dalam aplikasi di versi pertama. Paling jauh hanya dicatat.",
+    "Kelas grup, booking personal trainer, dan program latihan belum masuk versi pertama."
+  ],
+  "deferred_technical": []
+}
