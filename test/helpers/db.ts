@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { type Db, openDatabase } from '../../src/core/db/client';
+import { type Db, openDatabase } from '../../src/core/db/client.ts';
 
 export type TestDb = { db: Db; path: string; dir: string; close: () => void };
 
