@@ -29,7 +29,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `src/jobs/**`, `src/stages/run-stage.ts`, `test/unit/jobs/**`, `test/int/jobs/**`
   - done when: integration test dengan runner palsu membuktikan setiap kriteria FR-02: satu job dalam satu waktu (`409`), percobaan ulang sekali dengan daftar error lalu keduanya tercatat di `stage_runs`, job `running` menjadi `interrupted` saat startup, kegagalan runner menjadi `failed` tanpa output setengah jadi; eksekusi mencatat versi prompt, output mentah, token, dan durasi; implementasi mengikuti rekomendasi spike T-002; `pnpm check` hijau
 
-- [ ] T-006 Pembaca template dan halaman pengaturan
+- [x] T-006 Pembaca template dan halaman pengaturan
   - layer: app · depends_on: T-001 · refs: FR-11, D-06
   - files: `src/template/**`, `src/app/settings/**`, `src/app/api/settings/**`, `test/unit/template/**`, `test/int/template/**`
   - done when: integration test dengan folder template buatan membuktikan pembacaan `docs/conventions.md` dan commit Git saat ini, serta penolakan folder tanpa `docs/conventions.md` atau `scripts/init-project.mjs`; halaman pengaturan menampilkan `TEMPLATE_DIR`, commit, ketersediaan `claude`, dan masalah bila ada; **(manual)** dengan `TEMPLATE_DIR` menunjuk salinan lokal `profil-a-template`, halaman pengaturan menampilkan commit yang sama dengan `git log -1` di folder itu; `pnpm check` hijau

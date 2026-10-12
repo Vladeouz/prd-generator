@@ -98,6 +98,13 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - Kegagalan runner (`ClaudeRunError`) tidak dicoba ulang: job `failed` dengan pesan runner, dicatat sebagai `stage_runs` gagal tanpa output, dan output tahap yang berlaku sebelumnya tetap berlaku. Hanya kegagalan parse dan validasi yang dicoba ulang.
 - Contoh test: `test/int/jobs/job-queue.int.test.ts` (runner palsu, fixture nyata, `GatedRunner` untuk menahan job tetap berjalan).
 
+## Template dan pengaturan
+
+- `TEMPLATE_DIR` dibaca dari env (`.env` lewat Next.js). `readTemplate(dir)` (`src/template/template.ts`) mengembalikan `{ ok: true, template: { dir, conventions, commit } }` atau `{ ok: false, problems }` dengan semua masalah sekaligus. Syarat valid: path absolut, folder ada, ada `docs/conventions.md` dan `scripts/init-project.mjs`, dan berupa repo Git (commit penuh dari `git rev-parse HEAD`, untuk NFR-04).
+- `conventions` dibaca apa adanya (UTF-8, tanpa normalisasi baris) dan dimasukkan ke prompt tahap 6 tanpa diubah.
+- `getSettings()` (`src/template/settings.ts`) dipakai halaman `/settings` dan `GET /api/settings`. `checkClaude()` hanya menjalankan `claude --version` (tanpa kuota) dan menolak perintah sungguhan saat `NODE_ENV=test`. Test memakai `test/helpers/fake-claude-cli.mjs --version`.
+- Halaman yang membaca env atau file saat request memakai `export const dynamic = 'force-dynamic'`. Tampilan dipisah ke komponen murni (`settings-view.tsx`) agar bisa di-test dengan `renderToStaticMarkup` di unit test `.tsx`.
+
 ## Claude Code
 
 - Aplikasi hanya bergantung pada port `ClaudeRunner` (`src/claude/types.ts`). Implementasinya `CliClaudeRunner` (`cli-runner.ts`, perintah sungguhan sesuai PRD bagian 3) dan `FakeClaudeRunner` (`fake-runner.ts`, antrean respons, tidak pernah menjalankan proses).

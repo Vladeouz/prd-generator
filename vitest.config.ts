@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config';
 // vitest.int.config.ts (T-003).
 export default defineConfig({
   test: {
-    include: ['test/unit/**/*.test.ts'],
+    include: ['test/unit/**/*.test.{ts,tsx}'],
     environment: 'node',
   },
 });
