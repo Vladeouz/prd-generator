@@ -1,0 +1,22 @@
+# Node
+node_modules/
+coverage/
+*.log
+.check-logs/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Env dan secret
+.env
+.env.*
+!.env.example
+
+# Editor dan OS
+.claude/settings.local.json
+.idea/
+.DS_Store
+Thumbs.db
