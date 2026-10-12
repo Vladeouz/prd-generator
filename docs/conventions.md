@@ -26,8 +26,12 @@ Library dipin ke versi pasti (tanpa `^` atau `~`) saat pertama dipasang, lalu di
 | `tailwindcss`, `@tailwindcss/postcss` | 4.3.3 | T-001 |
 | `@biomejs/biome` | 2.5.15 | T-001 |
 | `vitest` | 5.0.3 | T-001 |
+| `better-sqlite3` | 13.0.3 (SQLite 3.53.4) | T-003 |
+| `drizzle-orm` | 0.45.4 | T-003 |
+| `drizzle-kit` | 0.31.11 | T-003 |
+| `@types/better-sqlite3` | 9.6.0 | T-003 |
 
-Pasang dengan `pnpm add -E <nama>` (atau `-D -E`) agar versi langsung pasti. Paket yang butuh build script saat install didaftarkan di `allowBuilds` pada `pnpm-workspace.yaml` (belum ada); build script yang tidak dibutuhkan didaftarkan dengan nilai `false` beserta alasannya.
+Pasang dengan `pnpm add -E <nama>` (atau `-D -E`) agar versi langsung pasti. Paket yang butuh build script saat install didaftarkan di `allowBuilds` pada `pnpm-workspace.yaml` (saat ini `esbuild`, dipakai drizzle-kit); tanpa itu pnpm 12 keluar dengan `ERR_PNPM_IGNORED_BUILDS`. Build script yang tidak dibutuhkan didaftarkan dengan nilai `false` beserta alasannya di komentar: `better-sqlite3` 13 membawa binary prebuilt yang dimuat lebih dulu, sedangkan build script-nya hanya `node-gyp rebuild` yang butuh Python dan compiler C++. Jangan biarkan nilai placeholder `set this to true or false` yang ditulis pnpm.
 
 pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila `pnpm add` menambah `minimumReleaseAgeExclude` ke `pnpm-workspace.yaml`, batalkan perubahan itu dan pin versi sebelumnya; jangan melonggarkan policy.
 
@@ -49,6 +53,8 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 | `pnpm lint`, `pnpm format` | Biome: periksa, atau perbaiki otomatis |
 | `pnpm typecheck` | `next typegen` lalu `tsc --noEmit` |
 | `pnpm test:unit` | Vitest, `test/unit/**/*.test.ts` |
+| `pnpm test:int` | Vitest, `test/int/**/*.int.test.ts` (`vitest.int.config.ts`) |
+| `pnpm db:generate` | `drizzle-kit generate`: membuat migrasi di `drizzle/` dari `src/core/db/schema.ts` |
 
 - Semua script otomatisasi ditulis dalam Node (`.mjs`) di `scripts/`, bukan shell. Nama file sama dengan nama script-nya (`pnpm prereq` → `scripts/prereq.mjs`); modul pendukung di `scripts/lib/`.
 - Script memanggil perintah eksternal lewat `spawnSync(perintah, { shell: true })` agar `pnpm.cmd`, `claude.cmd`, dan sejenisnya ditemukan di Windows.
@@ -57,12 +63,12 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 
 ### `pnpm check`
 
-`scripts/check.mjs` menjalankan Biome, typecheck, dan unit test berurutan (integration dan end-to-end ditambahkan di T-003 dan T-017). Semua langkah selalu dijalankan walaupun ada yang gagal; ringkasan di akhir menampilkan status dan waktu per langkah, dan output lengkap langkah yang gagal disimpan di `.check-logs/<waktu run>/` (di-ignore Git). Langkah verifikasi baru ditambahkan ke `STEPS`. Harus hijau sebelum task dicentang.
+`scripts/check.mjs` menjalankan Biome, typecheck, unit test, dan integration test berurutan (end-to-end ditambahkan di T-017). Semua langkah selalu dijalankan walaupun ada yang gagal; ringkasan di akhir menampilkan status dan waktu per langkah, dan output lengkap langkah yang gagal disimpan di `.check-logs/<waktu run>/` (di-ignore Git). Langkah verifikasi baru ditambahkan ke `STEPS`. Harus hijau sebelum task dicentang.
 
 ## Lint dan format (Biome)
 
 - Konfigurasi `biome.json`, sama dengan template: preset `recommended`; spasi 2, lebar baris 100, LF, kutip tunggal, titik koma selalu.
-- Biome membaca `.gitignore`. `docs/reference/` dikecualikan karena berisi bahan rujukan apa adanya.
+- Biome membaca `.gitignore`. Dikecualikan lewat `files.includes`: `docs/reference/` (bahan rujukan apa adanya) dan `drizzle/meta` (format ditentukan drizzle-kit, agar tidak bentrok saat di-generate ulang).
 
 ## TypeScript dan Next.js
 
@@ -71,7 +77,17 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - `next.config.ts` memakai `agentRules: false`, karena tanpa itu `next dev` 16.4 membuat `AGENTS.md` di root. Aturan agent hanya di `CLAUDE.md`.
 - Styling dengan Tailwind CSS 4 lewat `@tailwindcss/postcss` (`postcss.config.mjs`, `src/app/globals.css`).
 
+## Database
+
+- SQLite lewat `better-sqlite3` + Drizzle. Skema di `src/core/db/schema.ts`, migrasi SQL hasil `pnpm db:generate` di `drizzle/` (di-commit, termasuk `meta/`; jangan diedit tangan). Setelah mengubah skema, jalankan `pnpm db:generate --name <ringkas>`; integration test `migrations.int.test.ts` gagal bila skema dan migrasi tidak sinkron.
+- Database utama `data/prd-generator.db` (di-ignore Git), dibuka lewat `getDb()` di `src/core/db/client.ts`. Koneksinya disimpan di `globalThis` agar hot reload tidak membuka koneksi baru (temuan spike T-002). `getDb()` melempar error saat `NODE_ENV=test`.
+- `openDatabase(path)` menyalakan `foreign_keys` (wajib per koneksi agar cascade berjalan), WAL, dan `busy_timeout`, lalu menjalankan migrasi yang belum diterapkan. Migrasi idempoten, jadi aman dipanggil setiap kali aplikasi membuka database.
+- Setiap kolom enum dibatasi CHECK. Daftar nilainya diekspor dari `schema.ts` (`STAGES`, `JOB_STATUSES`, dll.) untuk dipakai ulang oleh Zod; jangan menulis ulang daftarnya. Aturan "satu baris aktif" memakai partial unique index (contoh: `jobs_one_active_idx` pada ekspresi `(1)` dengan `WHERE status in ('queued', 'running')`).
+- Id (`text`) dan timestamp (ISO 8601 UTC) diisi aplikasi, tanpa default di database.
+- drizzle-kit 0.31 di Windows salah menangani `--out` dengan path absolut dan tetap keluar dengan exit 0; pakai path relatif dan periksa pesannya.
+
 ## Test
 
+- Integration test yang butuh database memakai `createTestDb()` dari `test/helpers/db.ts`: file SQLite baru yang sudah dimigrasi di folder sementara OS, dihapus lewat `close()` di `afterEach`. Contoh: `test/int/db/schema.int.test.ts`.
 - Unit test di `test/unit/**`, mengikuti struktur folder sumber (`scripts/lib/prereq-checks.mjs` → `test/unit/scripts/prereq-checks.test.ts`). Test yang butuh file memakai folder sementara (`mkdtempSync`) dan menghapusnya di `afterEach`.
 - Teks UI dan pesan untuk user dalam Bahasa Indonesia.

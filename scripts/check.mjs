@@ -4,7 +4,7 @@
 //   node scripts/check.mjs   (pnpm check)
 //
 // Langkah yang gagal tidak menghentikan langkah berikutnya; semua hasil dilaporkan di ringkasan dan
-// exit code bukan 0 bila ada satu saja yang gagal. Langkah baru (integration test, end-to-end)
+// exit code bukan 0 bila ada satu saja yang gagal. Langkah baru (misalnya end-to-end)
 // ditambahkan ke STEPS.
 //
 // Output setiap langkah tampil di terminal sekaligus ditampung; output lengkap langkah yang gagal
@@ -27,6 +27,7 @@ const STEPS = [
   { name: 'Biome', command: 'pnpm lint', cwd: ROOT },
   { name: 'Typecheck', command: 'pnpm typecheck', cwd: ROOT },
   { name: 'Unit test', command: 'pnpm test:unit', cwd: ROOT },
+  { name: 'Integration test', command: 'pnpm test:int', cwd: ROOT },
 ];
 
 function formatDuration(ms) {

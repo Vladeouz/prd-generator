@@ -1,3 +1,8 @@
 # Proyek satu paket tanpa workspace; file ini hanya untuk pengaturan pnpm.
 # Paket yang boleh menjalankan build script saat install (pnpm 12 menolak sisanya).
-allowBuilds: {}
+# better-sqlite3 13 membawa binary prebuilt (prebuilds/win32-x64.node, dll.) yang dimuat lebih dulu;
+# build script-nya hanya `node-gyp rebuild` bawaan yang butuh Python + compiler, jadi ditolak.
+# esbuild dipakai drizzle-kit untuk membaca skema TypeScript.
+allowBuilds:
+  better-sqlite3: false
+  esbuild: true
