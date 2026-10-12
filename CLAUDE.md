@@ -14,11 +14,15 @@
   - task punya kriteria **(manual)**: tuliskan langkahnya, tunggu konfirmasi user, lalu lanjutkan setelah dikonfirmasi;
   - task adalah spike: hasilnya memengaruhi keputusan di PRD dan perlu ditinjau user;
   - ada kriteria yang tidak bisa dipenuhi, atau `pnpm check` tidak bisa dibuat hijau;
-  - dibutuhkan keputusan user (mengubah keputusan PRD atau kriteria, `.env` atau secret, konflik merge, push ditolak);
+  - dibutuhkan keputusan user (mengubah keputusan PRD atau kriteria, kredensial atau secret, konflik merge, push ditolak);
   - semua task di fase itu selesai. Jangan memulai fase berikutnya tanpa perintah user.
 - Ikuti konvensi di bagian 3 PRD dan `docs/conventions.md`. Jika konvensi belum mengatur sesuatu, pilih yang paling sederhana, catat di log sebagai keputusan mandiri, dan usulkan agar ditambahkan ke `docs/conventions.md`.
 - Hanya sentuh file yang relevan dengan task. Jika perlu membuat file di luar daftar `files`, sebutkan beserta alasannya di log.
-- Jangan membuat atau mengubah `.env` dan secret apa pun. Jika dibutuhkan, minta user melakukannya.
+- Boleh membuat `.env` dari `.env.example` dan menambah atau mengubah variabel konfigurasi di dalamnya (misalnya `TEMPLATE_DIR`). Batasannya:
+  - jangan pernah menulis kredensial, token, atau API key yang tidak diberikan user secara eksplisit;
+  - pastikan `.env` tetap di-ignore Git (`git check-ignore .env`) dan tidak pernah di-commit;
+  - di log, sebut nama variabel yang diubah, bukan nilainya;
+  - setiap variabel baru juga ditambahkan ke `.env.example` dengan nilai contoh yang aman.
 - Jangan mengubah keputusan di bagian Assumptions & Decisions PRD atau kriteria *done when* tanpa persetujuan user. Jika ada kendala, jelaskan dan tawarkan pilihan beserta konsekuensinya.
 - Bahan rujukan di `docs/reference/` (prompt, validator, dan output nyata dari uji sebelumnya) adalah titik awal untuk tahap 2 sampai 7. Turunkan dari sana, jangan menulis ulang dari nol, dan catat setiap perbedaan beserta alasannya di log.
 
