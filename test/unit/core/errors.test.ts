@@ -6,10 +6,19 @@ import { StageFailedError } from '../../../src/stages/run-stage.ts';
 
 // Next.js membundel instrumentation.ts terpisah dari route, sehingga antrean job melempar error dari
 // salinan modul lain. Query string pada import memberi salinan modul terpisah di Vitest.
+// Path disusun saat runtime agar TypeScript tidak mencoba me-resolve query string-nya.
+const copyOf = <T>(path: string): Promise<T> => import(`${path}?salinan-lain`);
+
 async function foreignCopies() {
-  const errors = await import('../../../src/core/errors.ts?salinan-lain');
-  const claude = await import('../../../src/claude/types.ts?salinan-lain');
-  const stages = await import('../../../src/stages/run-stage.ts?salinan-lain');
+  const errors = await copyOf<typeof import('../../../src/core/errors.ts')>(
+    '../../../src/core/errors.ts',
+  );
+  const claude = await copyOf<typeof import('../../../src/claude/types.ts')>(
+    '../../../src/claude/types.ts',
+  );
+  const stages = await copyOf<typeof import('../../../src/stages/run-stage.ts')>(
+    '../../../src/stages/run-stage.ts',
+  );
   return {
     AppError: errors.AppError,
     ClaudeRunError: claude.ClaudeRunError,
