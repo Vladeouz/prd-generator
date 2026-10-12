@@ -10,6 +10,9 @@ out/
 next-env.d.ts
 *.tsbuildinfo
 
+# Database lokal
+data/
+
 # Env dan secret
 .env
 .env.*

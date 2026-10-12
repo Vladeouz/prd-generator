@@ -14,10 +14,10 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `spikes/jobs/` (sementara, dihapus di T-019)
   - done when: route handler memulai child process Node palsu yang berjalan 3 menit dan menulis progres; status bisa dibaca lewat polling dari halaman lain; perilaku dicatat di log untuk empat kondisi: navigasi antar halaman, perubahan file saat `pnpm dev` (hot reload), `pnpm build` + `pnpm start` lalu server dihentikan di tengah job, dan dua job dimulai bersamaan; log berisi rekomendasi tetap memakai D-03 atau pindah ke proses worker terpisah
 
-- [ ] T-003 Database SQLite: skema, migrasi, dan database test
+- [x] T-003 Database SQLite: skema, migrasi, dan database test
   - layer: db · depends_on: T-001 · refs: bagian 4 PRD, D-02
   - files: `drizzle.config.ts`, `drizzle/**`, `src/core/db/**`, `vitest.int.config.ts`, `test/int/db/**`, `test/helpers/db.ts`
-  - done when: semua tabel, CHECK, partial unique index (`is_current`, satu job aktif), dan cascade di bagian 4 PRD terbukti oleh integration test; integration test memakai file database sementara yang tidak menyentuh database utama; migrasi idempoten; `drizzle-kit generate` ulang tidak menghasilkan perubahan; build script `better-sqlite3` diizinkan lewat `allowBuilds` dan `pnpm install --frozen-lockfile` exit 0; `pnpm check` menjalankan integration test dan hijau
+  - done when: semua tabel, CHECK, partial unique index (`is_current`, satu job aktif), dan cascade di bagian 4 PRD terbukti oleh integration test; integration test memakai file database sementara yang tidak menyentuh database utama; migrasi idempoten; `drizzle-kit generate` ulang tidak menghasilkan perubahan; build script `better-sqlite3` diatur eksplisit lewat `allowBuilds` dan `pnpm install --frozen-lockfile` exit 0; `pnpm check` menjalankan integration test dan hijau
 
 - [ ] T-004 Port `ClaudeRunner`: runner CLI, runner palsu, dan pengaman test
   - layer: claude · depends_on: T-001 · refs: FR-02, NFR-02, D-07, bagian 3 PRD (Pemanggilan Claude Code)

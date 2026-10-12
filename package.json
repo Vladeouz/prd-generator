@@ -15,9 +15,13 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "typecheck": "next typegen && tsc --noEmit",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "test:int": "vitest run --config vitest.int.config.ts",
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "better-sqlite3": "13.0.3",
+    "drizzle-orm": "0.45.4",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
@@ -25,9 +29,11 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
     "@tailwindcss/postcss": "4.3.3",
+    "@types/better-sqlite3": "9.6.0",
     "@types/node": "^24.19.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "drizzle-kit": "0.31.11",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "vitest": "5.0.3"
