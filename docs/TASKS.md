@@ -39,7 +39,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
 - [ ] T-007 Proyek dan input ide
   - layer: app · depends_on: T-003 · refs: FR-01
   - files: `src/projects/**`, `src/app/page.tsx`, `src/app/projects/**`, `src/app/api/projects/**`, test terkait
-  - done when: setiap kriteria FR-01 terbukti oleh test route handler dan test komponen; `DELETE` proyek dengan job berjalan menghasilkan `409`; hapus proyek menghapus semua datanya (dibuktikan integration test); `pnpm check` hijau
+  - done when: setiap kriteria FR-01 terbukti oleh test route handler dan test komponen; `DELETE` proyek dengan job berjalan menghasilkan `409`; hapus proyek menghapus semua datanya (dibuktikan integration test); halaman utama punya tautan ke `/settings` (dibuktikan test komponen); `pnpm check` hijau
 
 - [ ] T-008 Tahap 2: klarifikasi produk
   - layer: app · depends_on: T-005, T-007 · refs: FR-03
