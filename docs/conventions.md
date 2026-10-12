@@ -89,6 +89,15 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - Id (`text`) dan timestamp (ISO 8601 UTC) diisi aplikasi, tanpa default di database.
 - drizzle-kit 0.31 di Windows salah menangani `--out` dengan path absolut dan tetap keluar dengan exit 0; pakai path relatif dan periksa pesannya.
 
+## Route handler dan halaman
+
+- Logika route handler ada di modul domain sebagai pabrik dengan dependensi yang disuntikkan, misalnya `projectHandlers({ db, clock })` di `src/projects/handlers.ts`. File `src/app/api/**/route.ts` hanya menyambungkan `getDb()` dan `systemClock`. Test route handler memanggil pabrik itu dengan `createTestDb()` dan objek `Request` biasa (contoh: `test/int/projects/projects-api.int.test.ts`).
+- Setiap handler dibungkus `handle()` (`src/core/http.ts`). Body dibaca dengan `parseBody(request, skemaZod)`: bukan JSON → 400, tidak lolos → 422 dengan `details` berisi pesan pertama per field (`{ idea: 'Ide wajib diisi.' }`). Pesan Zod ditulis dalam Bahasa Indonesia di skemanya, dan skema yang sama dipakai form (`src/projects/schema.ts`).
+- JSON respons memakai nama field Drizzle (camelCase).
+- Halaman yang membaca database adalah server component dengan `export const dynamic = 'force-dynamic'` yang memanggil fungsi domain langsung (bukan lewat `fetch` ke API sendiri). Tampilannya komponen murni (`*-view.tsx`) yang di-test dengan `renderToStaticMarkup`. Komponen klien yang memakai `useRouter` di-test dengan `vi.mock('next/navigation')`.
+- Mutasi dari UI memakai komponen klien yang memanggil API, lalu `router.push`/`router.refresh`.
+- Nama tahap untuk UI dari `STAGE_LABELS` (`src/projects/stage-labels.ts`); angka token diformat `id-ID` (`src/app/projects/format.ts`).
+
 ## Error, jam, dan job
 
 - Error domain memakai `AppError` (`src/core/errors.ts`) dengan kode format error PRD bagian 5. `status` memberi status HTTP-nya, dan `toBody()` menghasilkan `{ error: { code, message, details? } }`. Pesan dalam Bahasa Indonesia dan siap ditampilkan ke user.
