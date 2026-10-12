@@ -1,0 +1,3 @@
+# Proyek satu paket tanpa workspace; file ini hanya untuk pengaturan pnpm.
+# Paket yang boleh menjalankan build script saat install (pnpm 12 menolak sisanya).
+allowBuilds: {}

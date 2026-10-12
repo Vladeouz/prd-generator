@@ -4,7 +4,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
 
 ## Fase 0 — Fondasi dan spike
 
-- [ ] T-001 Proyek Next.js, Biome, `pnpm prereq`, dan `pnpm check` awal
+- [x] T-001 Proyek Next.js, Biome, `pnpm prereq`, dan `pnpm check` awal
   - layer: infra · depends_on: - · refs: NFR-03, NFR-05, D-01
   - files: `package.json`, `pnpm-workspace.yaml`, `.nvmrc`, `.gitattributes`, `.gitignore`, `.editorconfig`, `.env.example`, `biome.json`, `next.config.ts`, `tsconfig.json`, `vitest.config.ts`, `src/app/**` (halaman awal), `scripts/prereq.mjs`, `scripts/check.mjs`, `README.md`, `docs/conventions.md` (kerangka)
   - done when: `pnpm dev` menyajikan halaman awal hanya di `127.0.0.1`; `pnpm prereq` menampilkan status setiap prasyarat di bagian 3 PRD dengan saran perbaikan, dan terbukti gagal dengan pesan jelas saat `.env` belum ada dan saat `TEMPLATE_DIR` menunjuk folder yang bukan repo template; `pnpm check` menjalankan Biome, typecheck, dan unit test (minimal satu test), menampilkan ringkasan, dan menyimpan output langkah gagal di `.check-logs/`; nama script root diperiksa tidak bentrok dengan perintah bawaan pnpm
