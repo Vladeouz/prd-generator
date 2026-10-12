@@ -9,7 +9,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `package.json`, `pnpm-workspace.yaml`, `.nvmrc`, `.gitattributes`, `.gitignore`, `.editorconfig`, `.env.example`, `biome.json`, `next.config.ts`, `tsconfig.json`, `vitest.config.ts`, `src/app/**` (halaman awal), `scripts/prereq.mjs`, `scripts/check.mjs`, `README.md`, `docs/conventions.md` (kerangka)
   - done when: `pnpm dev` menyajikan halaman awal hanya di `127.0.0.1`; `pnpm prereq` menampilkan status setiap prasyarat di bagian 3 PRD dengan saran perbaikan, dan terbukti gagal dengan pesan jelas saat `.env` belum ada dan saat `TEMPLATE_DIR` menunjuk folder yang bukan repo template; `pnpm check` menjalankan Biome, typecheck, dan unit test (minimal satu test), menampilkan ringkasan, dan menyimpan output langkah gagal di `.check-logs/`; nama script root diperiksa tidak bentrok dengan perintah bawaan pnpm
 
-- [ ] T-002 Spike job berdurasi panjang di proses server Next.js
+- [x] T-002 Spike job berdurasi panjang di proses server Next.js
   - layer: spike · depends_on: T-001 · refs: FR-02, D-03
   - files: `spikes/jobs/` (sementara, dihapus di T-019)
   - done when: route handler memulai child process Node palsu yang berjalan 3 menit dan menulis progres; status bisa dibaca lewat polling dari halaman lain; perilaku dicatat di log untuk empat kondisi: navigasi antar halaman, perubahan file saat `pnpm dev` (hot reload), `pnpm build` + `pnpm start` lalu server dihentikan di tengah job, dan dua job dimulai bersamaan; log berisi rekomendasi tetap memakai D-03 atau pindah ke proses worker terpisah
