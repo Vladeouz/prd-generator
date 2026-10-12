@@ -36,9 +36,18 @@ type Props = {
   questions: Question[];
   guessTopics: readonly string[];
   saved: StoredAnswer[];
+  /** Nama tahap berikutnya, disebut di pesan setelah jawaban tersimpan. */
+  nextStageLabel: string;
 };
 
-export function QuestionForm({ projectId, stage, questions, guessTopics, saved }: Props) {
+export function QuestionForm({
+  projectId,
+  stage,
+  questions,
+  guessTopics,
+  saved,
+  nextStageLabel,
+}: Props) {
   const router = useRouter();
   const [states, setStates] = useState<Record<string, State>>(() =>
     Object.fromEntries(
@@ -76,7 +85,7 @@ export function QuestionForm({ projectId, stage, questions, guessTopics, saved }
       });
       const body = await response.json();
       if (response.ok) {
-        setMessage('Jawaban tersimpan.');
+        setMessage(`Jawaban tersimpan. Tahap berikutnya: ${nextStageLabel} — siap dijalankan.`);
         router.refresh();
       } else {
         setErrors(body.error?.details ?? {});

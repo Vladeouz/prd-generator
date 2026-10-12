@@ -125,6 +125,7 @@ describe('Stage2Section', () => {
     expect(html).toContain('Dibahas di tahap teknis');
     expect(html).toContain('Ide menyebut web');
     expect(html).toContain('data-testid="answers-saved"');
+    expect(html).toContain('Tahap berikutnya: Klarifikasi teknis — siap dijalankan.');
     expect(html).toMatch(new RegExp(`checked=""/>${escapeRegExp(q1.options[1] as string)}`));
   });
 });

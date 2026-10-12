@@ -56,7 +56,8 @@ export function Stage2Section({ project }: { project: ProjectDetail }) {
           </p>
           {saved.length > 0 && (
             <p className="text-sm text-green-700" data-testid="answers-saved">
-              Jawaban tersimpan. Kamu masih bisa mengubahnya.
+              Jawaban tersimpan. Tahap berikutnya: Klarifikasi teknis — siap dijalankan. Kamu masih
+              bisa mengubah jawaban di bawah.
             </p>
           )}
           <QuestionForm
@@ -65,6 +66,7 @@ export function Stage2Section({ project }: { project: ProjectDetail }) {
             questions={output.questions}
             guessTopics={GUESS_TOPICS}
             saved={saved}
+            nextStageLabel="Klarifikasi teknis"
           />
           {output.assumptions.length > 0 && (
             <div>
