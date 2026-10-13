@@ -158,6 +158,7 @@ erDiagram
         text topic
         text value_json
         text source
+        text policy_key "nullable"
         text created_at
     }
     decisions {
@@ -203,6 +204,7 @@ Aturan:
 - `stage_runs.status`: `succeeded`, `failed`. `jobs.status`: `queued`, `running`, `succeeded`, `failed`, `interrupted`.
 - Hanya satu `stage_runs` per (`project_id`, `stage`) yang `is_current = 1` (partial unique index).
 - `answers.source`: `user`, `default`, `guess` (default untuk fakta yang hanya diketahui user, seperti masalah dan pengguna).
+- `answers.policy_key`: kunci tabel kebijakan tahap 3 bila jawabannya sama dengan default; null untuk jawaban lain.
 - `decisions.code` unik per proyek (`RV-01` dari review pertama, `RV2-01` dari review kedua, `D-01` dari pilihan profil); `origin`: `review1`, `review2`, `profile`.
 - `documents.kind`: `prd`, `tasks`; `version` naik setiap kali dibuat ulang.
 - Hanya satu job `queued` atau `running` di seluruh aplikasi pada satu waktu.

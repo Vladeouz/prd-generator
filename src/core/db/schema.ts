@@ -102,6 +102,8 @@ export const answers = sqliteTable(
     topic: text('topic').notNull(),
     valueJson: text('value_json').notNull(),
     source: text('source', { enum: ANSWER_SOURCES }).notNull(),
+    /** Kunci kebijakan default tahap 3 bila jawaban memakai default; null untuk jawaban lain. */
+    policyKey: text('policy_key'),
     createdAt: text('created_at').notNull(),
   },
   (t) => [

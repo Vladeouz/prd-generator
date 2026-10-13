@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!docs/reference", "!drizzle/meta", "!test/fixtures/claude/*.json"]
+    "includes": ["**", "!docs/reference", "!drizzle/meta", "!test/fixtures/claude/**/*.json"]
   },
   "formatter": {
     "enabled": true,

@@ -7,6 +7,8 @@
 //   ["opsi", ...]      → multi: satu atau lebih opsi yang ada
 //   { "lainnya": "…" } → single/multi: jawaban sendiri di luar opsi
 // Setiap pertanyaan wajib ada tepat satu kali; jawaban lama tahap itu diganti seluruhnya.
+// Bila pertanyaan punya `default_policy_key` (tahap 3) dan jawabannya sama dengan default (dilewati
+// atau opsi default dipilih), kunci itu ikut disimpan; jawaban lain disimpan dengan kunci null.
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -16,18 +18,22 @@ import { answers, projects } from '../core/db/schema.ts';
 import { AppError } from '../core/errors.ts';
 import type { ProjectStage } from '../projects/stage-labels.ts';
 import type { Question } from './questions.ts';
-import { currentOutput, type Stage } from './run-stage.ts';
+import { currentOutput, type Stage, type Tx } from './run-stage.ts';
+import { policyRule } from './stage-3/policy.ts';
+import { stageAfterStage3 } from './stage-3/profile.ts';
 
 export type QuestionStageConfig = {
   /** Topik yang default-nya disimpan sebagai tebakan (`source: guess`). */
   guessTopics: readonly string[];
-  /** Tahap proyek setelah jawaban disimpan. */
-  nextStage: ProjectStage;
+  /** Tahap proyek setelah jawaban disimpan; dihitung di transaksi penyimpanan bila berupa fungsi. */
+  nextStage: ProjectStage | ((tx: Tx, projectId: string) => ProjectStage);
 };
 
-/** Tahap yang punya pertanyaan untuk user; tahap 3 ditambahkan di T-009. */
+/** Tahap yang punya pertanyaan untuk user. */
 export const QUESTION_STAGES: Partial<Record<Stage, QuestionStageConfig>> = {
   stage2: { guessTopics: ['masalah', 'pengguna'], nextStage: 'stage3' },
+  // Tahap 4 baru bisa dimulai setelah stack dipilih (FR-04).
+  stage3: { guessTopics: [], nextStage: stageAfterStage3 },
 };
 
 export const answerValueSchema = z.union([
@@ -44,7 +50,26 @@ export const saveAnswersSchema = z.object({
 export type AnswerValue = z.infer<typeof answerValueSchema>;
 export type SaveAnswersInput = z.infer<typeof saveAnswersSchema>;
 export type AnswerSource = 'user' | 'default' | 'guess';
-export type ResolvedAnswer = { value: string | string[]; source: AnswerSource };
+export type ResolvedAnswer = {
+  value: string | string[];
+  source: AnswerSource;
+  /** Kunci kebijakan default bila jawabannya sama dengan default; null bila tidak. */
+  policyKey: string | null;
+};
+
+const sameAsDefault = (question: Question, value: string | string[]) => {
+  const expected = question.recommended_default;
+  if (!Array.isArray(value) || !Array.isArray(expected)) return value === expected;
+  return value.length === expected.length && value.every((item) => expected.includes(item));
+};
+
+const withPolicyKey = (
+  question: Question,
+  answer: Omit<ResolvedAnswer, 'policyKey'>,
+): ResolvedAnswer => ({
+  ...answer,
+  policyKey: sameAsDefault(question, answer.value) ? (question.default_policy_key ?? null) : null,
+});
 
 /** Mengubah jawaban mentah menjadi nilai yang disimpan, atau pesan error untuk user. */
 export function resolveAnswer(
@@ -52,6 +77,18 @@ export function resolveAnswer(
   value: AnswerValue,
   guessTopics: readonly string[],
 ): ResolvedAnswer | { error: string } {
+  const result = resolveValue(question, value, guessTopics);
+  if ('error' in result) return result;
+  // "Lainnya" selalu jawaban sendiri, walaupun teksnya kebetulan sama dengan default.
+  const isOther = typeof value === 'object' && value !== null && !Array.isArray(value);
+  return isOther ? { ...result, policyKey: null } : withPolicyKey(question, result);
+}
+
+function resolveValue(
+  question: Question,
+  value: AnswerValue,
+  guessTopics: readonly string[],
+): Omit<ResolvedAnswer, 'policyKey'> | { error: string } {
   if (value === null) {
     return {
       value: question.recommended_default,
@@ -87,6 +124,7 @@ export type StoredAnswer = {
   question: string;
   value: string | string[];
   source: AnswerSource;
+  policyKey: string | null;
 };
 
 export function saveAnswers(
@@ -148,12 +186,15 @@ export function saveAnswers(
           topic: answer.topic,
           valueJson: JSON.stringify(answer.value),
           source: answer.source,
+          policyKey: answer.policyKey,
           createdAt: now,
         })
         .run();
     }
+    const nextStage =
+      typeof config.nextStage === 'function' ? config.nextStage(tx, projectId) : config.nextStage;
     tx.update(projects)
-      .set({ currentStage: config.nextStage, updatedAt: now })
+      .set({ currentStage: nextStage, updatedAt: now })
       .where(eq(projects.id, projectId))
       .run();
   });
@@ -179,19 +220,28 @@ export function storedAnswers(db: Db, projectId: string, stage: Stage): StoredAn
             question: question.question,
             value: JSON.parse(row.valueJson) as string | string[],
             source: row.source,
+            policyKey: row.policyKey,
           },
         ]
       : [];
   });
 }
 
-/** Format jawaban untuk prompt tahap berikutnya (dari `formatAnswers` di e2e-gym.mjs). */
+/**
+ * Format jawaban untuk prompt tahap berikutnya (dari `formatAnswers` di e2e-gym.mjs). Jawaban yang
+ * punya kunci kebijakan ditulis dengan kunci dan aturannya, dengan teks default sebagai rumusan;
+ * jawaban tanpa kunci ditulis dengan teksnya.
+ */
 export function formatAnswers(list: StoredAnswer[]): string {
   if (list.length === 0) return '- (tidak ada)';
   return list
     .map((answer) => {
       const value = Array.isArray(answer.value) ? answer.value.join(' | ') : answer.value;
       const note = answer.source === 'guess' ? ' (TEBAKAN default, belum dikonfirmasi user)' : '';
+      const rule = answer.policyKey ? policyRule(answer.policyKey) : undefined;
+      if (rule) {
+        return `- ${answer.topic}: kebijakan ${rule.key}: ${rule.rule} (rumusan default: ${value})${note}`;
+      }
       return `- ${answer.topic}: ${value}${note}`;
     })
     .join('\n');

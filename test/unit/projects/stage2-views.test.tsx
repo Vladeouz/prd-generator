@@ -116,6 +116,7 @@ describe('Stage2Section', () => {
             topic: 'masalah',
             value: q1.options[1],
             source: 'user',
+            policyKey: null,
             createdAt: NOW,
           },
         ],

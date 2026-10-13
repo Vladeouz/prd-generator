@@ -12,6 +12,10 @@ export type Question = {
   options: string[];
   recommended_default: string | string[];
   why_it_matters: string;
+  /** Tahap 3: alasan default untuk user. */
+  default_reason?: string;
+  /** Tahap 3: kunci aturan di tabel kebijakan yang diikuti default (stage-3/policy.ts). */
+  default_policy_key?: string;
 };
 
 export const MAX_DEFAULT_MULTI = 3;

@@ -36,8 +36,8 @@ type Props = {
   questions: Question[];
   guessTopics: readonly string[];
   saved: StoredAnswer[];
-  /** Nama tahap berikutnya, disebut di pesan setelah jawaban tersimpan. */
-  nextStageLabel: string;
+  /** Pesan setelah jawaban tersimpan, misalnya tahap berikutnya. */
+  savedMessage: string;
 };
 
 export function QuestionForm({
@@ -46,7 +46,7 @@ export function QuestionForm({
   questions,
   guessTopics,
   saved,
-  nextStageLabel,
+  savedMessage,
 }: Props) {
   const router = useRouter();
   const [states, setStates] = useState<Record<string, State>>(() =>
@@ -85,7 +85,7 @@ export function QuestionForm({
       });
       const body = await response.json();
       if (response.ok) {
-        setMessage(`Jawaban tersimpan. Tahap berikutnya: ${nextStageLabel} — siap dijalankan.`);
+        setMessage(savedMessage);
         router.refresh();
       } else {
         setErrors(body.error?.details ?? {});
@@ -110,6 +110,11 @@ export function QuestionForm({
               {index + 1}. {q.question}
             </legend>
             <p className="text-xs text-slate-500">{q.why_it_matters}</p>
+            {q.default_reason && (
+              <p className="text-xs text-slate-500" data-testid="default-reason">
+                Alasan default: {q.default_reason}
+              </p>
+            )}
             <div className="mt-3 space-y-2 text-sm">
               <label className="flex gap-2">
                 <input
