@@ -11,7 +11,7 @@ import { eq, inArray } from 'drizzle-orm';
 import type { ClaudeRunner } from '../claude/types.ts';
 import type { Clock } from '../core/clock.ts';
 import type { Db } from '../core/db/client.ts';
-import { ACTIVE_JOB_STATUSES, jobs } from '../core/db/schema.ts';
+import { ACTIVE_JOB_STATUSES, jobs, projects } from '../core/db/schema.ts';
 import { AppError } from '../core/errors.ts';
 import {
   runStage,
@@ -39,11 +39,16 @@ export const INTERRUPTED_MESSAGE =
 const sqliteCode = (error: unknown) => (error as { code?: string }).code ?? '';
 
 export class JobQueue {
-  private readonly deps: JobQueueDeps;
+  private deps: JobQueueDeps;
   private readonly running = new Map<string, Promise<void>>();
 
   constructor(deps: JobQueueDeps) {
     this.deps = deps;
+  }
+
+  /** Mengganti definisi tahap untuk job berikutnya; job yang sedang berjalan tidak terpengaruh. */
+  setStages(stages: StageRegistry) {
+    this.deps = { ...this.deps, stages };
   }
 
   /** Menandai job aktif dari proses server sebelumnya sebagai `interrupted`; mengembalikan jumlahnya. */
@@ -90,6 +95,14 @@ export class JobQueue {
           .where(inArray(jobs.status, [...ACTIVE_JOB_STATUSES]))
           .get();
         if (active) throw new AppError('CONFLICT', CONFLICT_MESSAGE, { activeJobId: active.id });
+        const project = tx
+          .select({ id: projects.id })
+          .from(projects)
+          .where(eq(projects.id, projectId))
+          .get();
+        if (!project) throw new AppError('NOT_FOUND', 'Proyek tidak ditemukan.');
+        const notReady = definition.notReadyReason?.({ db, projectId });
+        if (notReady) throw new AppError('CONFLICT', notReady);
         tx.insert(jobs)
           .values({ id, projectId, stage, status: 'queued', createdAt: clock() })
           .run();

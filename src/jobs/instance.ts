@@ -4,10 +4,8 @@
 import { CliClaudeRunner } from '../claude/cli-runner.ts';
 import { systemClock } from '../core/clock.ts';
 import { getDb } from '../core/db/client.ts';
-import { JobQueue, type StageRegistry } from './job-queue.ts';
-
-/** Definisi tahap yang tersedia; diisi oleh task tahap 2–7. */
-export const stageRegistry: StageRegistry = {};
+import { createStageRegistry } from '../stages/registry.ts';
+import { JobQueue } from './job-queue.ts';
 
 const globalKey = Symbol.for('prd-generator.job-queue');
 const globalQueue = globalThis as typeof globalThis & { [globalKey]?: JobQueue };
@@ -17,11 +15,15 @@ export function getJobQueue(): JobQueue {
   if (!queue) {
     queue = new JobQueue({
       db: getDb(),
-      runner: new CliClaudeRunner(),
+      // CLAUDE_COMMAND (opsional) mengganti perintah `claude`, misalnya script palsu untuk uji UI.
+      runner: new CliClaudeRunner({ command: process.env.CLAUDE_COMMAND || undefined }),
       clock: systemClock,
-      stages: stageRegistry,
+      stages: {},
     });
     globalQueue[globalKey] = queue;
   }
+  // Dibuat ulang setiap kali: prompt di prompts/ dan definisi tahap yang diubah langsung terpakai
+  // tanpa restart server, walau antreannya sendiri bertahan saat hot reload.
+  queue.setStages(createStageRegistry());
   return queue;
 }

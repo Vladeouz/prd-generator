@@ -36,6 +36,10 @@ export type ProjectDetail = ProjectSummary & {
   decisions: (typeof decisions.$inferSelect)[];
   documents: Record<(typeof DOCUMENT_KINDS)[number], typeof documents.$inferSelect | null>;
   activeJob: typeof jobs.$inferSelect | null;
+  /** Job terbaru proyek ini (status apa pun), untuk menampilkan hasil atau error terakhir. */
+  latestJob: typeof jobs.$inferSelect | null;
+  /** Output yang berlaku per tahap (hasil parse `output_json`). */
+  stageOutputs: Partial<Record<Stage, unknown>>;
 };
 
 export type ProjectDeps = { db: Db; clock: Clock };
@@ -152,6 +156,21 @@ export function getProjectDetail({ db }: Pick<ProjectDeps, 'db'>, id: string): P
         .from(jobs)
         .where(and(eq(jobs.projectId, id), inArray(jobs.status, [...ACTIVE_JOB_STATUSES])))
         .get() ?? null,
+    latestJob:
+      db
+        .select()
+        .from(jobs)
+        .where(eq(jobs.projectId, id))
+        .orderBy(desc(jobs.createdAt), desc(jobs.id))
+        .get() ?? null,
+    stageOutputs: Object.fromEntries(
+      db
+        .select({ stage: stageRuns.stage, outputJson: stageRuns.outputJson })
+        .from(stageRuns)
+        .where(and(eq(stageRuns.projectId, id), eq(stageRuns.isCurrent, 1)))
+        .all()
+        .map(({ stage, outputJson }) => [stage, JSON.parse(outputJson ?? 'null')]),
+    ),
   };
 }
 

@@ -3,6 +3,7 @@ import type { ProjectDetail } from '../../../projects/projects.ts';
 import { STAGE_LABELS } from '../../../projects/stage-labels.ts';
 import { formatDateTime, formatTokens } from '../format.ts';
 import { DeleteProjectButton } from './delete-project-button.tsx';
+import { Stage2Section } from './stage2-section.tsx';
 
 export function ProjectView({ project }: { project: ProjectDetail }) {
   return (
@@ -36,6 +37,8 @@ export function ProjectView({ project }: { project: ProjectDetail }) {
           <dd id="tokens">{formatTokens(project.totalTokens)}</dd>
         </dl>
       </section>
+
+      <Stage2Section project={project} />
     </main>
   );
 }

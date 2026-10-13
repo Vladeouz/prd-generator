@@ -70,6 +70,8 @@ describe('ProjectView', () => {
     decisions: [],
     documents: { prd: null, tasks: null },
     activeJob: null,
+    latestJob: null,
+    stageOutputs: {},
   };
 
   it('proyek baru: tahap klarifikasi produk siap dijalankan', () => {

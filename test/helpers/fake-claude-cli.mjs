@@ -2,12 +2,15 @@
 // Pengganti perintah `claude` untuk integration test runner CLI. Tidak pernah memanggil Claude.
 // `--version` mencetak versi palsu lalu keluar. Selain itu, perilaku diatur lewat variabel lingkungan:
 //
-//   FAKE_CLAUDE_MODE  ok (bawaan) | exit | bad-json | bad-envelope | is-error | hang
+//   FAKE_CLAUDE_MODE  ok (bawaan) | exit | bad-json | bad-envelope | is-error | hang | fixture
+//   FAKE_CLAUDE_FIXTURE  untuk mode fixture: path envelope (misalnya test/fixtures/claude/stage2.json)
+//                        yang dicetak apa adanya
+//   FAKE_CLAUDE_DELAY_MS  untuk mode fixture: jeda sebelum mencetak (meniru durasi pemanggilan)
 //   FAKE_CLAUDE_PID_FILE  bila diisi, pid proses ini ditulis ke file itu (untuk memeriksa kill)
 //
 // Mode `ok` mengembalikan envelope yang `result`-nya JSON berisi yang diterima script: argumen,
 // isi stdin, cwd, dan isi folder cwd. Dengan begitu test bisa memeriksa cara runner memanggilnya.
-import { readdirSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 if (process.argv.includes('--version')) {
   process.stdout.write('9.9.9 (Claude Code palsu)\n');
@@ -58,6 +61,12 @@ process.stdin.on('end', () => {
           result: 'Invalid API key · Please run /login',
           usage: { input_tokens: 0, output_tokens: 0 },
         }),
+      );
+      break;
+    case 'fixture':
+      setTimeout(
+        () => process.stdout.write(readFileSync(process.env.FAKE_CLAUDE_FIXTURE ?? '', 'utf8')),
+        Number(process.env.FAKE_CLAUDE_DELAY_MS ?? 0),
       );
       break;
     case 'hang':

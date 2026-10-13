@@ -41,7 +41,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `src/projects/**`, `src/app/page.tsx`, `src/app/projects/**`, `src/app/api/projects/**`, test terkait
   - done when: setiap kriteria FR-01 terbukti oleh test route handler dan test komponen; `DELETE` proyek dengan job berjalan menghasilkan `409`; hapus proyek menghapus semua datanya (dibuktikan integration test); halaman utama punya tautan ke `/settings` (dibuktikan test komponen); `pnpm check` hijau
 
-- [ ] T-008 Tahap 2: klarifikasi produk
+- [x] T-008 Tahap 2: klarifikasi produk
   - layer: app · depends_on: T-005, T-007 · refs: FR-03
   - files: `prompts/stage-2.md`, `src/stages/stage-2/**`, `src/app/projects/[id]/**` (layar tahap 2), `src/app/api/projects/[id]/answers/**`, test terkait
   - done when: prompt dan validator diturunkan dari `docs/reference/validate-claude-p-v2.mjs` dengan perbaikan di FR-03; validator terbukti menerima fixture nyata dan menolak contoh rusak (jumlah pertanyaan tidak sesuai clarity, default di luar opsi, topik teknis); setiap kriteria FR-03 terbukti oleh test; **(manual)** dengan `claude` sungguhan dan ide "Catatan keuangan pribadi.", tahap 2 lolos validator dan pertanyaannya tampil dan bisa dijawab di UI; `pnpm check` hijau
