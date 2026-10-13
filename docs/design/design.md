@@ -67,7 +67,7 @@ Font dimuat dengan `next/font/google`.
 
 ## Komponen dasar
 
-Di `src/components/ui/`, masing-masing dengan test komponen: `Button` (utama, sekunder, teks), `Chip` (opsi tunggal dan ganda, `aria-pressed`), `Badge` (status dan keparahan), `Card`, `Field` (label + input atau textarea + error), `ProgressBar`, `Stepper` (8 tahap: selesai, aktif, terkunci, gagal, berjalan; token per tahap), `StickyActionBar` (ringkasan di kiri, "Berikutnya: …" dan tombol di kanan), `AppHeader` (logo, breadcrumb proyek, total token, status template, tombol tema).
+Di `src/components/ui/`, masing-masing dengan test komponen: `Button` (utama, sekunder, teks), `Chip` (opsi tunggal dan ganda; input radio atau checkbox asli yang disembunyikan secara visual di dalam `<label>` bergaya chip, sehingga status terpilih lewat `checked` dan navigasi keyboard mengikuti perilaku bawaan form), `Badge` (status dan keparahan), `Card`, `Field` (label + input atau textarea + error), `ProgressBar`, `Stepper` (8 tahap: selesai, aktif, terkunci, gagal, berjalan; token per tahap), `StickyActionBar` (ringkasan di kiri, "Berikutnya: …" dan tombol di kanan), `AppHeader` (logo, breadcrumb proyek, total token, status template, tombol tema).
 
 ## Tata letak
 
