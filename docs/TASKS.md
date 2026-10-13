@@ -46,7 +46,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `prompts/stage-2.md`, `src/stages/stage-2/**`, `src/app/projects/[id]/**` (layar tahap 2), `src/app/api/projects/[id]/answers/**`, test terkait
   - done when: prompt dan validator diturunkan dari `docs/reference/validate-claude-p-v2.mjs` dengan perbaikan di FR-03; validator terbukti menerima fixture nyata dan menolak contoh rusak (jumlah pertanyaan tidak sesuai clarity, default di luar opsi, topik teknis); setiap kriteria FR-03 terbukti oleh test; **(manual)** dengan `claude` sungguhan dan ide "Catatan keuangan pribadi.", tahap 2 lolos validator dan pertanyaannya tampil dan bisa dijawab di UI; `pnpm check` hijau
 
-- [ ] T-009 Tahap 3: klarifikasi teknis dan pilihan profil
+- [x] T-009 Tahap 3: klarifikasi teknis dan pilihan profil
   - layer: app · depends_on: T-008 · refs: FR-04
   - files: `prompts/stage-3.md`, `src/stages/stage-3/**`, layar tahap 3, `src/app/api/projects/[id]/profile/**`, test terkait
   - done when: prompt dan validator diturunkan dari `docs/reference/validate-claude-p-stage3-v2.mjs` dengan perbaikan di FR-04; validator menolak teks yang menyebut "Profil A" atau "Profil B" dan default yang melanggar tabel kebijakan; setiap kriteria FR-04 terbukti oleh test, termasuk layar pilihan saat rekomendasi Profil B; **(manual)** dengan `claude` sungguhan, ide katalog UMKM dari uji sebelumnya menghasilkan pilihan eksplisit sesuai FR-04, dan ide booking futsal langsung mendapat stack yang tersedia; `pnpm check` hijau
