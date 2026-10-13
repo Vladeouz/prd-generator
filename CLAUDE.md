@@ -44,6 +44,7 @@
 
 - Centang task di `docs/TASKS.md` hanya setelah SEMUA kriteria *done when* terbukti. Jalankan ulang seluruh kriteria dari awal sebelum mencentang, bukan hanya bagian yang terakhir diperbaiki.
 - Setelah `pnpm check` tersedia (T-001), perintah itu harus hijau sebelum task apa pun dicentang.
+- Jalankan `pnpm check` tanpa pipe ke `tail`, `head`, atau `grep`, dan periksa exit code-nya langsung sebelum commit, merge, atau push.
 - Untuk kriteria bertanda **(manual)**, tuliskan langkah verifikasi yang lengkap dan bisa diikuti sendiri: persiapan (`.env`, `TEMPLATE_DIR`, server yang harus berjalan), perintah persisnya, dan hasil yang harus terlihat. Lalu tunggu konfirmasi user.
 - Jika ada kriteria yang tidak bisa dipenuhi, jangan mencentang. Laporkan penyebabnya dengan jujur.
 - Saat menguji bahwa sebuah test gagal untuk kode yang salah (mutation check), commit dulu atau ubah satu baris lalu kembalikan secara manual; jangan memakai `git checkout` pada file yang belum di-commit.

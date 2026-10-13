@@ -51,8 +51,13 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `prompts/stage-3.md`, `src/stages/stage-3/**`, layar tahap 3, `src/app/api/projects/[id]/profile/**`, test terkait
   - done when: prompt dan validator diturunkan dari `docs/reference/validate-claude-p-stage3-v2.mjs` dengan perbaikan di FR-04; validator menolak teks yang menyebut "Profil A" atau "Profil B" dan default yang melanggar tabel kebijakan; setiap kriteria FR-04 terbukti oleh test, termasuk layar pilihan saat rekomendasi Profil B; **(manual)** dengan `claude` sungguhan, ide katalog UMKM dari uji sebelumnya menghasilkan pilihan eksplisit sesuai FR-04, dan ide booking futsal langsung mendapat stack yang tersedia; `pnpm check` hijau
 
+- [ ] T-020 Fondasi desain: token, komponen dasar, dan tata letak
+  - layer: app · depends_on: T-009 · refs: `docs/design/design.md`, NFR-03
+  - files: `src/app/globals.css`, `src/app/layout.tsx`, `src/components/ui/**`, `src/app/page.tsx`, `src/app/projects/**`, `src/app/settings/**`, test terkait
+  - done when: semua token warna, tipografi, radius, dan jarak di `docs/design/design.md` didefinisikan sebagai CSS custom property untuk mode gelap dan terang, dan komponen tidak memakai nilai warna mentah (dibuktikan dengan pencarian `#[0-9a-fA-F]{3,6}` di `src/components` dan `src/app` yang hanya menemukan `globals.css`); komponen dasar di `design.md` ada dengan test komponen; tombol tema berganti antara gelap dan terang dan pilihannya bertahan setelah dimuat ulang; beranda, halaman proyek (tahap 2 dan 3), dan pengaturan dibangun ulang dengan komponen dan tata letak `design.md`, mengikuti `docs/design/mockups/Main.dc.html` dan `Questions.dc.html`; `StickyActionBar` menyebut tahap berikutnya di samping tombol simpan; test komponen dan integration test yang sudah ada tetap lulus; **(manual)** user membandingkan beranda dan layar tahap 2 di Chrome dengan mockup dalam kedua tema, dan memastikan tampilan di lebar 390 px tetap terbaca tanpa geser ke samping; `pnpm check` hijau
+
 - [ ] T-010 Tahap 4: struktur fitur
-  - layer: app · depends_on: T-009 · refs: FR-05
+  - layer: app · depends_on: T-009, T-020 · refs: FR-05
   - files: `prompts/stage-4.md`, `src/stages/stage-4/**`, layar tahap 4, `src/app/api/projects/[id]/features/**`, test terkait
   - done when: validator diturunkan dari `validateStage4` di `docs/reference/e2e-gym.mjs`; setiap kriteria FR-05 terbukti oleh test; fitur rekomendasi yang tidak dicentang masuk non-goals pada input tahap berikutnya (dibuktikan test); `pnpm check` hijau
 
@@ -88,8 +93,13 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
 
 ## Fase 2 — Integrasi dan penyelesaian
 
+- [ ] T-021 Penyempurnaan UI/UX dan aksesibilitas
+  - layer: app · depends_on: T-016 · refs: `docs/design/design.md`
+  - files: `src/components/**`, `src/app/**`, test terkait
+  - done when: layar review kritis dan PRD mengikuti `docs/design/mockups/Review.dc.html` dan `Prd.dc.html`; setiap layar punya keadaan kosong, memuat, dan error yang jelas dalam Bahasa Indonesia; semua elemen interaktif bisa dipakai dengan keyboard dan punya fokus yang terlihat; kontras teks memenuhi `design.md` di kedua tema (diperiksa dengan alat pemeriksa kontras dan hasilnya dicatat di log); **(manual)** user menjalankan satu proyek dari beranda sampai ekspor dengan runner palsu (`CLAUDE_COMMAND`) di kedua tema dan lebar 390 px, lalu mengonfirmasi tampilannya; `pnpm check` hijau
+
 - [ ] T-017 Test end-to-end alur lengkap dengan runner palsu
-  - layer: test · depends_on: T-016 · refs: FR-01 sampai FR-10, NFR-02, NFR-05
+  - layer: test · depends_on: T-016, T-021 · refs: FR-01 sampai FR-10, NFR-02, NFR-05
   - files: `playwright.config.ts`, `test/e2e/**`, `scripts/check.mjs`
   - done when: Playwright menjalankan satu proyek dari input ide sampai export ke folder buatan, memakai runner palsu dan fixture nyata, termasuk satu tahap yang gagal validasi lalu berhasil setelah percobaan ulang; `pnpm check` menjalankan test end-to-end dan tetap di bawah 5 menit; `pnpm check` dijalankan 5 kali berturut-turut tanpa kegagalan acak
 
