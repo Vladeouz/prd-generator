@@ -1,46 +1,70 @@
-import Link from 'next/link';
-import type { ProjectDetail } from '../../../projects/projects.ts';
+import { AppHeader, type TemplateStatus } from '../../../components/ui/app-header.tsx';
+import { Card } from '../../../components/ui/card.tsx';
+import { Stepper } from '../../../components/ui/stepper.tsx';
+import type { ProjectDetail, Stage, StageUsage } from '../../../projects/projects.ts';
 import { STAGE_LABELS } from '../../../projects/stage-labels.ts';
 import { formatDateTime, formatTokens } from '../format.ts';
 import { DeleteProjectButton } from './delete-project-button.tsx';
 import { Stage2Section } from './stage2-section.tsx';
 import { Stage3Section } from './stage3-section.tsx';
+import { projectSteps, selectedStage } from './steps.ts';
 
-export function ProjectView({ project }: { project: ProjectDetail }) {
+type Props = {
+  project: ProjectDetail;
+  /** Pemakaian per tahap (`getStageUsage`). */
+  usage?: Partial<Record<Stage, StageUsage>>;
+  /** Nilai `?tahap=` dari URL. */
+  stage?: string;
+  template?: TemplateStatus;
+};
+
+/**
+ * Halaman proyek: tiga kolom (stepper, konten tahap, panel samping). Di layar sempit kolom menumpuk
+ * berurutan: konten, stepper, panel (urutan diatur lewat `order` di grid).
+ */
+export function ProjectView({ project, usage = {}, stage, template }: Props) {
+  const selected = selectedStage(project, stage);
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <Link href="/" className="text-sm text-blue-700 underline">
-        ← Semua proyek
-      </Link>
-      <div className="mt-4 flex items-start justify-between gap-4">
-        <h1 className="text-3xl font-semibold">{project.name}</h1>
-        <DeleteProjectButton projectId={project.id} name={project.name} />
+    <>
+      <AppHeader
+        project={project.name}
+        tokens={formatTokens(project.totalTokens)}
+        template={template}
+      />
+      <div className="grid gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(560px,1fr)_300px]">
+        <div className="order-2 flex min-w-0 flex-col gap-6 lg:order-none lg:col-start-1 lg:row-span-2 lg:row-start-1">
+          <Stepper steps={projectSteps(project, usage, selected)} />
+          <Card as="section" aria-label="Ringkasan proyek" className="flex flex-col gap-3 text-sm">
+            <h2 className="text-[15px] font-bold">{project.name}</h2>
+            <p className="whitespace-pre-wrap text-ink-secondary">{project.idea}</p>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[13px]">
+              <dt className="text-ink-muted">Tahap saat ini</dt>
+              <dd id="current-stage">
+                {STAGE_LABELS[project.currentStage]}
+                {project.activeJob ? ' — sedang berjalan' : ' — siap dijalankan'}
+              </dd>
+              <dt className="text-ink-muted">Terakhir selesai</dt>
+              <dd id="last-stage">
+                {project.lastCompletedStage
+                  ? STAGE_LABELS[project.lastCompletedStage]
+                  : 'Belum ada'}
+              </dd>
+              <dt className="text-ink-muted">Token</dt>
+              <dd id="tokens" className="font-mono">
+                {formatTokens(project.totalTokens)}
+              </dd>
+              <dt className="text-ink-muted">Dibuat</dt>
+              <dd>{formatDateTime(project.createdAt)}</dd>
+            </dl>
+            <DeleteProjectButton projectId={project.id} name={project.name} />
+          </Card>
+        </div>
+        {selected === 'stage2' ? (
+          <Stage2Section project={project} usage={usage.stage2} />
+        ) : (
+          <Stage3Section project={project} usage={usage.stage3} />
+        )}
       </div>
-      <p className="mt-1 text-xs text-slate-500">Dibuat {formatDateTime(project.createdAt)}</p>
-
-      <section className="mt-6 rounded border border-slate-200 bg-white p-6">
-        <h2 className="text-sm font-semibold text-slate-500">Ide</h2>
-        <p className="mt-2 whitespace-pre-wrap">{project.idea}</p>
-      </section>
-
-      <section className="mt-6 rounded border border-slate-200 bg-white p-6">
-        <dl className="grid grid-cols-[12rem_1fr] gap-y-2 text-sm">
-          <dt className="text-slate-500">Tahap saat ini</dt>
-          <dd id="current-stage">
-            {STAGE_LABELS[project.currentStage]}
-            {project.activeJob ? ' — sedang berjalan' : ' — siap dijalankan'}
-          </dd>
-          <dt className="text-slate-500">Tahap terakhir selesai</dt>
-          <dd id="last-stage">
-            {project.lastCompletedStage ? STAGE_LABELS[project.lastCompletedStage] : 'Belum ada'}
-          </dd>
-          <dt className="text-slate-500">Token terpakai</dt>
-          <dd id="tokens">{formatTokens(project.totalTokens)}</dd>
-        </dl>
-      </section>
-
-      <Stage2Section project={project} />
-      <Stage3Section project={project} />
-    </main>
+    </>
   );
 }

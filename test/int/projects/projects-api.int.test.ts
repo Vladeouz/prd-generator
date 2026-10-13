@@ -11,6 +11,7 @@ import {
   stageRuns,
 } from '../../../src/core/db/schema.ts';
 import { projectHandlers } from '../../../src/projects/handlers.ts';
+import { getStageUsage } from '../../../src/projects/projects.ts';
 import { createTestDb, type TestDb } from '../../helpers/db.ts';
 
 let t: TestDb;
@@ -339,5 +340,27 @@ describe('DELETE /api/projects/{id}', () => {
 
   it('proyek tidak ada → 404', async () => {
     expect((await api.remove('tidak-ada')).status).toBe(404);
+  });
+});
+
+describe('getStageUsage (stepper dan panel pemakaian, T-020)', () => {
+  it('token per tahap dari semua percobaan; durasi dari run yang berlaku', async () => {
+    const { id } = await createProject();
+    const other = await createProject('Lain', 'Ide lain.');
+    insertRun(id, 'stage2', { status: 'failed', isCurrent: 0, input: 900, output: 90 });
+    insertRun(id, 'stage2', { input: 24_100, output: 1_500 });
+    t.db
+      .update(stageRuns)
+      .set({ durationMs: 19_000 })
+      .where(eq(stageRuns.id, `run-${runSeq}`))
+      .run();
+    insertRun(id, 'stage3', { status: 'failed', isCurrent: 0, input: 50, output: 5 });
+    insertRun(other.id, 'stage2', { input: 7, output: 7 });
+
+    expect(getStageUsage({ db: t.db }, id)).toEqual({
+      stage2: { inputTokens: 25_000, outputTokens: 1_590, durationMs: 19_000 },
+      stage3: { inputTokens: 50, outputTokens: 5, durationMs: null },
+    });
+    expect(getStageUsage({ db: t.db }, 'tidak-ada')).toEqual({});
   });
 });

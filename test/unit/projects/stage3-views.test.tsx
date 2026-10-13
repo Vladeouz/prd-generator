@@ -143,9 +143,12 @@ describe('Stage3Section', () => {
 });
 
 describe('ProjectView', () => {
+  // T-020: halaman proyek menampilkan satu tahap per layar; tahap lain dibuka lewat stepper.
   it('menampilkan bagian tahap 2 dan tahap 3', () => {
-    const html = renderToStaticMarkup(<ProjectView project={project()} />);
+    const html = renderToStaticMarkup(<ProjectView project={project()} stage="2" />);
     expect(html).toContain('id="stage2"');
-    expect(html).toContain('id="stage3"');
+    expect(renderToStaticMarkup(<ProjectView project={project()} stage="3" />)).toContain(
+      'id="stage3"',
+    );
   });
 });

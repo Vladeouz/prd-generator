@@ -32,11 +32,15 @@ export function DeleteProjectButton({ projectId, name }: { projectId: string; na
         type="button"
         onClick={remove}
         disabled={deleting}
-        className="rounded border border-red-300 px-3 py-1.5 text-sm text-red-700 disabled:opacity-50"
+        className="min-h-11 cursor-pointer text-sm font-semibold text-high hover:underline disabled:opacity-50"
       >
         {deleting ? 'Menghapus…' : 'Hapus proyek'}
       </button>
-      {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
+      {error && (
+        <p className="mt-2 text-sm text-high" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

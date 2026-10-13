@@ -3,6 +3,7 @@
 // tersedia plus mitigasi SEO, atau tunda. Tersimpan sebagai keputusan D-01.
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
+import { Button } from '../../../components/ui/button.tsx';
 import { PROFILE_CHOICE_TEXT, type ProfileChoice } from '../../../stages/stage-3/profile-text.ts';
 
 const CHOICES = ['A_with_seo_mitigation', 'postpone'] as const;
@@ -43,30 +44,34 @@ export function ProfileChoiceForm({ projectId, current }: Props) {
   }
 
   return (
-    <form onSubmit={submit} className="mt-3 space-y-2 text-sm" data-testid="profile-choice">
+    <form onSubmit={submit} className="flex flex-col gap-2.5 text-sm" data-testid="profile-choice">
       {CHOICES.map((value) => (
-        <label key={value} className="flex gap-2">
+        <label
+          key={value}
+          className="flex cursor-pointer gap-3 rounded-control border border-line bg-canvas p-3.5 has-checked:border-accent has-checked:bg-accent-soft has-focus-visible:outline-2 has-focus-visible:outline-accent"
+        >
           <input
             type="radio"
             name="profile-choice"
+            className="mt-1 size-4 accent-accent"
             checked={choice === value}
             onChange={() => setChoice(value)}
           />
           <span>
             <strong>{PROFILE_CHOICE_TEXT[value].label}</strong>
-            <span className="block text-slate-600">{PROFILE_CHOICE_TEXT[value].consequence}</span>
+            <span className="block text-ink-muted">{PROFILE_CHOICE_TEXT[value].consequence}</span>
           </span>
         </label>
       ))}
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
-        >
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" disabled={saving}>
           {saving ? 'Menyimpan…' : 'Simpan pilihan'}
-        </button>
-        {message && <p className="text-slate-700">{message}</p>}
+        </Button>
+        {message && (
+          <p className="text-ink-secondary" role="status">
+            {message}
+          </p>
+        )}
       </div>
     </form>
   );

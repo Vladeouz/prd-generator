@@ -1,7 +1,8 @@
-import type { ProjectDetail } from '../../../projects/projects.ts';
+import type { ProjectDetail, StageUsage } from '../../../projects/projects.ts';
 import type { StoredAnswer } from '../../../stages/answers.ts';
 import { GUESS_TOPICS, type Stage2Output } from '../../../stages/stage-2/validate.ts';
 import { QuestionForm } from './question-form.tsx';
+import { NotesCard, StageLayout, UsageCard } from './stage-layout.tsx';
 import { StageRunner } from './stage-runner.tsx';
 
 /** Jawaban tersimpan tahap ini, digabung dengan teks pertanyaannya. */
@@ -27,18 +28,17 @@ export function answersFor(project: ProjectDetail, stage: 'stage2' | 'stage3'): 
   });
 }
 
-export function Stage2Section({ project }: { project: ProjectDetail }) {
+export function Stage2Section({ project, usage }: { project: ProjectDetail; usage?: StageUsage }) {
   const output = project.stageOutputs.stage2 as Stage2Output | undefined;
   const saved = answersFor(project, 'stage2');
 
   return (
-    <section className="mt-8" id="stage2">
-      <h2 className="text-xl font-semibold">Tahap 2 — Klarifikasi produk</h2>
-      <p className="mt-1 text-sm text-slate-600">
-        Pertanyaan singkat tentang produkmu. Lewati pertanyaan yang tidak penting; jawaban default
-        dipakai.
-      </p>
-      <div className="mt-4">
+    <StageLayout
+      id="stage2"
+      number={2}
+      title="Klarifikasi produk"
+      description="Pertanyaan singkat tentang produkmu. Lewati pertanyaan yang tidak penting; jawaban default dipakai."
+      runner={
         <StageRunner
           projectId={project.id}
           stage="stage2"
@@ -48,15 +48,32 @@ export function Stage2Section({ project }: { project: ProjectDetail }) {
           hasOutput={output !== undefined}
           estimate="sekitar 20 detik"
         />
-      </div>
-
+      }
+      aside={
+        output && (
+          <>
+            <NotesCard title="Asumsi produk" items={output.assumptions} testId="assumptions" />
+            <NotesCard
+              title="Dibahas di tahap teknis"
+              items={output.deferred_technical}
+              empty="Belum ada. Idenya tidak menyebut hal teknis yang perlu ditunda."
+              testId="deferred"
+            />
+            <UsageCard usage={usage} />
+          </>
+        )
+      }
+    >
       {output && (
-        <div className="mt-6 space-y-6">
-          <p className="text-sm text-slate-600" data-testid="clarity">
-            Kejelasan ide {output.clarity}/5: {output.clarity_reason}
-          </p>
+        <>
+          <div className="flex flex-wrap items-center gap-3.5 text-sm text-ink-muted">
+            <ClarityMeter value={output.clarity} />
+            <p data-testid="clarity">
+              Kejelasan ide {output.clarity}/5: {output.clarity_reason}
+            </p>
+          </div>
           {saved.length > 0 && (
-            <p className="text-sm text-green-700" data-testid="answers-saved">
+            <p className="text-sm text-success" data-testid="answers-saved">
               Jawaban tersimpan. Tahap berikutnya: Klarifikasi teknis — siap dijalankan. Kamu masih
               bisa mengubah jawaban di bawah.
             </p>
@@ -68,29 +85,24 @@ export function Stage2Section({ project }: { project: ProjectDetail }) {
             guessTopics={GUESS_TOPICS}
             saved={saved}
             savedMessage="Jawaban tersimpan. Tahap berikutnya: Klarifikasi teknis — siap dijalankan."
+            nextStage="Klarifikasi teknis"
           />
-          {output.assumptions.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold">Asumsi produk</h3>
-              <ul className="mt-1 list-disc pl-5 text-sm text-slate-700" data-testid="assumptions">
-                {output.assumptions.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {output.deferred_technical.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold">Dibahas di tahap teknis</h3>
-              <ul className="mt-1 list-disc pl-5 text-sm text-slate-700" data-testid="deferred">
-                {output.deferred_technical.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+        </>
       )}
-    </section>
+    </StageLayout>
+  );
+}
+
+/** Meter kejelasan ide 1–5. */
+function ClarityMeter({ value }: { value: number }) {
+  return (
+    <span className="inline-flex gap-1" role="img" aria-label={`Kejelasan ide ${value} dari 5`}>
+      {[1, 2, 3, 4, 5].map((level) => (
+        <span
+          key={level}
+          className={`h-2 w-7 rounded-sm ${level <= value ? 'bg-accent' : 'bg-line'}`}
+        />
+      ))}
+    </span>
   );
 }
