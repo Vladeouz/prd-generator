@@ -6,6 +6,7 @@ import { Button } from '../../../src/components/ui/button.tsx';
 import { Card } from '../../../src/components/ui/card.tsx';
 import { Chip } from '../../../src/components/ui/chip.tsx';
 import { Field } from '../../../src/components/ui/field.tsx';
+import { MobileMenu } from '../../../src/components/ui/mobile-menu.tsx';
 import { ProgressBar } from '../../../src/components/ui/progress-bar.tsx';
 import { type Step, Stepper } from '../../../src/components/ui/stepper.tsx';
 import { StickyActionBar } from '../../../src/components/ui/sticky-action-bar.tsx';
@@ -185,7 +186,9 @@ describe('AppHeader', () => {
         template={{ valid: true, commit: '0416d60c04bf650c3d517eb0197adc494ce1a8eb' }}
       />,
     );
-    expect(html).toMatch(/<a [^>]*href="\/">.*PRD Generator<\/a>/);
+    expect(html).toMatch(
+      /<a [^>]*aria-label="PRD Generator, kembali ke beranda" href="\/">.*PRD Generator<\/span><\/a>/,
+    );
     expect(html).toContain('data-testid="breadcrumb-project">Membership gym<');
     expect(html).toContain('data-testid="header-tokens">24.412 input · 1.521 output<');
     expect(html).toMatch(/data-testid="template-status"[^>]*>.*template 0416d60</);
@@ -207,5 +210,30 @@ describe('ThemeToggle', () => {
     expect(html).toContain('size-11');
     expect(html).toContain('light:hidden');
     expect(html).toContain('hidden light:block');
+  });
+});
+
+describe('MobileMenu', () => {
+  it('di header: tombol menu hanya untuk layar sempit, navigasi lebar disembunyikan di HP', () => {
+    const html = render(
+      <AppHeader tokens="1 input · 2 output" template={{ valid: true, commit: 'abc1234' }} />,
+    );
+    expect(html).toMatch(
+      /<button[^>]*aria-label="Buka menu" aria-expanded="false" aria-controls="mobile-menu"[^>]*md:hidden/,
+    );
+    expect(html).toMatch(/<nav aria-label="Navigasi utama" class="hidden [^"]*md:flex"/);
+    expect(html).not.toContain('role="dialog"');
+  });
+
+  it('terbuka: panel samping berisi navigasi, dengan tombol tutup', () => {
+    const html = render(
+      <MobileMenu defaultOpen>
+        <a href="/settings">Pengaturan</a>
+      </MobileMenu>,
+    );
+    expect(html).toContain('aria-expanded="true"');
+    expect(html).toMatch(/role="dialog" aria-modal="true" aria-label="Menu"/);
+    expect(html).toContain('<a href="/settings">Pengaturan</a>');
+    expect(html.match(/aria-label="Tutup menu"/g)).toHaveLength(2);
   });
 });
