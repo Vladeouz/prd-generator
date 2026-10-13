@@ -1,1 +1,110 @@
 @import "tailwindcss";
+
+/* Token desain (docs/design/design.md). Komponen hanya memakai token ini lewat kelas Tailwind
+   (`bg-surface`, `text-ink-muted`, `border-line`, ...), tidak pernah nilai warna mentah. */
+
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
+
+/* Mode gelap: bawaan. */
+:root {
+  color-scheme: dark;
+  --bg: #0e1013;
+  --surface: #161a1f;
+  --surface-raised: #1c2128;
+  --border: #2a3038;
+  --border-subtle: #22272e;
+  --text: #eceef1;
+  --text-secondary: #c9ced6;
+  --text-muted: #a3abb6;
+  --text-faint: #7d8794;
+  --accent: #7c9cff;
+  --on-accent: #0b1430;
+  --success: #4ade80;
+  --severity-high: #ff8a65;
+  --severity-medium: #f5c451;
+  --severity-low: #8ab4f8;
+}
+
+/* Mode terang: warna status digelapkan sampai kontras teks 4.5:1 di atas latar terangnya. */
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --border: #d7dce3;
+  --border-subtle: #e4e8ed;
+  --text: #14171c;
+  --text-secondary: #2f3640;
+  --text-muted: #5b6472;
+  --text-faint: #646d79;
+  --accent: #3d5fd9;
+  --on-accent: #ffffff;
+  --success: #126b33;
+  --severity-high: #a93a0b;
+  --severity-medium: #8a5a00;
+  --severity-low: #1d4ed8;
+}
+
+/* Turunan dengan alfa: berlaku untuk kedua tema. */
+:root {
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent) 33%, transparent);
+  --success-soft: color-mix(in srgb, var(--success) 14%, transparent);
+  --severity-high-soft: color-mix(in srgb, var(--severity-high) 14%, transparent);
+  --severity-medium-soft: color-mix(in srgb, var(--severity-medium) 14%, transparent);
+  --severity-low-soft: color-mix(in srgb, var(--severity-low) 14%, transparent);
+}
+
+@theme inline {
+  --color-canvas: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--surface-raised);
+  --color-line: var(--border);
+  --color-line-subtle: var(--border-subtle);
+  --color-ink: var(--text);
+  --color-ink-secondary: var(--text-secondary);
+  --color-ink-muted: var(--text-muted);
+  --color-ink-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+  --color-on-accent: var(--on-accent);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-high: var(--severity-high);
+  --color-high-soft: var(--severity-high-soft);
+  --color-medium: var(--severity-medium);
+  --color-medium-soft: var(--severity-medium-soft);
+  --color-low: var(--severity-low);
+  --color-low-soft: var(--severity-low-soft);
+
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+/* Radius (tombol, input, chip: 12 px; panel: 16 px; kartu utama dan komposer: 20 px) dan jarak
+   berbasis 4 px (kelas Tailwind: 1 = 4 px). */
+@theme {
+  --radius-control: 12px;
+  --radius-panel: 16px;
+  --radius-card: 20px;
+  --spacing: 4px;
+}
+
+@layer base {
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  ::placeholder {
+    color: var(--text-faint);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}

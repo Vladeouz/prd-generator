@@ -139,6 +139,17 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - Fixture `test/fixtures/claude/<tahap>.json` adalah envelope lengkap, dibaca lewat `loadClaudeFixture()` dan parser yang sama dengan output sungguhan. Fixture dari uji nyata dibangun ulang dengan `node test/fixtures/claude/build-fixtures.mjs` (sumber: `docs/reference/e2e-output/`); file JSON-nya dikecualikan dari Biome.
 - **Fixture turunan** di `test/fixtures/claude/derived/`: salinan output nyata yang diubah karena kontrak tahapnya berubah setelah uji nyata (misalnya `default_policy_key` di tahap 3). Dibangun dengan `node test/fixtures/claude/build-derived-fixtures.mjs`; setiap perubahan dicatat di field `fixture_derived` envelope-nya. Fixture asli tetap apa adanya dan dipakai sebagai contoh yang harus ditolak validator.
 
+## UI dan desain
+
+- Sumber desain: `docs/design/design.md` dan mockup di `docs/design/mockups/` (dibaca, bukan dijalankan; dikecualikan dari Biome).
+- Token warna, radius, dan jarak hanya didefinisikan di `src/app/globals.css` (mode gelap di `:root`, mode terang di `[data-theme="light"]`) dan dipetakan ke tema Tailwind: `bg-canvas`, `bg-surface`, `bg-raised`, `border-line`, `border-line-subtle`, `text-ink`, `text-ink-secondary`, `text-ink-muted`, `text-ink-faint`, `accent`, `accent-soft`, `accent-line`, `on-accent`, `success`, `high`, `medium`, `low` (masing-masing dengan `-soft`), `rounded-control` (12 px), `rounded-panel` (16 px), `rounded-card` (20 px). Nilai warna mentah di `src/components` dan `src/app` dilarang; dijaga oleh `test/unit/components/design-tokens.test.ts`. Varian `light:` untuk gaya khusus mode terang.
+- Komponen dasar di `src/components/ui/` (`Button`, `Chip`, `Badge`, `Card`, `Field`, `ProgressBar`, `Stepper`, `StickyActionBar`, `AppHeader`, `ThemeToggle`, `MobileMenu`), dengan test di `test/unit/components/`. Variasi lewat prop (`variant`, `size`, `tone`), bukan dengan menimpa kelas warna, ukuran, atau radius lewat `className` (dua kelas Tailwind untuk properti yang sama hasilnya tidak bisa ditebak). `className` hanya untuk tata letak.
+- `Chip` berisi input radio atau checkbox asli yang disembunyikan secara visual (status terpilih lewat `checked`, bukan `aria-pressed`), agar navigasi keyboard dan form mengikuti perilaku bawaan.
+- Header: mulai lebar `md` navigasi ada di header; di bawahnya navigasi, token, dan status template ada di `MobileMenu` (menu samping).
+- Tema: `data-theme` di `<html>`, dipasang script `THEME_INIT_SCRIPT` sebelum render; pilihan di `localStorage` (`prd-generator-theme`), bawaan mengikuti `prefers-color-scheme`.
+- Halaman proyek menampilkan satu tahap per layar (`?tahap=N`, bawaan tahap saat ini). Layar tahap memakai `StageLayout` (`src/app/projects/[id]/stage-layout.tsx`): konten dan panel samping menjadi kolom grid halaman, diakhiri `StickyActionBar` yang menyebut tahap berikutnya. Tahap baru ditambahkan ke `VIEW_STAGES` di `steps.ts`.
+- Test tampilan memakai `renderToStaticMarkup` dan `data-testid`; atribut `data-testid` ditulis terakhir bila test mencocokkan teks tepat sesudahnya.
+
 ## Test
 
 - Integration test yang butuh database memakai `createTestDb()` dari `test/helpers/db.ts`: file SQLite baru yang sudah dimigrasi di folder sementara OS, dihapus lewat `close()` di `afterEach`. Contoh: `test/int/db/schema.int.test.ts`.

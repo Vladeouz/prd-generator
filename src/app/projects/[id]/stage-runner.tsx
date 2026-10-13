@@ -3,6 +3,8 @@
 // `GET /api/jobs/{id}`; halaman tetap bisa dipakai dan ditinggalkan selama job berjalan.
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Button } from '../../../components/ui/button.tsx';
+import { ProgressBar } from '../../../components/ui/progress-bar.tsx';
 import type { Job } from '../../../jobs/job-queue.ts';
 
 const POLL_MS = 2000;
@@ -83,32 +85,49 @@ export function StageRunner({
   const otherRunning = activeJob !== null && activeJob.stage !== stage;
 
   return (
-    <div className="space-y-2" data-testid={`runner-${stage}`}>
+    <div className="flex flex-col gap-2.5" data-testid={`runner-${stage}`}>
       {running && job ? (
-        <p className="text-sm text-slate-700" data-testid="job-status">
-          {job.status === 'queued' ? 'Menunggu dimulai' : `${label} sedang berjalan`} ·{' '}
-          {formatElapsed(now - Date.parse(job.startedAt ?? job.createdAt))}
-          {estimate ? ` (perkiraan ${estimate})` : ''}. Kamu boleh meninggalkan halaman ini.
-        </p>
+        <div className="flex flex-col gap-3 rounded-panel border border-accent-line bg-accent-soft px-4.5 py-4">
+          <p className="text-sm text-ink" aria-live="polite" data-testid="job-status">
+            {job.status === 'queued' ? 'Menunggu dimulai' : `${label} sedang berjalan`} ·{' '}
+            {formatElapsed(now - Date.parse(job.startedAt ?? job.createdAt))}
+            {estimate ? ` (perkiraan ${estimate})` : ''}. Kamu boleh meninggalkan halaman ini.
+          </p>
+          <ProgressBar label={`Progres ${label.toLowerCase()}`} />
+        </div>
       ) : (
-        <button
-          type="button"
-          onClick={start}
-          disabled={otherRunning}
-          className="rounded bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-50"
-        >
-          {hasOutput ? `Jalankan ulang ${label.toLowerCase()}` : `Jalankan ${label.toLowerCase()}`}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant={hasOutput ? 'secondary' : 'primary'}
+            onClick={start}
+            disabled={otherRunning}
+          >
+            {hasOutput
+              ? `Jalankan ulang ${label.toLowerCase()}`
+              : `Jalankan ${label.toLowerCase()}`}
+          </Button>
+          {estimate && !hasOutput && (
+            <span className="text-[13px] text-ink-muted">Perkiraan {estimate}</span>
+          )}
+        </div>
       )}
       {otherRunning && !running && (
-        <p className="text-sm text-slate-500">Tahap lain sedang berjalan. Tunggu sampai selesai.</p>
+        <p className="text-sm text-ink-muted">Tahap lain sedang berjalan. Tunggu sampai selesai.</p>
       )}
       {failed && (
-        <p className="text-sm text-red-700" data-testid="job-error">
+        <p
+          className="rounded-control border border-high bg-high-soft px-3.5 py-2.5 text-sm text-high"
+          data-testid="job-error"
+          role="alert"
+        >
           {failed.status === 'interrupted' ? 'Terhenti' : 'Gagal'}: {failed.error}
         </p>
       )}
-      {message && <p className="text-sm text-red-700">{message}</p>}
+      {message && (
+        <p className="text-sm text-high" role="alert">
+          {message}
+        </p>
+      )}
     </div>
   );
 }
