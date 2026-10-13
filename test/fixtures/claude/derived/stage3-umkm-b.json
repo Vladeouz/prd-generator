@@ -1,0 +1,53 @@
+{
+  "type": "result",
+  "subtype": "success",
+  "is_error": false,
+  "duration_ms": 35436,
+  "num_turns": 1,
+  "session_id": "fixture-derived-umkm-stage3",
+  "total_cost_usd": 0.07223619999999999,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 26341,
+    "output_tokens": 3348,
+    "output_tokens_details": {
+      "thinking_tokens": 852
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 3348,
+        "cache_read_input_tokens": 26341,
+        "cache_creation_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "result": "{\n  \"questions\": [\n    {\n      \"id\": \"t1\",\n      \"topic\": \"mobile_masa_depan\",\n      \"question\": \"Sekarang idenya website. Kira-kira dalam 1 tahun ke depan kamu butuh aplikasi HP (Android/iOS), misalnya supaya pemilik UMKM bisa kelola produk dari aplikasi atau pembeli bisa pasang aplikasinya?\",\n      \"type\": \"single\",\n      \"options\": [\n        \"Tidak, cukup website saja\",\n        \"Mungkin butuh, belum pasti\",\n        \"Ya, pasti butuh aplikasi HP dalam 1 tahun\"\n      ],\n      \"recommended_default\": \"Tidak, cukup website saja\",\n      \"default_reason\": \"Tujuan utamanya produk muncul di Google, jadi SEO adalah inti produk. Kebijakan default untuk kasus ini: cukup website.\",\n      \"why_it_matters\": \"Kalau cukup website, katalog yang butuh Google lebih cocok dibuat sebagai website yang ramah SEO. Kalau butuh aplikasi HP, web dan HP dibuat dari satu codebase, tapi SEO-nya lebih lemah.\",\n      \"affects\": [\n        \"profil\",\n        \"arsitektur\",\n        \"deployment\"\n      ],\n      \"default_policy_key\": \"mobile_masa_depan.cukup_website\"\n    },\n    {\n      \"id\": \"t2\",\n      \"topic\": \"tenancy\",\n      \"question\": \"Katalog ini untuk satu UMKM saja (toko kamu sendiri), atau jadi wadah banyak UMKM kerajinan yang masing-masing punya produk dan nomor WhatsApp sendiri?\",\n      \"type\": \"single\",\n      \"options\": [\n        \"Satu UMKM saja\",\n        \"Banyak UMKM dalam satu katalog bersama (marketplace/direktori)\",\n        \"Platform terbuka yang bisa dipakai UMKM mana saja untuk membuat katalognya sendiri (SaaS)\"\n      ],\n      \"recommended_default\": \"Satu UMKM saja\",\n      \"default_reason\": \"Kebijakan default: satu organisasi saja, dan asumsi produk menyebut pemilik UMKM mengelola sendiri daftar produknya.\",\n      \"why_it_matters\": \"Kalau ada banyak UMKM, kita perlu pendaftaran penjual, pemisahan data per UMKM, halaman toko per penjual, dan moderasi. Skema dan otorisasinya jadi jauh lebih rumit.\",\n      \"affects\": [\n        \"arsitektur\",\n        \"skema\"\n      ],\n      \"default_policy_key\": \"tenancy.satu_organisasi\"\n    },\n    {\n      \"id\": \"t3\",\n      \"topic\": \"integrasi\",\n      \"question\": \"Tombol 'Pesan lewat WhatsApp' mau dibuat seperti apa?\",\n      \"type\": \"single\",\n      \"options\": [\n        \"Tautan WhatsApp biasa (wa.me) yang membuka chat dengan pesan otomatis berisi nama produk, tanpa integrasi pihak ketiga\",\n        \"Tautan WhatsApp biasa ditambah pencatatan jumlah klik per produk\",\n        \"Integrasi WhatsApp Business API (pesan otomatis, katalog tersinkron, atau chatbot)\"\n      ],\n      \"recommended_default\": \"Tautan WhatsApp biasa (wa.me) yang membuka chat dengan pesan otomatis berisi nama produk, tanpa integrasi pihak ketiga\",\n      \"default_reason\": \"Kebijakan default: tanpa integrasi pihak ketiga, cukup tautan biasa. Cara ini sudah memenuhi fitur wajib tombol pesan lewat WhatsApp.\",\n      \"why_it_matters\": \"WhatsApp Business API butuh akun penyedia, webhook, dan pengelolaan token di backend. Tautan wa.me cukup dibuat di sisi tampilan tanpa server tambahan.\",\n      \"affects\": [\n        \"arsitektur\",\n        \"skema\",\n        \"deployment\"\n      ],\n      \"default_policy_key\": \"integrasi.tanpa_integrasi\"\n    }\n  ],\n  \"profile_recommendation\": {\n    \"profile\": \"B\",\n    \"status\": \"not_yet_supported\",\n    \"reason\": \"Katalog ini web-only dan tujuan utamanya muncul di Google, jadi paling cocok dibuat sebagai website yang ramah SEO.\",\n    \"depends_on_questions\": [\n      \"t1\"\n    ],\n    \"fallback_if_unsupported\": \"Selama stack itu belum tersedia, kamu bisa lanjut dengan stack yang tersedia (Flutter web) ditambah mitigasi SEO seperti sitemap, meta tag per produk, dan halaman produk yang bisa di-prerender, atau menunda proyek ini.\"\n  },\n  \"detected_risks\": [\n    \"SEO: tujuan utama idenya adalah produk muncul di Google, sedangkan Flutter web kurang ramah SEO. Halaman produk dirender di sisi klien, jadi mesin pencari bisa lambat atau gagal mengindeks isinya.\",\n    \"Stack website yang ramah SEO belum tersedia. Pilihannya: lanjut dengan stack yang tersedia dan menerima konsekuensi SEO, atau menunda proyek.\",\n    \"Masalah utama ('produk susah ditemukan calon pembeli secara online') masih TEBAKAN dan belum dikonfirmasi user. Prioritas SEO dan pilihan stack bergantung pada tebakan ini.\",\n    \"Kalau jawaban t2 ternyata banyak UMKM, cakupan produk berubah besar: pendaftaran penjual, halaman toko per UMKM, moderasi, dan pemisahan data per UMKM.\"\n  ],\n  \"assumptions\": [\n    \"Pengunjung (calon pembeli) melihat katalog tanpa login. Hanya pemilik UMKM yang login (Firebase Auth) untuk mengelola produk.\",\n    \"Hanya ada satu peran pengelola, yaitu pemilik UMKM, yang boleh menambah, mengubah, dan menghapus produk. Pengunjung hanya bisa membaca.\",\n    \"Data produk dan pengelola tetap dirancang dengan pemisahan per organisasi/UMKM (owner_id atau organization_id) sebagai asumsi arsitektur, walaupun model produknya satu UMKM.\",\n    \"Pembayaran dan negosiasi terjadi di luar aplikasi lewat chat WhatsApp. Aplikasi tidak memproses pembayaran atau pesanan.\",\n    \"Tidak ada notifikasi di scope, jadi FCM belum dipakai untuk fitur awal.\",\n    \"Tidak perlu mode offline dan tidak perlu realtime. Katalog diperbarui saat halaman dibuka atau di-refresh.\",\n    \"Data sensitif standar: login pengelola lewat HTTPS dengan otorisasi per akun. Data pribadi yang disimpan minimal (akun pemilik dan nomor WhatsApp toko).\",\n    \"Foto produk perlu disimpan di penyimpanan file/objek yang bisa diakses publik. Penyimpanan ini belum ditentukan secara eksplisit oleh stack dan perlu diputuskan di tahap arsitektur.\"\n  ]\n}",
+  "fixture_derived": {
+    "source": "docs/reference/validate-report-stage3-v2.json ide #4 (katalog UMKM) run 3",
+    "changes": [
+      "default_policy_key ditambahkan ke t1, t2, t3",
+      "t1: default menjadi \"Tidak, cukup website saja\"; default_reason dan why_it_matters ditulis ulang tanpa istilah internal",
+      "profile_recommendation menjadi Profil B (not_yet_supported) dengan fallback_if_unsupported",
+      "detected_risks ditulis ulang tanpa istilah internal; dua risiko tentang Profil A dihapus",
+      "assumptions: \"oleh Profil A\" menjadi \"oleh stack\""
+    ]
+  }
+}

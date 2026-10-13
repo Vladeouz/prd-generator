@@ -4,6 +4,7 @@ import { STAGE_LABELS } from '../../../projects/stage-labels.ts';
 import { formatDateTime, formatTokens } from '../format.ts';
 import { DeleteProjectButton } from './delete-project-button.tsx';
 import { Stage2Section } from './stage2-section.tsx';
+import { Stage3Section } from './stage3-section.tsx';
 
 export function ProjectView({ project }: { project: ProjectDetail }) {
   return (
@@ -39,6 +40,7 @@ export function ProjectView({ project }: { project: ProjectDetail }) {
       </section>
 
       <Stage2Section project={project} />
+      <Stage3Section project={project} />
     </main>
   );
 }

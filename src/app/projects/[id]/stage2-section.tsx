@@ -20,6 +20,7 @@ export function answersFor(project: ProjectDetail, stage: 'stage2' | 'stage3'): 
             question: question.question,
             value: answer.value as string | string[],
             source: answer.source,
+            policyKey: answer.policyKey,
           },
         ]
       : [];
@@ -66,7 +67,7 @@ export function Stage2Section({ project }: { project: ProjectDetail }) {
             questions={output.questions}
             guessTopics={GUESS_TOPICS}
             saved={saved}
-            nextStageLabel="Klarifikasi teknis"
+            savedMessage="Jawaban tersimpan. Tahap berikutnya: Klarifikasi teknis — siap dijalankan."
           />
           {output.assumptions.length > 0 && (
             <div>
