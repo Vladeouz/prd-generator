@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Tahap 2 — Klarifikasi produk</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1013}
+a{color:#ECEEF1;text-decoration:none}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #0E1013; color: #ECEEF1; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 15px; line-height: 1.55">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 32px; border-bottom: 1px solid #22272E">
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px">
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; font-weight: 800">
+      <svg width="24" height="24" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="5" y="3" width="15" height="20" rx="3" stroke="{{accent}}" stroke-width="2"></rect><path d="M9 9h7M9 13h5" stroke="#ECEEF1" stroke-width="2" stroke-linecap="round"></path><circle cx="20.5" cy="20.5" r="5" fill="#0E1013" stroke="{{accent}}" stroke-width="2"></circle></svg>
+      PRD Generator
+    </a>
+    <span style="color: #4B5563" aria-hidden="true">/</span>
+    <span style="font-weight: 600">Membership gym</span>
+  </div>
+  <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #A3ABB6">25,6 rb token terpakai</span>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 32px; padding: 32px">
+
+  <nav aria-label="Tahapan" style="flex: 1 1 260px; max-width: 300px; display: flex; flex-direction: column; gap: 4px">
+    <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #A3ABB6; padding: 0 12px 10px">8 tahap</span>
+    <sc-for list="{{stages}}" as="s" hint-placeholder-count="8">
+      <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: {{s.rowBg}}; border: 1px solid {{s.rowLine}}">
+        <span style="width: 28px; height: 28px; flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; background: {{s.dotBg}}; color: {{s.dotFg}}; border: 1.5px solid {{s.dotLine}}">{{s.mark}}</span>
+        <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column">
+          <span style="font-weight: 600; font-size: 14px; color: {{s.labelFg}}">{{s.label}}</span>
+          <span style="font-size: 12px; color: #A3ABB6">{{s.meta}}</span>
+        </span>
+      </a>
+    </sc-for>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: {{accent}}">TAHAP 2 / 8</span>
+      <h1 style="margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -0.02em">Klarifikasi produk</h1>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; color: #A3ABB6; font-size: 14px">
+        <span>Kejelasan ide</span>
+        <span style="display: inline-flex; gap: 4px" role="img" aria-label="Kejelasan ide 2 dari 5">
+          <span style="width: 28px; height: 8px; border-radius: 4px; background: {{accent}}"></span>
+          <span style="width: 28px; height: 8px; border-radius: 4px; background: {{accent}}"></span>
+          <span style="width: 28px; height: 8px; border-radius: 4px; background: #2A3038"></span>
+          <span style="width: 28px; height: 8px; border-radius: 4px; background: #2A3038"></span>
+          <span style="width: 28px; height: 8px; border-radius: 4px; background: #2A3038"></span>
+        </span>
+        <span>2/5 — masalah, pengguna, dan fitur inti belum disebutkan, jadi ada 4 pertanyaan.</span>
+      </div>
+    </div>
+
+    <sc-for list="{{questions}}" as="q" hint-placeholder-count="4">
+      <section style="background: #161A1F; border: 1px solid #22272E; border-radius: 18px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px">
+          <div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A3ABB6">{{q.no}} · {{q.topic}}</span>
+              <sc-if value="{{q.guess}}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(245,196,81,0.14); color: #F5C451">Default berupa tebakan</span>
+              </sc-if>
+            </div>
+            <h2 style="margin: 0; font-size: 18px; font-weight: 700; line-height: 1.4">{{q.question}}</h2>
+          </div>
+          <button type="button" style="height: 40px; padding: 0 14px; background: transparent; border: 1px solid #2A3038; border-radius: 10px; color: #A3ABB6; font: inherit; font-size: 14px; cursor: pointer">Lewati</button>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px">
+          <sc-for list="{{q.options}}" as="o" hint-placeholder-count="4">
+            <button type="button" aria-pressed="{{o.pressed}}" style="min-height: 44px; padding: 8px 16px; display: inline-flex; align-items: center; gap: 8px; border-radius: 12px; font: inherit; font-size: 14px; text-align: left; cursor: pointer; background: {{o.bg}}; color: {{o.fg}}; border: 1.5px solid {{o.line}}">{{o.text}}</button>
+          </sc-for>
+          <button type="button" style="min-height: 44px; padding: 8px 16px; border-radius: 12px; font: inherit; font-size: 14px; background: transparent; color: #A3ABB6; border: 1.5px dashed #2A3038; cursor: pointer">+ Lainnya</button>
+        </div>
+        <p style="margin: 0; font-size: 13px; color: #A3ABB6">Default bila dilewati: <span style="color: #ECEEF1">{{q.fallback}}</span></p>
+      </section>
+    </sc-for>
+
+    <div style="position: sticky; bottom: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 20px; background: #1C2128; border: 1px solid #2A3038; border-radius: 16px">
+      <span style="font-size: 14px; color: #A3ABB6"><span style="color: #ECEEF1; font-weight: 600">3 dari 4 dijawab</span> · 1 dilewati, pakai default</span>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px">
+        <span style="font-size: 14px; color: #A3ABB6">Berikutnya: <span style="color: #ECEEF1; font-weight: 600">Klarifikasi teknis</span></span>
+        <button type="button" style="height: 48px; padding: 0 22px; background: {{accent}}; color: #0B1430; border: 0; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer">Simpan dan lanjut</button>
+      </div>
+    </div>
+  </main>
+
+  <aside aria-label="Catatan tahap" style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 16px">
+    <section style="background: #161A1F; border: 1px solid #22272E; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700">Asumsi produk</h2>
+      <ul style="margin: 0; padding-left: 18px; color: #A3ABB6; font-size: 14px; display: flex; flex-direction: column; gap: 6px">
+        <li>Dipakai untuk satu gym saja, bukan banyak cabang.</li>
+        <li>Pembayaran belum diproses di aplikasi, hanya dicatat.</li>
+        <li>Kelas grup dan personal trainer belum masuk versi pertama.</li>
+      </ul>
+    </section>
+    <section style="background: #161A1F; border: 1px solid #22272E; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700">Dibahas di tahap teknis</h2>
+      <p style="margin: 0; color: #A3ABB6; font-size: 14px">Belum ada. Idenya tidak menyebut platform, notifikasi, atau login.</p>
+    </section>
+    <section style="background: #161A1F; border: 1px solid #22272E; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 8px">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700">Pemakaian tahap ini</h2>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #A3ABB6">24,1 rb input · 1,5 rb output · 19 dtk</span>
+    </section>
+  </aside>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#7C9CFF&quot;,&quot;options&quot;:[&quot;#2DD4BF&quot;,&quot;#7C9CFF&quot;,&quot;#F59E5B&quot;]},&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1400}}">
+class Component extends DCLogic {
+  renderVals() {
+    const accent = this.props.accent ?? '#7C9CFF';
+    const stage = (mark, label, meta, kind) => {
+      const done = kind === 'done', cur = kind === 'current';
+      return {
+        mark, label, meta,
+        rowBg: cur ? accent + '14' : 'transparent',
+        rowLine: cur ? accent + '55' : 'transparent',
+        dotBg: done ? accent : 'transparent',
+        dotFg: done ? '#0B1430' : (cur ? accent : '#7D8794'),
+        dotLine: done || cur ? accent : '#2A3038',
+        labelFg: kind === 'locked' ? '#7D8794' : '#ECEEF1'
+      };
+    };
+    const opt = (text, selected) => ({
+      text, pressed: selected ? 'true' : 'false',
+      bg: selected ? accent + '1F' : '#0E1013',
+      fg: selected ? '#ECEEF1' : '#C9CED6',
+      line: selected ? accent : '#2A3038'
+    });
+    return {
+      accent,
+      stages: [
+        stage('1', 'Ide', 'Selesai', 'done'),
+        stage('2', 'Klarifikasi produk', '4 pertanyaan', 'current'),
+        stage('3', 'Klarifikasi teknis', 'Menunggu tahap 2', 'locked'),
+        stage('4', 'Struktur fitur', 'Belum', 'locked'),
+        stage('5', 'Review kritis', 'Belum', 'locked'),
+        stage('6', 'PRD', 'Sekitar 4–5 menit', 'locked'),
+        stage('7', 'TASKS', 'Sekitar 3 menit', 'locked'),
+        stage('8', 'Ekspor', 'Belum', 'locked')
+      ],
+      questions: [
+        { no: 'Q1', topic: 'masalah', guess: true, question: 'Masalah apa yang paling ingin kamu selesaikan dulu lewat aplikasi ini?', fallback: 'Susah memantau member mana yang masih aktif dan mana yang sudah habis.', options: [opt('Susah memantau member aktif dan yang sudah habis', true), opt('Banyak member lupa memperpanjang', false), opt('Pencatatan kehadiran masih manual', false), opt('Member susah melihat info paket', false)] },
+        { no: 'Q2', topic: 'pengguna', guess: true, question: 'Siapa yang paling sering memakai aplikasi ini di versi pertama?', fallback: 'Pemilik atau admin gym saja.', options: [opt('Pemilik atau admin gym saja', true), opt('Member gym saja', false), opt('Admin gym dan member', false)] },
+        { no: 'Q3', topic: 'aksi_pertama', guess: false, question: 'Waktu pertama kali buka aplikasi, hal apa yang harus bisa langsung dilakukan?', fallback: 'Menambahkan data member baru beserta paketnya.', options: [opt('Menambahkan member baru beserta paketnya', false), opt('Melihat member yang hampir habis', true), opt('Mencatat member yang datang hari ini', false)] },
+        { no: 'Q4', topic: 'fitur_wajib', guess: false, question: 'Fitur apa saja yang wajib ada di versi pertama? Pilih maksimal 3.', fallback: 'Daftar member dengan status, dan perpanjangan membership.', options: [opt('Daftar member dengan status aktif atau habis', true), opt('Perpanjangan membership', true), opt('Pengaturan jenis paket', false), opt('Catatan pembayaran', false), opt('Check-in member', false)] }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Tahap 6–7 — PRD dan ekspor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1013}
+a{color:#ECEEF1;text-decoration:none}a:hover{color:#FFFFFF}
+input::placeholder{color:#7D8794}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #0E1013; color: #ECEEF1; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 15px; line-height: 1.6">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 32px; border-bottom: 1px solid #22272E">
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px">
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; font-weight: 800">
+      <svg width="24" height="24" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="5" y="3" width="15" height="20" rx="3" stroke="{{accent}}" stroke-width="2"></rect><path d="M9 9h7M9 13h5" stroke="#ECEEF1" stroke-width="2" stroke-linecap="round"></path><circle cx="20.5" cy="20.5" r="5" fill="#0E1013" stroke="{{accent}}" stroke-width="2"></circle></svg>
+      PRD Generator
+    </a>
+    <span style="color: #4B5563" aria-hidden="true">/</span>
+    <span style="font-weight: 600">Membership gym</span>
+  </div>
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px" role="img" aria-label="Tahap 7 dari 8 sedang berjalan">
+    <span style="width: 22px; height: 6px; border-radius: 3px; background: {{accent}}"></span>
+    <span style="width: 22px; height: 6px; border-radius: 3px; background: {{accent}}"></span>
+    <span style="width: 22px; height: 6px; border-radius: 3px; background: {{accent}}"></span>
+    <span style="width: 22px; height: 6px; border-radius: 3px; background: {{accent}}"></span>
+    <span style="width: 22px; height: 6px; border-radius: 3px; background: {{accent}}"></span>
+    <span style="width: 22px; height: 6px; border-radius: 3px; background: {{accent}}"></span>
+    <span style="width: 22px; height: 6px; border-radius: 3px; background: {{accentLine}}"></span>
+    <span style="width: 22px; height: 6px; border-radius: 3px; background: #2A3038"></span>
+    <span style="margin-left: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #A3ABB6">7/8</span>
+  </div>
+</header>
+
+<section aria-label="Job berjalan" style="margin: 24px 32px 0; padding: 16px 20px; background: #161A1F; border: 1px solid {{accentLine}}; border-radius: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px">
+  <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+    <span style="font-weight: 700">Menyusun TASKS dari PRD</span>
+    <span style="font-size: 14px; color: #A3ABB6">Berjalan <span style="font-family: 'JetBrains Mono', monospace; color: #ECEEF1">2:41</span> · perkiraan sekitar 3 menit dan 20 rb token · boleh meninggalkan halaman ini</span>
+  </div>
+  <div style="flex: 1 1 280px; max-width: 420px; height: 8px; border-radius: 4px; background: #22272E; overflow: hidden" role="img" aria-label="Sekitar 85 persen dari perkiraan waktu">
+    <div style="width: 85%; height: 100%; background: {{accent}}; border-radius: 4px"></div>
+  </div>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 32px; padding: 24px 32px 48px">
+
+  <nav aria-label="Daftar isi PRD" style="flex: 1 1 220px; max-width: 260px; display: flex; flex-direction: column; gap: 2px">
+    <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #A3ABB6; padding: 0 10px 10px">PRD · versi 2</span>
+    <sc-for list="{{toc}}" as="t" hint-placeholder-count="8">
+      <a href="#" style="display: flex; gap: 10px; padding: 8px 10px; border-radius: 10px; font-size: 14px; color: {{t.fg}}; background: {{t.bg}}"><span style="font-family: 'JetBrains Mono', monospace; color: #7D8794; min-width: 18px">{{t.no}}</span>{{t.label}}</a>
+    </sc-for>
+  </nav>
+
+  <article style="flex: 999 1 560px; min-width: 0; max-width: 760px; background: #161A1F; border: 1px solid #22272E; border-radius: 20px; padding: 40px 44px; display: flex; flex-direction: column; gap: 18px">
+    <h1 style="margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -0.02em">Membership Gym</h1>
+    <h2 style="margin: 12px 0 0; font-size: 22px; font-weight: 700">1. Context &amp; Goal</h2>
+    <p style="margin: 0; color: #C9CED6">Pemilik dan staf satu gym memantau member yang masa aktifnya hampir habis atau sudah habis, lalu memperpanjangnya dengan riwayat yang tidak pernah ditimpa.</p>
+    <h2 style="margin: 12px 0 0; font-size: 22px; font-weight: 700">6. Functional Requirements</h2>
+    <section style="border: 1px solid #2A3038; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: {{accent}}">FR-07</span>
+        <h3 style="margin: 0; font-size: 17px; font-weight: 700">Perpanjangan membership</h3>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A3ABB6">Fitur: F-06</span>
+      </div>
+      <span style="font-size: 13px; font-weight: 700; color: #A3ABB6">Acceptance criteria</span>
+      <ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #C9CED6">
+        <li style="display: flex; gap: 10px"><span style="width: 16px; height: 16px; margin-top: 3px; flex: none; border: 1.5px solid #4B5563; border-radius: 4px" aria-hidden="true"></span>Given masa aktif berakhir 2026-05-20, When diperpanjang 1 bulan pada 2026-05-10, Then periode baru mulai 2026-05-21.</li>
+        <li style="display: flex; gap: 10px"><span style="width: 16px; height: 16px; margin-top: 3px; flex: none; border: 1.5px solid #4B5563; border-radius: 4px" aria-hidden="true"></span>Given dua perpanjangan hampir bersamaan, When keduanya disimpan, Then hanya satu yang berhasil dan yang lain mendapat 409.</li>
+      </ul>
+    </section>
+    <h2 style="margin: 12px 0 0; font-size: 22px; font-weight: 700">8. Assumptions &amp; Decisions</h2>
+    <p style="margin: 0; font-size: 13px; color: #A3ABB6">Disusun aplikasi dari buku keputusan, sama persis dengan pilihanmu.</p>
+    <div style="overflow-x: auto; border: 1px solid #2A3038; border-radius: 12px">
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px">
+        <thead><tr style="text-align: left; color: #A3ABB6"><th style="padding: 10px 14px; font-weight: 600">ID</th><th style="padding: 10px 14px; font-weight: 600">Keputusan</th></tr></thead>
+        <tbody>
+          <sc-for list="{{decisions}}" as="d" hint-placeholder-count="3">
+            <tr style="border-top: 1px solid #22272E"><td style="padding: 10px 14px; font-family: 'JetBrains Mono', monospace; color: {{accent}}">{{d.code}}</td><td style="padding: 10px 14px; color: #C9CED6">{{d.text}}</td></tr>
+          </sc-for>
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  <aside aria-label="Pemakaian dan ekspor" style="flex: 1 1 280px; max-width: 320px; display: flex; flex-direction: column; gap: 16px">
+    <section style="background: #161A1F; border: 1px solid #22272E; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700">Pemakaian token</h2>
+      <sc-for list="{{usage}}" as="u" hint-placeholder-count="5">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <div style="display: flex; justify-content: space-between; gap: 8px; font-size: 13px"><span style="color: #C9CED6">{{u.label}}</span><span style="font-family: 'JetBrains Mono', monospace; color: #A3ABB6">{{u.value}}</span></div>
+          <div style="height: 6px; border-radius: 3px; background: #22272E; overflow: hidden"><div style="width: {{u.width}}; height: 100%; background: {{accent}}; border-radius: 3px"></div></div>
+        </div>
+      </sc-for>
+      <div style="display: flex; justify-content: space-between; padding-top: 10px; border-top: 1px solid #22272E; font-size: 14px"><span style="font-weight: 600">Total</span><span style="font-family: 'JetBrains Mono', monospace">64,6 rb</span></div>
+    </section>
+    <section style="background: #161A1F; border: 1px solid #22272E; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700">Ekspor</h2>
+      <label for="target" style="font-size: 13px; font-weight: 600; color: #A3ABB6">Folder proyek dari template</label>
+      <input id="target" type="text" placeholder="D:\dev\membership-gym" style="height: 44px; padding: 0 12px; background: #0E1013; border: 1px solid #2A3038; border-radius: 12px; color: #ECEEF1; font-family: 'JetBrains Mono', monospace; font-size: 13px">
+      <button type="button" disabled style="height: 44px; background: #22272E; color: #7D8794; border: 0; border-radius: 12px; font: inherit; font-weight: 700">Tulis ke folder proyek</button>
+      <span style="font-size: 13px; color: #A3ABB6">Aktif setelah TASKS selesai. Menulis <span style="font-family: 'JetBrains Mono', monospace">docs/PRD.md</span> dan <span style="font-family: 'JetBrains Mono', monospace">docs/TASKS.md</span>.</span>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <a href="#" style="padding: 10px 14px; border: 1px solid #2A3038; border-radius: 10px; font-size: 14px; font-weight: 600">Unduh PRD.md</a>
+        <span style="padding: 10px 14px; border: 1px dashed #2A3038; border-radius: 10px; font-size: 14px; color: #7D8794">TASKS.md belum siap</span>
+      </div>
+    </section>
+  </aside>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#7C9CFF&quot;,&quot;options&quot;:[&quot;#2DD4BF&quot;,&quot;#7C9CFF&quot;,&quot;#F59E5B&quot;]},&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1500}}">
+class Component extends DCLogic {
+  renderVals() {
+    const accent = this.props.accent ?? '#7C9CFF';
+    const item = (no, label, current) => ({ no, label, fg: current ? '#ECEEF1' : '#A3ABB6', bg: current ? accent + '14' : 'transparent' });
+    return {
+      accent,
+      accentLine: accent + '55',
+      toc: [
+        item('1', 'Context & Goal', true), item('2', 'Scope', false), item('3', 'Tech Constraints', false), item('4', 'Data Model', false),
+        item('5', 'API Contract', false), item('6', 'Functional Requirements', false), item('7', 'Non-Functional', false), item('8', 'Assumptions & Decisions', false)
+      ],
+      decisions: [
+        { code: 'RV-01', text: 'Hapus keputusan serverless + SQLite; API tetap container dengan PostgreSQL.' },
+        { code: 'RV-02', text: 'Login admin (F-01) dipindah ke fase 0.' },
+        { code: 'RV-06', text: 'Staf diundang lewat email yang dicocokkan saat login pertama.' }
+      ],
+      usage: [
+        { label: 'Klarifikasi produk', value: '1,5 rb', width: '5%' },
+        { label: 'Klarifikasi teknis', value: '2,8 rb', width: '9%' },
+        { label: 'Struktur fitur', value: '5,5 rb', width: '18%' },
+        { label: 'Review kritis', value: '5,8 rb', width: '19%' },
+        { label: 'PRD', value: '29,7 rb', width: '100%' },
+        { label: 'TASKS (berjalan)', value: '19,3 rb', width: '65%' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
