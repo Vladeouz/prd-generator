@@ -78,7 +78,7 @@ describe('Stage6Section', () => {
   it('siap: tombol jalankan dengan perkiraan durasi (FR-02)', () => {
     const html = render(project());
     expect(html).toContain('Jalankan penulisan prd');
-    expect(html).toContain('Perkiraan sekitar 4–5 menit');
+    expect(html).toContain('Perkiraan sekitar 5–10 menit');
   });
 
   it('job berjalan: status dan perkiraan durasi tampil', () => {
@@ -97,7 +97,7 @@ describe('Stage6Section', () => {
       }),
     );
     expect(html).toContain('Penulisan PRD sedang berjalan');
-    expect(html).toContain('(perkiraan sekitar 4–5 menit)');
+    expect(html).toContain('(perkiraan sekitar 5–10 menit)');
     expect(html).toContain('role="progressbar"');
   });
 

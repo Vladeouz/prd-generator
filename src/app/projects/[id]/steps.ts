@@ -43,7 +43,7 @@ function meta(project: ProjectDetail, stages: ProjectStage[], kind: StepStatus) 
   if (stage === 'stage6') {
     const prd = project.documents.prd;
     if (prd) return `Versi ${prd.version}`;
-    return kind === 'locked' || kind === 'done' ? undefined : 'Sekitar 4–5 menit';
+    return kind === 'locked' || kind === 'done' ? undefined : 'Sekitar 5–10 menit';
   }
   if (stage === 'stage5') {
     const output = project.stageOutputs.stage5 as { findings: unknown[] } | undefined;
