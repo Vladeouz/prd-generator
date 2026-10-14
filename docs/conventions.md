@@ -104,7 +104,7 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 
 - Error domain memakai `AppError` (`src/core/errors.ts`) dengan kode format error PRD bagian 5. `status` memberi status HTTP-nya, dan `toBody()` menghasilkan `{ error: { code, message, details? } }`. Pesan dalam Bahasa Indonesia dan siap ditampilkan ke user.
 - Timestamp hanya dari `Clock` (`src/core/clock.ts`, `systemClock` di aplikasi), yang disuntikkan ke modul yang menyimpan waktu. Test memakai jam tetap. Jangan memanggil `new Date()` untuk kolom database.
-- Job tahap dijalankan `JobQueue` (`src/jobs/job-queue.ts`) di proses server (D-03). Instance tunggalnya `getJobQueue()` (`src/jobs/instance.ts`), disimpan di `globalThis`. `src/instrumentation.ts` menandai job aktif dari proses sebelumnya sebagai `interrupted` sekali saat server start, dan tidak berjalan saat `next build`.
+- Job tahap dijalankan `JobQueue` (`src/jobs/job-queue.ts`) di proses server (D-03). Instance tunggalnya `getJobQueue()` (`src/jobs/instance.ts`), disimpan di `globalThis`. Antrean yang dibuat dari salinan kode `JobQueue` lain (bundle instrumentation yang tidak ikut hot reload, atau modul sebelum hot reload) diganti oleh `currentQueue`, agar job selalu dijalankan `runStage` terbaru; status job tetap aman karena tersimpan di database. `src/instrumentation.ts` menandai job aktif dari proses sebelumnya sebagai `interrupted` sekali saat server start, dan tidak berjalan saat `next build`.
 - Tahap didefinisikan sebagai `StageDefinition` (`src/stages/run-stage.ts`): `stage`, `promptVersion`, `buildPrompt`, `parse`, `validate`, lalu didaftarkan di `stageRegistry` (`src/jobs/instance.ts`). `runStage` menangani percobaan ulang sekali dengan daftar error (D-08) dan pencatatan `stage_runs`; definisi tahap tidak menulis `stage_runs` sendiri.
 - Kegagalan runner (`ClaudeRunError`) tidak dicoba ulang: job `failed` dengan pesan runner, dicatat sebagai `stage_runs` gagal tanpa output, dan output tahap yang berlaku sebelumnya tetap berlaku. Hanya kegagalan parse dan validasi yang dicoba ulang.
 - Kelas error yang melintasi graf modul (`AppError`, `ClaudeRunError`, `StageFailedError`) dikenali lewat penanda `Symbol.for` dan `static [Symbol.hasInstance]` (`brandedInstanceCheck` di `src/core/errors.ts`). Next.js membundel `instrumentation.ts`, yang membuat antrean job, terpisah dari route, sehingga `instanceof` biasa gagal dan 409 berubah menjadi 500 (ditemukan di T-008). Kelas error baru yang bisa dilempar dari antrean mengikuti pola ini. Test: `test/unit/core/errors.test.ts` (salinan modul lewat `import('…?salinan-lain')`).
@@ -135,6 +135,22 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
   - validator memakai `validateReview` (aturan bersama tahap 5) dengan kategori `data_model`, `business_rule`, `ui_endpoint` dan id `RV2-xx`. Setiap opsi punya `changes_prd`, setiap temuan butuh opsi `true` dan `false`, dan setiap celah wajib menjadi temuan `ui_endpoint`. `StageDefinition.validate` menerima `{ db, projectId }` untuk pemeriksaan seperti ini;
   - `PUT …/decisions/review2` hanya bisa dilakukan saat proyek di `review2`. Bila ada opsi `changes_prd` yang dipilih, handler (dengan `queue`) menjalankan tahap 6 sekali. Run tahap 6 yang punya keputusan `review2` memindahkan proyek ke `stage7`, sehingga PRD tidak ditulis ulang dua kali;
   - layarnya `Review2Section` di layar PRD, memakai `DecisionForm` dengan `origin`.
+- Tahap 7 (`src/stages/stage-7/`):
+  - prompt berisi `docs/conventions.md` template (apa yang sudah disediakan, dan prosedur menghapus fitur contoh notes) dan PRD terbaru;
+  - template dibaca di `buildPrompt` seperti tahap 6;
+  - `validateTasks(md, { frIds, endpoints, nfrIds })` memeriksa terhadap PRD terbaru:
+    - tanpa task setup template (`TEMPLATE_SETUP`, dikenali dari judul atau file konfigurasi);
+    - tepat satu task hapus notes setelah task fitur pertama;
+    - *done when* boleh multi-baris: dari baris `done when:` sampai akhir task, termasuk sub-butir dan paragraf setelah baris kosong, tanpa langkah manual bernomor (`1.`, `2.`, …). Baris kriteria terakhirnya harus diakhiri `pnpm check` hijau;
+    - setiap task **(manual)** menyebut `.env` dan `docker compose up`;
+    - perintah Flutter web (`flutter run -d chrome …`) hanya wajib untuk task manual dengan layer `app` atau `files` yang menyentuh `apps/app`;
+    - setiap `flutter run -d chrome` memakai `--web-browser-flag=--incognito`;
+    - lebih dari `MAX_TASKS` (60) task hanya peringatan;
+  - ukuran task (prompt versi 2): satu task setara satu sesi agent yang bermakna, misalnya satu fitur di satu layer lengkap dengan test-nya. Targetnya 20–45 task untuk MVP;
+  - keputusan aturan manual, ukuran task, dan *done when* multi-baris diambil user setelah verifikasi manual T-014 (lihat `docs/logs/T-014.md`);
+  - output disimpan sebagai dokumen `tasks` versi berikutnya, dan proyek pindah ke `export`.
+- `GET /api/jobs/{id}` mengembalikan job beserta `attempts` (`JobQueue.attempts`: percobaan job itu dari `stage_runs`, dikenali dari proyek, tahap, dan waktu mulai job). `StageRunner` menampilkan `attemptNote` ("Percobaan 2 dari 2. Percobaan 1 ditolak: …") selama job berjalan. `MAX_ATTEMPTS` ada di `src/stages/attempts.ts` agar bisa dipakai komponen klien.
+- Fixture **verifikasi** di `test/fixtures/claude/verification/`: output nyata dari verifikasi manual yang dipakai sebagai test regresi, disalin apa adanya dari database lokal, dengan sumbernya di field `fixture_source` (contoh: `t014-prd.md` dan `t014-stage7-attempt{1,2}.json`).
 - Fixture **sintetis** di `test/fixtures/claude/synthetic/`: ditulis tangan bila belum ada output nyata (kasus `daftar-belanja`), dibangun dengan `node test/fixtures/claude/build-synthetic-fixtures.mjs`, dan ditandai field `fixture_synthetic`.
 - Pratinjau Markdown: `MarkdownPreview` (`src/components/ui/markdown-preview.tsx`, `react-markdown` + `remark-gfm`), dengan gaya `.prd-markdown` di `globals.css`.
 - Integration test yang menjalankan beberapa tahap memakai `test/helpers/stage-flow.ts` (`createFlow`, `projectThrough(flow, 'stage4')`, `GYM_FIXTURES`). `test/helpers/review-flaws.ts` berisi `injectFlaws` dan `scoreReview` dari `e2e-gym.mjs`.

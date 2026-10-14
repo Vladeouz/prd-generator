@@ -23,6 +23,10 @@ export const GYM_FIXTURES = {
   stage5: () => loadClaudeFixture('stage5'),
   /** PRD nyata tanpa bagian 8 (bagian 8 disusun aplikasi). */
   stage6: () => loadClaudeFixture('derived/stage6-gym'),
+  /** Review kedua sintetis (daftar-belanja); strukturnya valid untuk PRD gym yang tanpa celah. */
+  review2: () => loadClaudeFixture('synthetic/review2-daftar-belanja'),
+  /** TASKS nyata yang disesuaikan dengan FR-08. */
+  stage7: () => loadClaudeFixture('derived/stage7-gym'),
 };
 
 export function createFlow(

@@ -11,6 +11,23 @@ import { StageRunner } from './stage-runner.tsx';
 /** Perkiraan durasi tahap 6 (FR-02): ±4,5 menit di uji end-to-end, ±9–10 menit saat verifikasi T-012/T-014. */
 export const STAGE6_ESTIMATE = 'sekitar 5–10 menit';
 
+/** Tahap 6–7 tidak bisa dijalankan selama repo template tidak valid (FR-11). */
+export function TemplateInvalidCard({ document }: { document: string }) {
+  return (
+    <Card tone="high" className="flex flex-col gap-1.5 text-sm" data-testid="template-invalid">
+      <h2 className="font-bold">Repo template belum valid</h2>
+      <p className="text-ink-secondary">
+        {document} memakai konvensi dari repo template, jadi tahap ini belum bisa dijalankan. Lihat
+        masalahnya di{' '}
+        <Link href="/settings" className="text-accent underline">
+          Pengaturan
+        </Link>
+        .
+      </p>
+    </Card>
+  );
+}
+
 type Props = { project: ProjectDetail; usage?: StageUsage; template?: TemplateStatus };
 
 export function Stage6Section({ project, usage, template }: Props) {
@@ -27,19 +44,7 @@ export function Stage6Section({ project, usage, template }: Props) {
     </p>
   );
   if (ready && !templateValid) {
-    runner = (
-      <Card tone="high" className="flex flex-col gap-1.5 text-sm" data-testid="template-invalid">
-        <h2 className="font-bold">Repo template belum valid</h2>
-        <p className="text-ink-secondary">
-          PRD memakai konvensi dari repo template, jadi tahap ini belum bisa dijalankan. Lihat
-          masalahnya di{' '}
-          <Link href="/settings" className="text-accent underline">
-            Pengaturan
-          </Link>
-          .
-        </p>
-      </Card>
-    );
+    runner = <TemplateInvalidCard document="PRD" />;
   } else if (ready) {
     runner = (
       <StageRunner

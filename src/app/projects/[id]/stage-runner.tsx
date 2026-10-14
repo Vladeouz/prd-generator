@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Button } from '../../../components/ui/button.tsx';
 import { ProgressBar } from '../../../components/ui/progress-bar.tsx';
-import type { Job } from '../../../jobs/job-queue.ts';
+import type { Job, JobAttempt } from '../../../jobs/job-queue.ts';
+import { MAX_ATTEMPTS } from '../../../stages/attempts.ts';
 
 const POLL_MS = 2000;
 
@@ -35,6 +36,19 @@ export function jobToPoll(job: Job | null, activeJob: Job | null): Job | null {
   return isActive(activeJob) ? activeJob : null;
 }
 
+/**
+ * Keterangan selama job berjalan setelah percobaan sebelumnya ditolak (usulan 3 log T-014), agar
+ * percobaan ulang tidak tampak seperti job yang macet. Null bila belum ada percobaan yang gagal.
+ */
+export function attemptNote(attempts: JobAttempt[], max = MAX_ATTEMPTS): string | null {
+  const failed = attempts.filter((a) => a.status === 'failed');
+  const last = failed.at(-1);
+  if (!last) return null;
+  const shown = last.errors.slice(0, 2).join('; ');
+  const more = last.errors.length > 2 ? ` (+${last.errors.length - 2} lainnya)` : '';
+  return `Percobaan ${Math.min(failed.length + 1, max)} dari ${max}. Percobaan ${last.attempt} ditolak: ${shown}${more}. Claude sedang memperbaikinya.`;
+}
+
 type Props = {
   projectId: string;
   stage: string;
@@ -61,6 +75,7 @@ export function StageRunner({
   const [job, setJob] = useState<Job | null>(activeJob?.stage === stage ? activeJob : null);
   const [now, setNow] = useState(() => Date.now());
   const [message, setMessage] = useState('');
+  const [attempts, setAttempts] = useState<JobAttempt[]>([]);
   const running = isActive(job);
   const polled = jobToPoll(job, activeJob);
   const polledId = polled?.id;
@@ -76,8 +91,10 @@ export function StageRunner({
       try {
         const response = await fetch(`/api/jobs/${polledId}`, { cache: 'no-store' });
         if (!response.ok) return;
-        const latest = (await response.json()) as Job;
+        const latest = (await response.json()) as Job & { attempts?: JobAttempt[] };
+        setAttempts(latest.attempts ?? []);
         if (latest.status !== 'queued' && latest.status !== 'running') {
+          setAttempts([]);
           setJob(null);
           router.refresh();
         }
@@ -120,6 +137,11 @@ export function StageRunner({
             {formatElapsed(now - Date.parse(job.startedAt ?? job.createdAt))}
             {estimate ? ` (perkiraan ${estimate})` : ''}. Kamu boleh meninggalkan halaman ini.
           </p>
+          {attemptNote(attempts) && (
+            <p className="text-[13px] text-ink-secondary" data-testid="attempt-note">
+              {attemptNote(attempts)}
+            </p>
+          )}
           <ProgressBar label={`Progres ${label.toLowerCase()}`} />
         </div>
       ) : (

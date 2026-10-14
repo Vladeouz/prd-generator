@@ -18,12 +18,12 @@ export function jobHandlers(queue: JobQueue) {
     run: (projectId: string, stage: string) =>
       handle(() => Response.json(queue.start(projectId, parseStage(stage)), { status: 202 })),
 
-    /** → 200 Job (dipakai UI untuk polling); 404 bila tidak ada. */
+    /** → 200 Job beserta `attempts` (dipakai UI untuk polling); 404 bila tidak ada. */
     get: (id: string) =>
       handle(() => {
         const job = queue.getJob(id);
         if (!job) throw new AppError('NOT_FOUND', 'Job tidak ditemukan.');
-        return Response.json(job);
+        return Response.json({ ...job, attempts: queue.attempts(job) });
       }),
   };
 }

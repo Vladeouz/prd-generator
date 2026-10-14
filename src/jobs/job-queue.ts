@@ -7,11 +7,11 @@
 //   (`markInterrupted`, dipanggil sekali per proses lewat src/instrumentation.ts), karena proses
 //   anaknya selalu ikut mati bersama server di Windows.
 import { randomUUID } from 'node:crypto';
-import { eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray } from 'drizzle-orm';
 import type { ClaudeRunner } from '../claude/types.ts';
 import type { Clock } from '../core/clock.ts';
 import type { Db } from '../core/db/client.ts';
-import { ACTIVE_JOB_STATUSES, jobs, projects } from '../core/db/schema.ts';
+import { ACTIVE_JOB_STATUSES, jobs, projects, stageRuns } from '../core/db/schema.ts';
 import { AppError } from '../core/errors.ts';
 import {
   runStage,
@@ -21,6 +21,9 @@ import {
 } from '../stages/run-stage.ts';
 
 export type Job = typeof jobs.$inferSelect;
+
+/** Percobaan sebuah job (FR-02, D-08): untuk menampilkan percobaan ulang beserta alasannya. */
+export type JobAttempt = { attempt: number; status: 'succeeded' | 'failed'; errors: string[] };
 
 export type StageRegistry = Partial<Record<Stage, StageDefinition>>;
 
@@ -63,6 +66,37 @@ export class JobQueue {
 
   getJob(id: string): Job | undefined {
     return this.deps.db.select().from(jobs).where(eq(jobs.id, id)).get();
+  }
+
+  /**
+   * Percobaan yang sudah selesai untuk job ini. `stage_runs` tidak menyimpan id job, jadi dikenali
+   * dari proyek, tahap, dan waktu mulai job; aman karena hanya satu job aktif dalam satu waktu.
+   */
+  attempts(job: Job): JobAttempt[] {
+    const since = job.startedAt ?? job.createdAt;
+    return this.deps.db
+      .select({
+        attempt: stageRuns.attempt,
+        status: stageRuns.status,
+        errorsJson: stageRuns.errorsJson,
+        createdAt: stageRuns.createdAt,
+      })
+      .from(stageRuns)
+      .where(
+        and(
+          eq(stageRuns.projectId, job.projectId),
+          eq(stageRuns.stage, job.stage),
+          gte(stageRuns.createdAt, since),
+        ),
+      )
+      .orderBy(asc(stageRuns.createdAt))
+      .all()
+      .filter((run) => !job.finishedAt || run.createdAt <= job.finishedAt)
+      .map((run) => ({
+        attempt: run.attempt,
+        status: run.status,
+        errors: run.errorsJson ? (JSON.parse(run.errorsJson) as string[]) : [],
+      }));
   }
 
   /** Job yang sedang `queued`/`running`, bila ada. */
