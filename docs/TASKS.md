@@ -66,7 +66,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `prompts/stage-5.md`, `src/stages/stage-5/**`, layar tahap 5, `src/app/api/projects/[id]/decisions/**`, test terkait
   - done when: setiap kriteria FR-06 terbukti oleh test, termasuk keempat kesalahan `injectFlaws` tertangkap dengan fixture nyata; pilihan user tersimpan sebagai keputusan `RV-xx` dengan konsekuensinya; `pnpm check` hijau
 
-- [ ] T-012 Tahap 6: PRD
+- [x] T-012 Tahap 6: PRD
   - layer: app · depends_on: T-006, T-011 · refs: FR-07, FR-02, D-05, D-06
   - files: `prompts/stage-6.md`, `src/stages/stage-6/**`, `src/projects/compose-prd.ts`, layar tahap 6 dan pratinjau Markdown, test terkait
   - done when: prompt berisi `docs/conventions.md` dari `TEMPLATE_DIR` apa adanya dan meminta bagian 1 sampai 7 saja; bagian 8 disusun aplikasi dari keputusan, jawaban `guess`, dan asumsi (dibuktikan test yang memastikan teks keputusan sama persis dengan data, termasuk kasus seperti RV-08 di uji end-to-end); validator diturunkan dari `validatePrd` di `docs/reference/e2e-gym.mjs` dan menerima fixture yang dibangun dari `docs/reference/e2e-output/PRD.md` (tanpa bagian 8); layar menampilkan progres job dan pratinjau PRD; **(manual)** dengan `claude` sungguhan, satu proyek dijalankan sampai tahap 6 dan PRD lolos validator; `pnpm check` hijau
