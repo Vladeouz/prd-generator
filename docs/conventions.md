@@ -151,6 +151,13 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
   - output disimpan sebagai dokumen `tasks` versi berikutnya, dan proyek pindah ke `export`.
 - `GET /api/jobs/{id}` mengembalikan job beserta `attempts` (`JobQueue.attempts`: percobaan job itu dari `stage_runs`, dikenali dari proyek, tahap, dan waktu mulai job). `StageRunner` menampilkan `attemptNote` ("Percobaan 2 dari 2. Percobaan 1 ditolak: …") selama job berjalan. `MAX_ATTEMPTS` ada di `src/stages/attempts.ts` agar bisa dipakai komponen klien.
 - Fixture **verifikasi** di `test/fixtures/claude/verification/`: output nyata dari verifikasi manual yang dipakai sebagai test regresi, disalin apa adanya dari database lokal, dengan sumbernya di field `fixture_source` (contoh: `t014-prd.md` dan `t014-stage7-attempt{1,2}.json`).
+- Export (`src/projects/export.ts`, `export-handlers.ts`):
+  - `POST /api/projects/{id}/export` `{ targetDir, overwrite? }` hanya menerima path absolut yang diketik user (NFR-01);
+  - folder tujuan harus turunan template: ada `scripts/init-project.mjs`, dan `.firebaserc` tanpa `demo-template`;
+  - `docs/PRD.md` yang tidak memuat penanda placeholder `init-project` (`PLACEHOLDER_MARKER`) → 409 kecuali `overwrite`;
+  - semua pemeriksaan selesai sebelum file ditulis. Hanya `docs/PRD.md` dan `docs/TASKS.md` yang ditulis (versi terbaru, LF, diakhiri satu baris baru), dan respons berisi path yang ditulis;
+  - `GET /api/projects/{id}/documents/{kind}` mengembalikan Markdown, atau lampiran `PRD.md`/`TASKS.md` dengan `download=1`;
+  - layarnya `ExportSection` (tahap 8).
 - Fixture **sintetis** di `test/fixtures/claude/synthetic/`: ditulis tangan bila belum ada output nyata (kasus `daftar-belanja`), dibangun dengan `node test/fixtures/claude/build-synthetic-fixtures.mjs`, dan ditandai field `fixture_synthetic`.
 - Pratinjau Markdown: `MarkdownPreview` (`src/components/ui/markdown-preview.tsx`, `react-markdown` + `remark-gfm`), dengan gaya `.prd-markdown` di `globals.css`.
 - Integration test yang menjalankan beberapa tahap memakai `test/helpers/stage-flow.ts` (`createFlow`, `projectThrough(flow, 'stage4')`, `GYM_FIXTURES`). `test/helpers/review-flaws.ts` berisi `injectFlaws` dan `scoreReview` dari `e2e-gym.mjs`.

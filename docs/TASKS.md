@@ -81,7 +81,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `prompts/stage-7.md`, `src/stages/stage-7/**`, layar tahap 7, test terkait
   - done when: validator diturunkan dari `validateTasks` di `docs/reference/e2e-gym.mjs` dengan aturan tambahan FR-08; validator terbukti menolak `docs/reference/e2e-output/TASKS.md` karena berisi task setup yang sudah disediakan template, dan menerima fixture yang memenuhi FR-08; setiap kriteria FR-08 terbukti oleh test; **(manual)** dengan `claude` sungguhan, proyek dari T-012 menghasilkan TASKS yang lolos validator; `pnpm check` hijau
 
-- [ ] T-015 Export
+- [x] T-015 Export
   - layer: app · depends_on: T-014 · refs: FR-09, NFR-01
   - files: `src/projects/export.ts`, `src/app/api/projects/[id]/export/**`, `src/app/api/projects/[id]/documents/**`, layar export, test terkait
   - done when: setiap kriteria FR-09 terbukti oleh integration test dengan folder proyek buatan (turunan template, bukan turunan, path relatif, PRD bukan placeholder); path tujuan tidak pernah berasal dari output AI; **(manual)** ekspor ke salinan baru proyek yang dibuat dengan `pnpm init-project` berhasil dan `git status` di proyek itu hanya menampilkan `docs/PRD.md` dan `docs/TASKS.md`; `pnpm check` hijau

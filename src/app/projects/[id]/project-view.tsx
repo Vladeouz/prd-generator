@@ -5,6 +5,7 @@ import type { ProjectDetail, Stage, StageUsage } from '../../../projects/project
 import { STAGE_LABELS } from '../../../projects/stage-labels.ts';
 import { formatDateTime, formatTokens } from '../format.ts';
 import { DeleteProjectButton } from './delete-project-button.tsx';
+import { ExportSection } from './export-section.tsx';
 import { Stage2Section } from './stage2-section.tsx';
 import { Stage3Section } from './stage3-section.tsx';
 import { Stage4Section } from './stage4-section.tsx';
@@ -73,6 +74,7 @@ export function ProjectView({ project, usage = {}, stage, template }: Props) {
         {selected === 'stage7' && (
           <Stage7Section project={project} usage={usage.stage7} template={template} />
         )}
+        {selected === 'export' && <ExportSection project={project} />}
       </div>
     </>
   );
