@@ -3,10 +3,12 @@
 // dan rekomendasi sudah terpilih. Tersimpan sebagai keputusan RV-xx (review kritis) atau RV2-xx
 // (review kedua; opsi `changes_prd` membuat PRD ditulis ulang).
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useRef, useState } from 'react';
 import { Badge } from '../../../components/ui/badge.tsx';
 import { Button } from '../../../components/ui/button.tsx';
 import { Card } from '../../../components/ui/card.tsx';
+import { ConfirmPanel } from '../../../components/ui/confirm-panel.tsx';
+import { EmptyState } from '../../../components/ui/states.tsx';
 import { StickyActionBar } from '../../../components/ui/sticky-action-bar.tsx';
 import { CATEGORY_TEXT, SEVERITY_TEXT } from '../../../stages/stage-5/review-text.ts';
 import type { Finding } from '../../../stages/stage-5/validate.ts';
@@ -20,7 +22,7 @@ type Props = {
   projectId: string;
   origin: 'review1' | 'review2';
   findings: DecisionFinding[];
-  /** Nama tahap berikutnya di samping tombol simpan. */
+  /** Nama tahap berikutnya di samping tombol simpan, boleh dengan perkiraan durasinya. */
   next: string;
   /** Pesan bila keputusan membuat PRD ditulis ulang. */
   regenerateMessage?: string;
@@ -56,6 +58,12 @@ export function DecisionForm({
   const [failed, setFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const submitButton = useRef<HTMLButtonElement>(null);
+
+  function cancel() {
+    setConfirming(false);
+    requestAnimationFrame(() => submitButton.current?.focus());
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -99,6 +107,11 @@ export function DecisionForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-5" data-testid={`decisions-${origin}`}>
+      {findings.length === 0 && (
+        <EmptyState title="Tidak ada temuan" data-testid="no-findings">
+          Review tidak menemukan masalah. Simpan untuk melanjutkan ke {next}.
+        </EmptyState>
+      )}
       {findings.map((f) => (
         <Card
           key={f.id}
@@ -108,26 +121,30 @@ export function DecisionForm({
           className="flex flex-col gap-3.5"
           data-testid={`finding-${f.id}`}
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs text-ink-muted">{f.id}</span>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="font-mono text-[13px] font-semibold">{f.id}</span>
             <Badge tone={f.severity} size="sm">
               {SEVERITY_TEXT[f.severity]}
             </Badge>
-            <Badge size="sm">{CATEGORY_TEXT[f.category] ?? f.category}</Badge>
+            <span className="font-mono text-xs text-ink-muted">
+              {CATEGORY_TEXT[f.category] ?? f.category}
+            </span>
           </div>
-          <h3 id={`${f.id}-finding`} className="text-[17px] leading-[1.45] font-bold">
+          <h3 id={`${f.id}-finding`} className="text-lg leading-[1.4] font-bold">
             {f.finding}
           </h3>
-          <div className="rounded-control border border-line-subtle bg-canvas px-3.5 py-3 text-[13px]">
-            <span className="font-semibold text-ink-muted">Bukti</span>
-            <p className="mt-1 text-ink-secondary">{f.evidence}</p>
+          <div className="flex flex-col gap-1 rounded-control border border-line-subtle bg-canvas px-3.5 py-3">
+            <span className="text-xs font-bold tracking-[0.06em] text-ink-muted uppercase">
+              Bukti
+            </span>
+            <p className="font-mono text-[13px] break-words text-ink-secondary">{f.evidence}</p>
           </div>
           <fieldset className="flex flex-col gap-2.5">
-            <legend className="mb-2 text-[13px] font-semibold text-ink-muted">Keputusanmu</legend>
+            <legend className="mb-2 text-sm font-semibold">Keputusanmu</legend>
             {f.options.map((option) => (
               <label
                 key={option.label}
-                className="flex cursor-pointer gap-3 rounded-control border border-line bg-canvas p-3.5 text-sm has-checked:border-accent has-checked:bg-accent-soft has-focus-visible:outline-2 has-focus-visible:outline-accent"
+                className="flex cursor-pointer gap-3 rounded-control border-[1.5px] border-line bg-canvas p-3.5 text-sm has-checked:border-accent has-checked:bg-accent-soft has-focus-visible:outline-2 has-focus-visible:outline-accent"
               >
                 <input
                   type="radio"
@@ -161,22 +178,14 @@ export function DecisionForm({
       ))}
 
       {confirming && regenerateConfirmation && (
-        <div
-          className="flex flex-col gap-3 rounded-panel border border-medium bg-medium-soft px-4.5 py-4"
-          role="alertdialog"
-          aria-labelledby={`confirm-${origin}`}
+        <ConfirmPanel
+          confirmLabel="Ya, simpan dan tulis ulang PRD"
+          confirmType="submit"
+          onCancel={cancel}
           data-testid="regenerate-confirmation"
         >
-          <p id={`confirm-${origin}`} className="text-sm text-ink">
-            {regenerateConfirmation}
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button type="submit">Ya, simpan dan tulis ulang PRD</Button>
-            <Button variant="secondary" onClick={() => setConfirming(false)}>
-              Batal
-            </Button>
-          </div>
-        </div>
+          {regenerateConfirmation}
+        </ConfirmPanel>
       )}
       <StickyActionBar
         next={next}
@@ -201,7 +210,7 @@ export function DecisionForm({
           </>
         }
       >
-        <Button type="submit" disabled={saving} size="lg">
+        <Button ref={submitButton} type="submit" disabled={saving} size="lg">
           {saving ? 'Menyimpan…' : 'Simpan keputusan'}
         </Button>
       </StickyActionBar>

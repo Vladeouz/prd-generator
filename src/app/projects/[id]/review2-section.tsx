@@ -6,6 +6,7 @@ import { DecisionForm } from './decision-form.tsx';
 import { confirmationText } from './run-confirmation.ts';
 import { StageRunner } from './stage-runner.tsx';
 import { SeveritySummary } from './stage5-section.tsx';
+import { STAGE7_ESTIMATE } from './stage7-section.tsx';
 
 const SAVED_MESSAGE = 'Keputusan tersimpan. Tahap berikutnya: TASKS — siap dijalankan.';
 const REGENERATE_MESSAGE =
@@ -57,8 +58,10 @@ export function Review2Section({
             {[...saved]
               .sort((a, b) => a.code.localeCompare(b.code))
               .map((d) => (
-                <li key={d.code} className="flex gap-2">
-                  <span className="font-mono text-ink-muted">{d.code}</span>
+                <li key={d.code} className="flex gap-2.5">
+                  <span className="min-w-12 font-mono text-xs font-semibold text-accent">
+                    {d.code}
+                  </span>
                   <span className="text-ink-secondary">{d.chosenOption}</span>
                 </li>
               ))}
@@ -71,7 +74,7 @@ export function Review2Section({
           <DecisionForm
             projectId={project.id}
             origin="review2"
-            next="TASKS"
+            next={`TASKS, ${STAGE7_ESTIMATE}`}
             findings={output.findings}
             saved={Object.fromEntries(saved.map((d) => [d.code, d.chosenOption]))}
             savedMessage={SAVED_MESSAGE}

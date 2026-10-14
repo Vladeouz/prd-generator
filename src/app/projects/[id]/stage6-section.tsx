@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import type { TemplateStatus } from '../../../components/ui/app-header.tsx';
 import { Card } from '../../../components/ui/card.tsx';
-import { MarkdownPreview } from '../../../components/ui/markdown-preview.tsx';
+import { EmptyState } from '../../../components/ui/states.tsx';
 import type { ProjectDetail, StageUsage } from '../../../projects/projects.ts';
 import type { StageEstimate } from '../../../projects/usage.ts';
 import { formatDateTime, stageNumber } from '../format.ts';
+import { DocumentCard, ExportPanel } from './document-panels.tsx';
 import { Review2Section } from './review2-section.tsx';
-import { confirmationText } from './run-confirmation.ts';
+import { bannerEstimate, confirmationText } from './run-confirmation.ts';
 import { StageLayout, UsageCard } from './stage-layout.tsx';
 import { StageRunner } from './stage-runner.tsx';
 
@@ -43,12 +44,9 @@ export function Stage6Section({ project, usage, template, estimate }: Props) {
   const templateValid = template?.valid ?? false;
 
   let runner = (
-    <p
-      className="rounded-panel border border-dashed border-line px-4.5 py-4 text-sm text-ink-muted"
-      data-testid="stage6-not-ready"
-    >
+    <EmptyState title="PRD belum bisa ditulis" data-testid="stage6-not-ready">
       Simpan keputusan review kritis dulu, lalu PRD bisa ditulis.
-    </p>
+    </EmptyState>
   );
   if (ready && !templateValid) {
     runner = <TemplateInvalidCard document="PRD" />;
@@ -62,6 +60,7 @@ export function Stage6Section({ project, usage, template, estimate }: Props) {
         latestJob={project.latestJob}
         hasOutput={prd !== null}
         estimate={STAGE6_ESTIMATE}
+        {...bannerEstimate(estimate)}
         confirmation={estimate && confirmationText('Penulisan PRD', estimate)}
       />
     );
@@ -91,19 +90,13 @@ export function Stage6Section({ project, usage, template, estimate }: Props) {
               </dl>
             </Card>
             <UsageCard usage={usage} />
+            <ExportPanel project={project} />
           </>
         )
       }
     >
       {prd && <Review2Section project={project} estimate={estimate} />}
-      {prd && (
-        <Card size="main" data-testid="prd-preview">
-          <span className="mb-4 block font-mono text-xs text-ink-muted">
-            PRD · versi {prd.version}
-          </span>
-          <MarkdownPreview markdown={prd.content} label="Pratinjau PRD" />
-        </Card>
-      )}
+      {prd && <DocumentCard kind="prd" content={prd.content} version={prd.version} />}
     </StageLayout>
   );
 }

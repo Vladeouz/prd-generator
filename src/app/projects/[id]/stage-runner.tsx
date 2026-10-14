@@ -2,17 +2,29 @@
 // Tombol jalankan tahap + status job (FR-02): status dan waktu berjalan tampil lewat polling
 // `GET /api/jobs/{id}`; halaman tetap bisa dipakai dan ditinggalkan selama job berjalan.
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '../../../components/ui/button.tsx';
+import { ConfirmPanel } from '../../../components/ui/confirm-panel.tsx';
 import { ProgressBar } from '../../../components/ui/progress-bar.tsx';
 import type { Job, JobAttempt } from '../../../jobs/job-queue.ts';
 import { MAX_ATTEMPTS } from '../../../stages/attempts.ts';
 
 const POLL_MS = 2000;
+/** Polling yang gagal berturut-turut sebelum pesan koneksi terputus tampil. */
+const POLL_FAILURES_SHOWN = 2;
 
 export function formatElapsed(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
+/**
+ * Progres terhadap perkiraan durasi: 0–0,95 selama masih di bawah perkiraan (tidak pernah 100%
+ * sebelum selesai), lalu `null` (progres tidak tentu) setelah melewatinya atau tanpa perkiraan.
+ */
+export function jobProgress(elapsedMs: number, estimateMs: number | undefined): number | null {
+  if (!estimateMs || elapsedMs > estimateMs) return null;
+  return Math.min(0.95, Math.max(0, elapsedMs / estimateMs));
 }
 
 const isActive = (job: Job | null): job is Job =>
@@ -60,6 +72,10 @@ type Props = {
   hasOutput: boolean;
   /** Contoh: "sekitar 20 detik". */
   estimate?: string;
+  /** Perkiraan durasi dalam ms untuk bilah progres; tanpa nilai, progres tidak tentu. */
+  estimateMs?: number;
+  /** Perkiraan token di banner, contoh "±33 rb token". */
+  estimateTokens?: string;
   /** Bila ada, tombol jalankan meminta konfirmasi dulu dengan teks ini (tahap 6–7, FR-10). */
   confirmation?: string;
 };
@@ -72,6 +88,8 @@ export function StageRunner({
   latestJob,
   hasOutput,
   estimate,
+  estimateMs,
+  estimateTokens,
   confirmation,
 }: Props) {
   const router = useRouter();
@@ -80,6 +98,9 @@ export function StageRunner({
   const [message, setMessage] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [attempts, setAttempts] = useState<JobAttempt[]>([]);
+  const [starting, setStarting] = useState(false);
+  const [pollFailures, setPollFailures] = useState(0);
+  const trigger = useRef<HTMLButtonElement>(null);
   const running = isActive(job);
   const polled = jobToPoll(job, activeJob);
   const polledId = polled?.id;
@@ -94,7 +115,11 @@ export function StageRunner({
     const poll = setInterval(async () => {
       try {
         const response = await fetch(`/api/jobs/${polledId}`, { cache: 'no-store' });
-        if (!response.ok) return;
+        if (!response.ok) {
+          setPollFailures((n) => n + 1);
+          return;
+        }
+        setPollFailures(0);
         const latest = (await response.json()) as Job & { attempts?: JobAttempt[] };
         setAttempts(latest.attempts ?? []);
         if (latest.status !== 'queued' && latest.status !== 'running') {
@@ -104,6 +129,7 @@ export function StageRunner({
         }
       } catch {
         // Server sedang tidak bisa dihubungi; coba lagi di polling berikutnya.
+        setPollFailures((n) => n + 1);
       }
     }, POLL_MS);
     return () => {
@@ -115,16 +141,29 @@ export function StageRunner({
   async function start() {
     setConfirming(false);
     setMessage('');
-    const response = await fetch(`/api/projects/${projectId}/stages/${stage}/run`, {
-      method: 'POST',
-    });
-    const body = await response.json();
-    if (response.status === 202) {
-      setJob(body as Job);
-      setNow(Date.now());
-    } else {
-      setMessage(body.error?.message ?? 'Tahap gagal dimulai.');
+    setStarting(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/stages/${stage}/run`, {
+        method: 'POST',
+      });
+      const body = await response.json();
+      if (response.status === 202) {
+        setJob(body as Job);
+        setNow(Date.now());
+        setPollFailures(0);
+      } else {
+        setMessage(body.error?.message ?? 'Tahap gagal dimulai.');
+      }
+    } catch {
+      setMessage('Gagal menghubungi server. Pastikan server masih berjalan, lalu coba lagi.');
     }
+    setStarting(false);
+  }
+
+  function cancel() {
+    setConfirming(false);
+    // Panel konfirmasi hilang; fokus kembali ke tombol yang membukanya.
+    requestAnimationFrame(() => trigger.current?.focus());
   }
 
   const failed =
@@ -136,46 +175,38 @@ export function StageRunner({
   return (
     <div className="flex flex-col gap-2.5" data-testid={`runner-${stage}`}>
       {running && job ? (
-        <div className="flex flex-col gap-3 rounded-panel border border-accent-line bg-accent-soft px-4.5 py-4">
-          <p className="text-sm text-ink" aria-live="polite" data-testid="job-status">
-            {job.status === 'queued' ? 'Menunggu dimulai' : `${label} sedang berjalan`} ·{' '}
-            {formatElapsed(now - Date.parse(job.startedAt ?? job.createdAt))}
-            {estimate ? ` (perkiraan ${estimate})` : ''}. Kamu boleh meninggalkan halaman ini.
-          </p>
-          {attemptNote(attempts) && (
-            <p className="text-[13px] text-ink-secondary" data-testid="attempt-note">
-              {attemptNote(attempts)}
-            </p>
-          )}
-          <ProgressBar label={`Progres ${label.toLowerCase()}`} />
-        </div>
+        <RunningBanner
+          job={job}
+          label={label}
+          elapsedMs={now - Date.parse(job.startedAt ?? job.createdAt)}
+          estimate={estimate}
+          estimateMs={estimateMs}
+          estimateTokens={estimateTokens}
+          note={attemptNote(attempts)}
+          disconnected={pollFailures >= POLL_FAILURES_SHOWN}
+        />
       ) : confirming && confirmation ? (
-        <div
-          className="flex flex-col gap-3 rounded-panel border border-medium bg-medium-soft px-4.5 py-4"
-          role="alertdialog"
-          aria-labelledby={`confirm-${stage}`}
+        <ConfirmPanel
+          confirmLabel="Ya, jalankan"
+          onConfirm={start}
+          onCancel={cancel}
           data-testid="run-confirmation"
         >
-          <p id={`confirm-${stage}`} className="text-sm text-ink">
-            {confirmation}
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={start}>Ya, jalankan</Button>
-            <Button variant="secondary" onClick={() => setConfirming(false)}>
-              Batal
-            </Button>
-          </div>
-        </div>
+          {confirmation}
+        </ConfirmPanel>
       ) : (
         <div className="flex flex-wrap items-center gap-3">
           <Button
+            ref={trigger}
             variant={hasOutput ? 'secondary' : 'primary'}
             onClick={confirmation ? () => setConfirming(true) : start}
-            disabled={otherRunning}
+            disabled={otherRunning || starting}
           >
-            {hasOutput
-              ? `Jalankan ulang ${label.toLowerCase()}`
-              : `Jalankan ${label.toLowerCase()}`}
+            {starting
+              ? 'Memulai…'
+              : hasOutput
+                ? `Jalankan ulang ${label.toLowerCase()}`
+                : `Jalankan ${label.toLowerCase()}`}
           </Button>
           {estimate && !hasOutput && (
             <span className="text-[13px] text-ink-muted">Perkiraan {estimate}</span>
@@ -200,5 +231,69 @@ export function StageRunner({
         </p>
       )}
     </div>
+  );
+}
+
+type BannerProps = {
+  job: Job;
+  label: string;
+  elapsedMs: number;
+  estimate?: string;
+  estimateMs?: number;
+  estimateTokens?: string;
+  note: string | null;
+  disconnected: boolean;
+};
+
+/**
+ * Banner job berjalan (mockup Prd.dc.html): status, waktu berjalan, perkiraan, dan bilah progres.
+ * Hanya baris status yang diumumkan pembaca layar; waktu yang berganti setiap detik tidak.
+ */
+function RunningBanner({
+  job,
+  label,
+  elapsedMs,
+  estimate,
+  estimateMs,
+  estimateTokens,
+  note,
+  disconnected,
+}: BannerProps) {
+  const progress = jobProgress(elapsedMs, estimateMs);
+  const over = estimateMs !== undefined && progress === null;
+  const plan = [estimate, estimateTokens].filter(Boolean).join(' dan ');
+  return (
+    <section
+      aria-label="Job berjalan"
+      className="flex flex-col gap-3 rounded-panel border border-accent-line bg-surface px-5 py-4"
+      data-testid="job-banner"
+    >
+      <p className="font-bold" role="status" data-testid="job-status">
+        {job.status === 'queued' ? `${label}: menunggu dimulai` : `${label} sedang berjalan`}
+      </p>
+      <p className="text-sm text-ink-muted" data-testid="job-elapsed">
+        Berjalan <span className="font-mono text-ink">{formatElapsed(elapsedMs)}</span>
+        {plan && ` · perkiraan ${plan}`}
+        {over && ' · melewati perkiraan, masih berjalan'} · boleh meninggalkan halaman ini
+      </p>
+      {note && (
+        <p className="text-[13px] text-ink-secondary" data-testid="attempt-note">
+          {note}
+        </p>
+      )}
+      <ProgressBar
+        label={
+          progress === null
+            ? `Progres ${label.toLowerCase()}`
+            : `Sekitar ${Math.round(progress * 100)} persen dari perkiraan waktu`
+        }
+        value={progress ?? undefined}
+      />
+      {disconnected && (
+        <p className="text-sm text-high" role="status" data-testid="poll-disconnected">
+          Koneksi ke server terputus. Mencoba lagi…
+        </p>
+      )}
+    </section>
   );
 }

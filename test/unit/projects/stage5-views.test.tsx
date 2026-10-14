@@ -82,7 +82,7 @@ describe('Stage5Section', () => {
       stage5.findings.map((f) => escaped(f.recommended_option)),
     );
     expect(render(project())).toMatch(
-      /Berikutnya: <span[^>]*>PRD<\/span><\/span><button type="submit"[^>]*>Simpan keputusan/,
+      /Berikutnya: <span[^>]*>PRD, sekitar 5–10 menit<\/span><\/span><button type="submit"[^>]*>Simpan keputusan/,
     );
   });
 

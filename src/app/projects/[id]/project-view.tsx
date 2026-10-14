@@ -1,5 +1,7 @@
 import { AppHeader, type TemplateStatus } from '../../../components/ui/app-header.tsx';
 import { Card } from '../../../components/ui/card.tsx';
+import { DocumentToc } from '../../../components/ui/document-toc.tsx';
+import { documentOutline } from '../../../components/ui/markdown-outline.ts';
 import { Stepper } from '../../../components/ui/stepper.tsx';
 import type { ProjectDetail, Stage, StageUsage } from '../../../projects/projects.ts';
 import { STAGE_LABELS } from '../../../projects/stage-labels.ts';
@@ -15,6 +17,23 @@ import { Stage6Section } from './stage6-section.tsx';
 import { Stage7Section } from './stage7-section.tsx';
 import { projectSteps, selectedStage } from './steps.ts';
 import { UsageSummary } from './usage-summary.tsx';
+
+/** Daftar isi untuk layar dokumen (tahap 6 dan 7) bila dokumennya sudah ada. */
+function DocumentNav({ project, selected }: { project: ProjectDetail; selected: string }) {
+  const kind = selected === 'stage6' ? 'prd' : selected === 'stage7' ? 'tasks' : null;
+  const doc = kind ? project.documents[kind] : null;
+  if (!kind || !doc) return null;
+  const name = kind === 'prd' ? 'PRD' : 'TASKS';
+  return (
+    <div className="hidden lg:sticky lg:top-0 lg:z-10 lg:block lg:max-h-screen lg:overflow-y-auto lg:bg-canvas lg:py-2">
+      <DocumentToc
+        title={`${name} · versi ${doc.version}`}
+        label={`Daftar isi ${name}`}
+        items={documentOutline(doc.content)}
+      />
+    </div>
+  );
+}
 
 type Estimates = { stage6: StageEstimate; stage7: StageEstimate };
 
@@ -42,8 +61,12 @@ export function ProjectView({ project, usage = {}, stage, template, estimates }:
         tokens={formatTokens(project.totalTokens)}
         template={template}
       />
-      <div className="grid gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(560px,1fr)_300px]">
+      <main
+        id="konten"
+        className="grid gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(560px,1fr)_300px]"
+      >
         <div className="order-2 flex min-w-0 flex-col gap-6 lg:order-none lg:col-start-1 lg:row-span-2 lg:row-start-1">
+          <DocumentNav project={project} selected={selected} />
           <Stepper steps={projectSteps(project, usage, selected)} />
           <Card as="section" aria-label="Ringkasan proyek" className="flex flex-col gap-3 text-sm">
             <h2 className="text-[15px] font-bold">{project.name}</h2>
@@ -92,7 +115,7 @@ export function ProjectView({ project, usage = {}, stage, template, estimates }:
           />
         )}
         {selected === 'export' && <ExportSection project={project} />}
-      </div>
+      </main>
     </>
   );
 }

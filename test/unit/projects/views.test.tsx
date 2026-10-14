@@ -34,7 +34,8 @@ describe('HomeView', () => {
     );
     expect(html).toContain('0/4000 karakter');
     expect(html).toContain('Buat proyek');
-    expect(html).toContain('Belum ada proyek.');
+    expect(html).toContain('data-testid="projects-empty"');
+    expect(html).toContain('Belum ada proyek');
   });
 
   it('daftar proyek menampilkan tahap terakhir yang selesai dan total token', () => {

@@ -35,7 +35,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: script tema statis dari kode kita sendiri, bukan input user. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="min-h-screen bg-canvas font-sans text-ink antialiased">{children}</body>
+      <body className="min-h-screen bg-canvas font-sans text-ink antialiased">
+        {/* Tautan pertama untuk pengguna keyboard: melompati header ke konten utama. */}
+        <a
+          href="#konten"
+          className="sr-only rounded-control bg-accent px-4 py-3 font-bold text-on-accent focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
+          data-testid="skip-link"
+        >
+          Lewati ke konten utama
+        </a>
+        {children}
+      </body>
     </html>
   );
 }

@@ -43,7 +43,7 @@ Label status dan keparahan memakai warnanya sebagai teks di atas latar warna yan
 
 ### Warna — mode terang
 
-Diturunkan dengan prinsip yang sama: latar `#F7F8FA`, surface `#FFFFFF`, garis `#D7DCE3`, teks `#14171C`, teks keterangan `#5B6472`, aksen `#3D5FD9` dengan teks putih. Warna keparahan digelapkan sampai kontras teks 4.5:1 di atas latar terangnya. Pilihan tema disimpan di `localStorage`; bawaannya mengikuti `prefers-color-scheme`.
+Diturunkan dengan prinsip yang sama: latar `#F7F8FA`, surface `#FFFFFF`, garis `#D7DCE3`, teks `#14171C`, teks keterangan `#5B6472`, aksen `#3858D3` dengan teks putih (semula `#3D5FD9`, digelapkan di T-021 agar teks aksen di atas latar aksen 12% tetap 4.5:1). Warna keparahan digelapkan sampai kontras teks 4.5:1 di atas latar terangnya. Pilihan tema disimpan di `localStorage`; bawaannya mengikuti `prefers-color-scheme`.
 
 ### Tipografi
 
