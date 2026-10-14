@@ -25,7 +25,7 @@ export const STEP_STATUS_TEXT: Record<StepStatus, string> = {
 };
 
 const DOT: Record<StepStatus, string> = {
-  done: 'border-accent bg-accent text-on-accent',
+  done: 'border-success bg-success text-on-accent',
   current: 'border-accent text-accent',
   locked: 'border-line text-ink-faint',
   failed: 'border-high bg-high-soft text-high',

@@ -160,6 +160,12 @@ describe('Stepper', () => {
     expect(html).toMatch(/aria-current="page" href="\/p\?tahap=3"/);
     expect(html.match(/<a /g)).toHaveLength(2);
   });
+
+  it('centang tahap selesai berwarna hijau (success), bukan aksen', () => {
+    const html = render(<Stepper steps={steps.slice(0, 1)} />);
+    expect(html).toMatch(/border-success bg-success[^"]*"><svg/);
+    expect(html).not.toContain('bg-accent ');
+  });
 });
 
 describe('StickyActionBar', () => {
