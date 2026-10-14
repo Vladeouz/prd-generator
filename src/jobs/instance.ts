@@ -8,22 +8,34 @@ import { createStageRegistry } from '../stages/registry.ts';
 import { JobQueue } from './job-queue.ts';
 
 const globalKey = Symbol.for('prd-generator.job-queue');
-const globalQueue = globalThis as typeof globalThis & { [globalKey]?: JobQueue };
+const globalQueue = globalThis as typeof globalThis & { [globalKey]?: unknown };
+
+/**
+ * Antrean yang dibuat dari kode `JobQueue` lama (bundle instrumentation, yang tidak ikut hot reload,
+ * atau modul sebelum hot reload) diganti: kalau tidak, job tetap dijalankan `runStage` lama dengan
+ * definisi tahap baru (ditemukan saat verifikasi T-014: validator review kedua menerima konteks
+ * `undefined`). Aman, karena semua status job ada di database: job yang sedang berjalan di antrean
+ * lama tetap selesai dan menulis statusnya, dan aturan satu job aktif diperiksa di database.
+ */
+export function currentQueue(existing: unknown, create: () => JobQueue): JobQueue {
+  return existing instanceof JobQueue ? existing : create();
+}
 
 export function getJobQueue(): JobQueue {
-  let queue = globalQueue[globalKey];
-  if (!queue) {
-    queue = new JobQueue({
-      db: getDb(),
-      // CLAUDE_COMMAND (opsional) mengganti perintah `claude`, misalnya script palsu untuk uji UI.
-      runner: new CliClaudeRunner({ command: process.env.CLAUDE_COMMAND || undefined }),
-      clock: systemClock,
-      stages: {},
-    });
-    globalQueue[globalKey] = queue;
-  }
+  const queue = currentQueue(
+    globalQueue[globalKey],
+    () =>
+      new JobQueue({
+        db: getDb(),
+        // CLAUDE_COMMAND (opsional) mengganti perintah `claude`, misalnya script palsu untuk uji UI.
+        runner: new CliClaudeRunner({ command: process.env.CLAUDE_COMMAND || undefined }),
+        clock: systemClock,
+        stages: {},
+      }),
+  );
+  globalQueue[globalKey] = queue;
   // Dibuat ulang setiap kali: prompt di prompts/ dan definisi tahap yang diubah langsung terpakai
-  // tanpa restart server, walau antreannya sendiri bertahan saat hot reload.
+  // tanpa restart server.
   queue.setStages(createStageRegistry());
   return queue;
 }
