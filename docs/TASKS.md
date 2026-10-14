@@ -61,7 +61,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `prompts/stage-4.md`, `src/stages/stage-4/**`, layar tahap 4, `src/app/api/projects/[id]/features/**`, test terkait
   - done when: validator diturunkan dari `validateStage4` di `docs/reference/e2e-gym.mjs`; setiap kriteria FR-05 terbukti oleh test; fitur rekomendasi yang tidak dicentang masuk non-goals pada input tahap berikutnya (dibuktikan test); `pnpm check` hijau
 
-- [ ] T-011 Tahap 5: review kritis
+- [x] T-011 Tahap 5: review kritis
   - layer: app · depends_on: T-010 · refs: FR-06, D-05
   - files: `prompts/stage-5.md`, `src/stages/stage-5/**`, layar tahap 5, `src/app/api/projects/[id]/decisions/**`, test terkait
   - done when: setiap kriteria FR-06 terbukti oleh test, termasuk keempat kesalahan `injectFlaws` tertangkap dengan fixture nyata; pilihan user tersimpan sebagai keputusan `RV-xx` dengan konsekuensinya; `pnpm check` hijau
