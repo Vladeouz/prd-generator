@@ -78,13 +78,13 @@ describe('Stage7Section', () => {
 });
 
 describe('halaman proyek di tahap 7', () => {
-  it('stepper menautkan tahap 2–7, tahap 6 selesai, dan halaman membuka tahap 7', () => {
+  it('stepper menautkan tahap 2–8 (Ekspor sejak T-015), tahap 6 selesai, dan ?tahap=7 membuka tahap 7', () => {
     const detail = project({ currentStage: 'export', documents: { prd, tasks } });
     const steps = projectSteps(detail, {}, 'stage7');
-    expect(steps.filter((s) => s.href).map((s) => s.number)).toEqual([2, 3, 4, 5, 6, 7]);
+    expect(steps.filter((s) => s.href).map((s) => s.number)).toEqual([2, 3, 4, 5, 6, 7, 8]);
     expect(steps[5]?.status).toBe('done');
     expect(steps[6]).toMatchObject({ status: 'done', meta: 'Versi 1', selected: true });
-    const html = renderToStaticMarkup(<ProjectView project={detail} template={valid} />);
+    const html = renderToStaticMarkup(<ProjectView project={detail} template={valid} stage="7" />);
     expect(html).toContain('TAHAP 7 / 8');
   });
 });

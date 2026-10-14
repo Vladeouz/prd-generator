@@ -5,7 +5,15 @@ import type { ProjectStage } from '../../../projects/stage-labels.ts';
 import { formatCount, stageNumber } from '../format.ts';
 
 /** Tahap yang sudah punya layar. Tahap berikutnya ditambahkan saat layarnya dibuat. */
-export const VIEW_STAGES = ['stage2', 'stage3', 'stage4', 'stage5', 'stage6', 'stage7'] as const;
+export const VIEW_STAGES = [
+  'stage2',
+  'stage3',
+  'stage4',
+  'stage5',
+  'stage6',
+  'stage7',
+  'export',
+] as const;
 export type ViewStage = (typeof VIEW_STAGES)[number];
 
 const FLOW: { number: number; label: string; stages: ProjectStage[] }[] = [
