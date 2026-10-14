@@ -32,7 +32,8 @@ export type StageDefinition<T = unknown> = {
    * terpenuhi, yang dikirim ke user sebagai 409.
    */
   notReadyReason?(context: StageContext): string | null;
-  buildPrompt(context: StageContext): string;
+  /** Boleh async, misalnya untuk membaca repo template (tahap 6). Error yang dilempar menggagalkan job. */
+  buildPrompt(context: StageContext): string | Promise<string>;
   /** Mengubah teks `result` menjadi output; melempar error bila tidak bisa. */
   parse(result: string): T;
   validate(output: T): StageValidation;
@@ -108,7 +109,9 @@ export async function runStage<T>(
   projectId: string,
 ): Promise<StageRunOutcome<T>> {
   const { db, runner, clock } = deps;
-  const prompt = definition.buildPrompt({ db, projectId });
+  // `await` hanya untuk prompt async: prompt sinkron tetap dikirim ke runner pada tick yang sama.
+  const built = definition.buildPrompt({ db, projectId });
+  const prompt = typeof built === 'string' ? built : await built;
 
   let currentPrompt = prompt;
   let lastErrors: string[] = [];

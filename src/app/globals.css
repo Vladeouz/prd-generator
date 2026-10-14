@@ -108,3 +108,98 @@
     outline-offset: 2px;
   }
 }
+
+/* Pratinjau Markdown PRD dan TASKS (react-markdown): elemen HTML biasa diberi gaya dari token. */
+@layer components {
+  .prd-markdown {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+  }
+  .prd-markdown > * + * {
+    margin-top: 0.75em;
+  }
+  .prd-markdown h1,
+  .prd-markdown h2,
+  .prd-markdown h3 {
+    color: var(--text);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+  .prd-markdown h1 {
+    font-size: 26px;
+    letter-spacing: -0.02em;
+  }
+  .prd-markdown h2 {
+    margin-top: 1.6em;
+    padding-top: 0.8em;
+    border-top: 1px solid var(--border-subtle);
+    font-size: 20px;
+  }
+  .prd-markdown h3 {
+    margin-top: 1.2em;
+    font-size: 16px;
+  }
+  .prd-markdown ul,
+  .prd-markdown ol {
+    padding-left: 1.25em;
+  }
+  .prd-markdown ul {
+    list-style: disc;
+  }
+  .prd-markdown ol {
+    list-style: decimal;
+  }
+  .prd-markdown li + li,
+  .prd-markdown li > ul {
+    margin-top: 0.3em;
+  }
+  .prd-markdown li:has(> input[type="checkbox"]) {
+    list-style: none;
+  }
+  .prd-markdown input[type="checkbox"] {
+    margin-right: 0.5em;
+    accent-color: var(--accent);
+  }
+  .prd-markdown strong {
+    color: var(--text);
+  }
+  .prd-markdown code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    padding: 0.1em 0.35em;
+    border-radius: 6px;
+    background: var(--bg);
+  }
+  .prd-markdown pre {
+    overflow-x: auto;
+    padding: 12px 14px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-control);
+    background: var(--bg);
+  }
+  .prd-markdown pre code {
+    padding: 0;
+    background: none;
+  }
+  .prd-markdown table {
+    display: block;
+    overflow-x: auto;
+    border-collapse: collapse;
+  }
+  .prd-markdown th,
+  .prd-markdown td {
+    padding: 6px 10px;
+    border: 1px solid var(--border-subtle);
+    text-align: left;
+    vertical-align: top;
+  }
+  .prd-markdown th {
+    color: var(--text);
+  }
+  .prd-markdown a {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+}
