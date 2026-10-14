@@ -86,7 +86,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `src/projects/export.ts`, `src/app/api/projects/[id]/export/**`, `src/app/api/projects/[id]/documents/**`, layar export, test terkait
   - done when: setiap kriteria FR-09 terbukti oleh integration test dengan folder proyek buatan (turunan template, bukan turunan, path relatif, PRD bukan placeholder); path tujuan tidak pernah berasal dari output AI; **(manual)** ekspor ke salinan baru proyek yang dibuat dengan `pnpm init-project` berhasil dan `git status` di proyek itu hanya menampilkan `docs/PRD.md` dan `docs/TASKS.md`; `pnpm check` hijau
 
-- [ ] T-016 Pemakaian token dan menjalankan ulang tahap
+- [x] T-016 Pemakaian token dan menjalankan ulang tahap
   - layer: app · depends_on: T-015 · refs: FR-10, FR-02
   - files: `src/projects/usage.ts`, komponen ringkasan pemakaian, dialog konfirmasi tahap 6–7, test terkait
   - done when: setiap kriteria FR-10 terbukti oleh test; menjalankan ulang sebuah tahap menandai output tahap sesudahnya tidak berlaku dan menghapus dokumen yang bergantung padanya (dibuktikan integration test); `pnpm check` hijau

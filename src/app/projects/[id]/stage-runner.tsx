@@ -60,6 +60,8 @@ type Props = {
   hasOutput: boolean;
   /** Contoh: "sekitar 20 detik". */
   estimate?: string;
+  /** Bila ada, tombol jalankan meminta konfirmasi dulu dengan teks ini (tahap 6–7, FR-10). */
+  confirmation?: string;
 };
 
 export function StageRunner({
@@ -70,11 +72,13 @@ export function StageRunner({
   latestJob,
   hasOutput,
   estimate,
+  confirmation,
 }: Props) {
   const router = useRouter();
   const [job, setJob] = useState<Job | null>(activeJob?.stage === stage ? activeJob : null);
   const [now, setNow] = useState(() => Date.now());
   const [message, setMessage] = useState('');
+  const [confirming, setConfirming] = useState(false);
   const [attempts, setAttempts] = useState<JobAttempt[]>([]);
   const running = isActive(job);
   const polled = jobToPoll(job, activeJob);
@@ -109,6 +113,7 @@ export function StageRunner({
   }, [polledId, router]);
 
   async function start() {
+    setConfirming(false);
     setMessage('');
     const response = await fetch(`/api/projects/${projectId}/stages/${stage}/run`, {
       method: 'POST',
@@ -144,11 +149,28 @@ export function StageRunner({
           )}
           <ProgressBar label={`Progres ${label.toLowerCase()}`} />
         </div>
+      ) : confirming && confirmation ? (
+        <div
+          className="flex flex-col gap-3 rounded-panel border border-medium bg-medium-soft px-4.5 py-4"
+          role="alertdialog"
+          aria-labelledby={`confirm-${stage}`}
+          data-testid="run-confirmation"
+        >
+          <p id={`confirm-${stage}`} className="text-sm text-ink">
+            {confirmation}
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={start}>Ya, jalankan</Button>
+            <Button variant="secondary" onClick={() => setConfirming(false)}>
+              Batal
+            </Button>
+          </div>
+        </div>
       ) : (
         <div className="flex flex-wrap items-center gap-3">
           <Button
             variant={hasOutput ? 'secondary' : 'primary'}
-            onClick={start}
+            onClick={confirmation ? () => setConfirming(true) : start}
             disabled={otherRunning}
           >
             {hasOutput

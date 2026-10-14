@@ -24,6 +24,8 @@ type Props = {
   next: string;
   /** Pesan bila keputusan membuat PRD ditulis ulang. */
   regenerateMessage?: string;
+  /** Konfirmasi sebelum menyimpan keputusan yang membuat PRD ditulis ulang (FR-10). */
+  regenerateConfirmation?: string;
   /** Opsi tersimpan per kode temuan; temuan tanpa pilihan tersimpan memakai rekomendasi. */
   saved: Record<string, string>;
   savedMessage: string;
@@ -35,6 +37,7 @@ export function DecisionForm({
   findings,
   next,
   regenerateMessage,
+  regenerateConfirmation,
   saved,
   savedMessage,
 }: Props) {
@@ -52,9 +55,15 @@ export function DecisionForm({
   const [message, setMessage] = useState('');
   const [failed, setFailed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (fixes > 0 && regenerateConfirmation && !confirming) {
+      setConfirming(true);
+      return;
+    }
+    setConfirming(false);
     setSaving(true);
     setErrors({});
     setMessage('');
@@ -151,6 +160,24 @@ export function DecisionForm({
         </Card>
       ))}
 
+      {confirming && regenerateConfirmation && (
+        <div
+          className="flex flex-col gap-3 rounded-panel border border-medium bg-medium-soft px-4.5 py-4"
+          role="alertdialog"
+          aria-labelledby={`confirm-${origin}`}
+          data-testid="regenerate-confirmation"
+        >
+          <p id={`confirm-${origin}`} className="text-sm text-ink">
+            {regenerateConfirmation}
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button type="submit">Ya, simpan dan tulis ulang PRD</Button>
+            <Button variant="secondary" onClick={() => setConfirming(false)}>
+              Batal
+            </Button>
+          </div>
+        </div>
+      )}
       <StickyActionBar
         next={next}
         summary={

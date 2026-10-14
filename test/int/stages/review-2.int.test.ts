@@ -158,7 +158,8 @@ describe('keputusan review kedua', () => {
     ]);
     expect(again.status).toBe(409);
     expect((await again.json()).error.message).toBe(
-      'PRD sudah ditulis ulang setelah review kedua. Jalankan ulang review kedua untuk meninjau PRD terbaru.',
+      // Output review kedua mereview PRD lama, jadi tidak berlaku lagi setelah PRD ditulis ulang (T-016).
+      'Jalankan review kedua dulu sebelum memutuskan temuan.',
     );
     expect(stageRunCount('stage6')).toBe(2);
   });
@@ -191,6 +192,12 @@ describe('keputusan review kedua', () => {
     expect(rows[0]?.consequence).toBe(rv1?.options[1]?.consequence);
     expect(prdVersions()).toHaveLength(1);
     expect(stageRunCount('stage6')).toBe(1);
+
+    const again = await putReview2(flow, []);
+    expect(again.status).toBe(409);
+    expect((await again.json()).error.message).toBe(
+      'Keputusan review kedua sudah disimpan dan proyek sudah lanjut ke TASKS. Jalankan ulang review kedua untuk mengubahnya.',
+    );
   });
 
   it('409 tanpa menyimpan apa pun bila job lain sedang berjalan', async () => {

@@ -3,6 +3,7 @@ import { Card } from '../../../components/ui/card.tsx';
 import { Stepper } from '../../../components/ui/stepper.tsx';
 import type { ProjectDetail, Stage, StageUsage } from '../../../projects/projects.ts';
 import { STAGE_LABELS } from '../../../projects/stage-labels.ts';
+import type { StageEstimate } from '../../../projects/usage.ts';
 import { formatDateTime, formatTokens } from '../format.ts';
 import { DeleteProjectButton } from './delete-project-button.tsx';
 import { ExportSection } from './export-section.tsx';
@@ -13,6 +14,9 @@ import { Stage5Section } from './stage5-section.tsx';
 import { Stage6Section } from './stage6-section.tsx';
 import { Stage7Section } from './stage7-section.tsx';
 import { projectSteps, selectedStage } from './steps.ts';
+import { UsageSummary } from './usage-summary.tsx';
+
+type Estimates = { stage6: StageEstimate; stage7: StageEstimate };
 
 type Props = {
   project: ProjectDetail;
@@ -21,13 +25,15 @@ type Props = {
   /** Nilai `?tahap=` dari URL. */
   stage?: string;
   template?: TemplateStatus;
+  /** Perkiraan tahap 6–7 untuk konfirmasi sebelum dijalankan (FR-10). */
+  estimates?: Estimates;
 };
 
 /**
  * Halaman proyek: tiga kolom (stepper, konten tahap, panel samping). Di layar sempit kolom menumpuk
  * berurutan: konten, stepper, panel (urutan diatur lewat `order` di grid).
  */
-export function ProjectView({ project, usage = {}, stage, template }: Props) {
+export function ProjectView({ project, usage = {}, stage, template, estimates }: Props) {
   const selected = selectedStage(project, stage);
   return (
     <>
@@ -63,16 +69,27 @@ export function ProjectView({ project, usage = {}, stage, template }: Props) {
             </dl>
             <DeleteProjectButton projectId={project.id} name={project.name} />
           </Card>
+          <UsageSummary usage={usage} />
         </div>
         {selected === 'stage2' && <Stage2Section project={project} usage={usage.stage2} />}
         {selected === 'stage3' && <Stage3Section project={project} usage={usage.stage3} />}
         {selected === 'stage4' && <Stage4Section project={project} usage={usage.stage4} />}
         {selected === 'stage5' && <Stage5Section project={project} usage={usage.stage5} />}
         {selected === 'stage6' && (
-          <Stage6Section project={project} usage={usage.stage6} template={template} />
+          <Stage6Section
+            project={project}
+            usage={usage.stage6}
+            template={template}
+            estimate={estimates?.stage6}
+          />
         )}
         {selected === 'stage7' && (
-          <Stage7Section project={project} usage={usage.stage7} template={template} />
+          <Stage7Section
+            project={project}
+            usage={usage.stage7}
+            template={template}
+            estimate={estimates?.stage7}
+          />
         )}
         {selected === 'export' && <ExportSection project={project} />}
       </div>

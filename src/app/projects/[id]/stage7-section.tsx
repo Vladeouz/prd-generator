@@ -2,7 +2,9 @@ import type { TemplateStatus } from '../../../components/ui/app-header.tsx';
 import { Card } from '../../../components/ui/card.tsx';
 import { MarkdownPreview } from '../../../components/ui/markdown-preview.tsx';
 import type { ProjectDetail, StageUsage } from '../../../projects/projects.ts';
+import type { StageEstimate } from '../../../projects/usage.ts';
 import { formatDateTime, stageNumber } from '../format.ts';
+import { confirmationText } from './run-confirmation.ts';
 import { StageLayout, UsageCard } from './stage-layout.tsx';
 import { StageRunner } from './stage-runner.tsx';
 import { TemplateInvalidCard } from './stage6-section.tsx';
@@ -13,9 +15,14 @@ import { TemplateInvalidCard } from './stage6-section.tsx';
  */
 export const STAGE7_ESTIMATE = 'sekitar 5–15 menit';
 
-type Props = { project: ProjectDetail; usage?: StageUsage; template?: TemplateStatus };
+type Props = {
+  project: ProjectDetail;
+  usage?: StageUsage;
+  template?: TemplateStatus;
+  estimate?: StageEstimate;
+};
 
-export function Stage7Section({ project, usage, template }: Props) {
+export function Stage7Section({ project, usage, template, estimate }: Props) {
   const ready = stageNumber(project.currentStage) >= 7;
   const tasks = project.documents.tasks;
 
@@ -39,6 +46,7 @@ export function Stage7Section({ project, usage, template }: Props) {
         latestJob={project.latestJob}
         hasOutput={tasks !== null}
         estimate={STAGE7_ESTIMATE}
+        confirmation={estimate && confirmationText('Penulisan TASKS', estimate)}
       />
     );
   }

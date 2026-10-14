@@ -60,7 +60,7 @@ export const REVIEWS: Partial<Record<string, ReviewConfig>> = {
     onlyAt: {
       stage: 'review2',
       message:
-        'PRD sudah ditulis ulang setelah review kedua. Jalankan ulang review kedua untuk meninjau PRD terbaru.',
+        'Keputusan review kedua sudah disimpan dan proyek sudah lanjut ke TASKS. Jalankan ulang review kedua untuk mengubahnya.',
     },
     regeneratesPrd: true,
   },

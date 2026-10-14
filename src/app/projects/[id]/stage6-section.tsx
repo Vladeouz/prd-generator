@@ -3,8 +3,10 @@ import type { TemplateStatus } from '../../../components/ui/app-header.tsx';
 import { Card } from '../../../components/ui/card.tsx';
 import { MarkdownPreview } from '../../../components/ui/markdown-preview.tsx';
 import type { ProjectDetail, StageUsage } from '../../../projects/projects.ts';
+import type { StageEstimate } from '../../../projects/usage.ts';
 import { formatDateTime, stageNumber } from '../format.ts';
 import { Review2Section } from './review2-section.tsx';
+import { confirmationText } from './run-confirmation.ts';
 import { StageLayout, UsageCard } from './stage-layout.tsx';
 import { StageRunner } from './stage-runner.tsx';
 
@@ -28,9 +30,14 @@ export function TemplateInvalidCard({ document }: { document: string }) {
   );
 }
 
-type Props = { project: ProjectDetail; usage?: StageUsage; template?: TemplateStatus };
+type Props = {
+  project: ProjectDetail;
+  usage?: StageUsage;
+  template?: TemplateStatus;
+  estimate?: StageEstimate;
+};
 
-export function Stage6Section({ project, usage, template }: Props) {
+export function Stage6Section({ project, usage, template, estimate }: Props) {
   const ready = stageNumber(project.currentStage) >= 6;
   const prd = project.documents.prd;
   const templateValid = template?.valid ?? false;
@@ -55,6 +62,7 @@ export function Stage6Section({ project, usage, template }: Props) {
         latestJob={project.latestJob}
         hasOutput={prd !== null}
         estimate={STAGE6_ESTIMATE}
+        confirmation={estimate && confirmationText('Penulisan PRD', estimate)}
       />
     );
   }
@@ -87,7 +95,7 @@ export function Stage6Section({ project, usage, template }: Props) {
         )
       }
     >
-      {prd && <Review2Section project={project} />}
+      {prd && <Review2Section project={project} estimate={estimate} />}
       {prd && (
         <Card size="main" data-testid="prd-preview">
           <span className="mb-4 block font-mono text-xs text-ink-muted">

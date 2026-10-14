@@ -37,3 +37,11 @@ export function formatDuration(ms: number): string {
   const seconds = Math.round(ms / 1000);
   return seconds < 60 ? `${seconds} dtk` : `${Math.floor(seconds / 60)} mnt ${seconds % 60} dtk`;
 }
+
+/** Perkiraan biaya dari envelope, contoh `$0,72`. Bukan tagihan: pemakaian langganan. */
+export const formatCost = (usd: number) =>
+  `$${usd.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** Jumlah token dibulatkan untuk perkiraan, contoh `±33 rb`. */
+export const formatApproxTokens = (tokens: number) =>
+  tokens >= 1000 ? `±${Math.round(tokens / 1000)} rb` : `±${tokens}`;

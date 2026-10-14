@@ -117,7 +117,7 @@ describe('stepper proyek', () => {
   it('tahap 3: tahap 2 selesai dan bisa dibuka lagi; token per tahap tampil', () => {
     const steps = projectSteps(
       atStage3({ stageOutputs: { stage2, stage3: gym3 }, profileChoice: 'A' }),
-      { stage2: { inputTokens: 24_100, outputTokens: 1_512, durationMs: 19_000 } },
+      { stage2: { inputTokens: 24_100, outputTokens: 1_512, costUsd: 0.1, durationMs: 19_000 } },
       'stage3',
     );
     expect(steps[1]).toMatchObject({
@@ -170,11 +170,25 @@ describe('halaman proyek', () => {
     expect(html).toMatch(/<section id="stage2"[^>]*class="contents"><div class="order-1/);
   });
 
+  it('ringkasan pemakaian token per tahap dan total tampil di kolom stepper (FR-10)', () => {
+    const html = renderToStaticMarkup(
+      <ProjectView
+        project={project()}
+        usage={{
+          stage2: { inputTokens: 24_100, outputTokens: 1_512, costUsd: 0.1, durationMs: 19_000 },
+        }}
+      />,
+    );
+    expect(html).toContain('id="usage-title"');
+    expect(html).toContain('data-testid="usage-total-tokens">24.100 / 1.512<');
+    expect(html).toContain('data-testid="usage-total-cost">$0,10<');
+  });
+
   it('tahap 2: bilah aksi menyebut Klarifikasi teknis di samping tombol simpan; panel samping', () => {
     const html = renderToStaticMarkup(
       <Stage2Section
         project={project({ stageOutputs: { stage2 } })}
-        usage={{ inputTokens: 24_100, outputTokens: 1_512, durationMs: 19_000 }}
+        usage={{ inputTokens: 24_100, outputTokens: 1_512, costUsd: 0.1, durationMs: 19_000 }}
       />,
     );
     const total = stage2.questions.length;
@@ -185,7 +199,9 @@ describe('halaman proyek', () => {
     expect(html).toContain(`${total} dilewati, pakai default`);
     expect(html).toContain('aria-label="Catatan tahap"');
     expect(html).toContain('Pemakaian tahap ini');
-    expect(html).toContain('data-testid="stage-usage">24.100 input · 1.512 output · 19 dtk<');
+    expect(html).toContain(
+      'data-testid="stage-usage">24.100 input · 1.512 output · $0,10 · 19 dtk<',
+    );
     expect(html).toContain(`aria-label="Kejelasan ide ${stage2.clarity} dari 5"`);
     expect(html.match(/\+ Lainnya/g)).toHaveLength(total);
   });

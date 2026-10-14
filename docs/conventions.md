@@ -33,6 +33,7 @@ Library dipin ke versi pasti (tanpa `^` atau `~`) saat pertama dipasang, lalu di
 | `zod` | 4.6.5 | T-004 |
 | `react-markdown` | 10.1.0 | T-012 |
 | `remark-gfm` | 4.0.1 | T-012 |
+| `happy-dom` (dev) | 21.0.1 | T-016 |
 
 Pasang dengan `pnpm add -E <nama>` (atau `-D -E`) agar versi langsung pasti. Paket yang butuh build script saat install didaftarkan di `allowBuilds` pada `pnpm-workspace.yaml` (saat ini `esbuild`, dipakai drizzle-kit); tanpa itu pnpm 12 keluar dengan `ERR_PNPM_IGNORED_BUILDS`. Build script yang tidak dibutuhkan didaftarkan dengan nilai `false` beserta alasannya di komentar: `better-sqlite3` 13 membawa binary prebuilt yang dimuat lebih dulu, sedangkan build script-nya hanya `node-gyp rebuild` yang butuh Python dan compiler C++. Jangan biarkan nilai placeholder `set this to true or false` yang ditulis pnpm.
 
@@ -151,6 +152,16 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
   - output disimpan sebagai dokumen `tasks` versi berikutnya, dan proyek pindah ke `export`.
 - `GET /api/jobs/{id}` mengembalikan job beserta `attempts` (`JobQueue.attempts`: percobaan job itu dari `stage_runs`, dikenali dari proyek, tahap, dan waktu mulai job). `StageRunner` menampilkan `attemptNote` ("Percobaan 2 dari 2. Percobaan 1 ditolak: …") selama job berjalan. `MAX_ATTEMPTS` ada di `src/stages/attempts.ts` agar bisa dipakai komponen klien.
 - Fixture **verifikasi** di `test/fixtures/claude/verification/`: output nyata dari verifikasi manual yang dipakai sebagai test regresi, disalin apa adanya dari database lokal, dengan sumbernya di field `fixture_source` (contoh: `t014-prd.md` dan `t014-stage7-attempt{1,2}.json`).
+- Pemakaian token (`src/projects/usage.ts`, FR-10):
+  - `getStageUsage` menghitung token input/output dan biaya per tahap dari semua percobaan, dan durasi dari run yang berlaku. `usageTotals` menghitung total proyek;
+  - tampil di `UsageCard` per tahap dan `UsageSummary` (kolom stepper). Biaya diformat `formatCost` ("$0,72") dan selalu disebut perkiraan;
+  - `stageEstimate(db, 'stage6' | 'stage7')` merata-rata semua pemanggilan sebelumnya di semua proyek, atau memakai `TEST_ESTIMATES` (angka uji end-to-end) bila belum ada;
+  - teks konfirmasinya dari `confirmationText` (`run-confirmation.ts`), ditampilkan `StageRunner` (prop `confirmation`) dan `DecisionForm` (`regenerateConfirmation`) sebagai panel di halaman, bukan dialog browser.
+- Menjalankan ulang tahap: `invalidateLaterStages` (`run-stage.ts`) berjalan di transaksi output yang berhasil, sebelum `onSuccess`:
+  - output tahap sesudahnya `is_current = 0`;
+  - dokumen yang dihasilkan tahap sesudahnya dihapus (`DOCUMENT_STAGES`: `prd` dari tahap 6, `tasks` dari tahap 7);
+  - keputusan `review2` dihapus bila tahap sebelum PRD dijalankan ulang.
+  - Percobaan yang gagal tidak mengubah apa pun. Prasyarat tiap tahap memaksa tahap yang tidak berlaku dijalankan ulang berurutan.
 - Export (`src/projects/export.ts`, `export-handlers.ts`):
   - `POST /api/projects/{id}/export` `{ targetDir, overwrite? }` hanya menerima path absolut yang diketik user (NFR-01);
   - folder tujuan harus turunan template: ada `scripts/init-project.mjs`, dan `.firebaserc` tanpa `demo-template`;
@@ -190,4 +201,5 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 
 - Integration test yang butuh database memakai `createTestDb()` dari `test/helpers/db.ts`: file SQLite baru yang sudah dimigrasi di folder sementara OS, dihapus lewat `close()` di `afterEach`. Contoh: `test/int/db/schema.int.test.ts`.
 - Unit test di `test/unit/**`, mengikuti struktur folder sumber (`scripts/lib/prereq-checks.mjs` → `test/unit/scripts/prereq-checks.test.ts`). Test yang butuh file memakai folder sementara (`mkdtempSync`) dan menghapusnya di `afterEach`.
+- Interaksi komponen klien (klik, state) diuji dengan DOM sungguhan lewat `happy-dom`: tambahkan `// @vitest-environment happy-dom` di baris pertama file test, render dengan `createRoot` dan `act` dari React, dan stub `fetch` dengan `vi.stubGlobal`. Contoh: `test/unit/projects/run-confirmation.test.tsx`. Test tampilan statis tetap memakai `renderToStaticMarkup`.
 - Teks UI dan pesan untuk user dalam Bahasa Indonesia.
