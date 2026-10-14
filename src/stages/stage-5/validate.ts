@@ -45,8 +45,20 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 const isText = (value: unknown) => typeof value === 'string' && value.trim() !== '';
 
+/** Aturan review yang dipakai bersama tahap 5 dan review kedua. */
+export type ReviewRules = {
+  categories: readonly string[];
+  /** Awalan id temuan, misalnya `RV` (RV-01) atau `RV2` (RV2-01). */
+  idPrefix: string;
+};
+
 export function validateStage5(output: Stage5Output): StageValidation {
-  const o = output as unknown as Record<string, unknown>;
+  return validateReview(output, { categories: REVIEW_CATEGORIES, idPrefix: 'RV' });
+}
+
+export function validateReview(output: unknown, rules: ReviewRules): StageValidation {
+  const o = (isRecord(output) ? output : {}) as Record<string, unknown>;
+  const idPattern = new RegExp(`^${rules.idPrefix}-\\d{2}$`);
   if (!Array.isArray(o.findings)) return { errors: ['findings bukan array'], warnings: [] };
   const errors: string[] = [];
   const ids = new Set<unknown>();
@@ -57,13 +69,13 @@ export function validateStage5(output: Stage5Output): StageValidation {
       errors.push(`${p} bukan objek`);
       return;
     }
-    if (typeof f.id !== 'string' || !/^RV-\d{2}$/.test(f.id)) {
-      errors.push(`${p}.id harus berbentuk RV-01: ${String(f.id)}`);
+    if (typeof f.id !== 'string' || !idPattern.test(f.id)) {
+      errors.push(`${p}.id harus berbentuk ${rules.idPrefix}-01: ${String(f.id)}`);
     } else if (ids.has(f.id)) {
       errors.push(`${p}.id ${f.id} dipakai lebih dari sekali`);
     }
     ids.add(f.id);
-    if (!(REVIEW_CATEGORIES as readonly unknown[]).includes(f.category)) {
+    if (!(rules.categories as readonly unknown[]).includes(f.category)) {
       errors.push(`${p}.category tidak dikenal: ${String(f.category)}`);
     }
     if (!(SEVERITIES as readonly unknown[]).includes(f.severity)) {
@@ -90,7 +102,7 @@ export function validateStage5(output: Stage5Output): StageValidation {
     errors.push('passed_checks bukan array');
   } else {
     const unknown = o.passed_checks.filter(
-      (c) => !(REVIEW_CATEGORIES as readonly unknown[]).includes(c),
+      (c) => !(rules.categories as readonly unknown[]).includes(c),
     );
     if (unknown.length) errors.push(`passed_checks tidak dikenal: ${unknown.join(', ')}`);
   }
@@ -100,7 +112,7 @@ export function validateStage5(output: Stage5Output): StageValidation {
   }
 
   const warnings =
-    errors.length === 0 && INTERNAL_TERMS.test(JSON.stringify(output.findings))
+    errors.length === 0 && INTERNAL_TERMS.test(JSON.stringify(o.findings))
       ? ['temuan menyebut istilah internal ("Profil A", "Profil B", atau "stack profile")']
       : [];
   return { errors, warnings };

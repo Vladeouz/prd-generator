@@ -1,0 +1,17 @@
+{
+  "type": "result",
+  "subtype": "success",
+  "is_error": false,
+  "duration_ms": 30000,
+  "num_turns": 1,
+  "result": "{\n  \"findings\": [\n    {\n      \"id\": \"RV2-01\",\n      \"category\": \"ui_endpoint\",\n      \"severity\": \"high\",\n      \"finding\": \"Form edit di /items/{id}/edit harus terisi data lama, tetapi API Contract tidak punya GET /items/{id}. Layar edit hanya bisa mengambil seluruh daftar lalu mencari itemnya sendiri.\",\n      \"evidence\": \"FR-02: \\\"Layar edit ada di rute /items/{id}/edit, berisi form nama dan jumlah yang terisi data lama\\\". API Contract hanya punya GET /items, POST /items, PUT /items/{id}, DELETE /items/{id}.\",\n      \"options\": [\n        {\n          \"label\": \"Tambahkan GET /items/{id}\",\n          \"consequence\": \"Form edit mengambil satu item, termasuk saat dibuka langsung dari tautan. PRD ditulis ulang dengan endpoint ini.\",\n          \"changes_prd\": true\n        },\n        {\n          \"label\": \"Biarkan, form edit memakai data dari daftar\",\n          \"consequence\": \"Tidak ada endpoint baru, tetapi membuka /items/{id}/edit langsung (tanpa lewat daftar) harus memuat seluruh daftar dulu.\",\n          \"changes_prd\": false\n        }\n      ],\n      \"recommended_option\": \"Tambahkan GET /items/{id}\"\n    },\n    {\n      \"id\": \"RV2-02\",\n      \"category\": \"business_rule\",\n      \"severity\": \"low\",\n      \"finding\": \"Item hanya boleh diubah pemiliknya, tetapi aturan kepemilikan tidak disebut di PUT /items/{id}.\",\n      \"evidence\": \"PUT /items/{id} — \\\"ubah nama dan jumlah item\\\", tanpa menyebut user_id.\",\n      \"options\": [\n        {\n          \"label\": \"Tegaskan pemeriksaan pemilik di setiap endpoint item\",\n          \"consequence\": \"Setiap endpoint item mengembalikan 404 untuk item milik user lain.\",\n          \"changes_prd\": true\n        },\n        {\n          \"label\": \"Biarkan, cukup dijelaskan di task\",\n          \"consequence\": \"PRD tidak berubah; agent harus menyimpulkan aturan ini sendiri.\",\n          \"changes_prd\": false\n        }\n      ],\n      \"recommended_option\": \"Biarkan, cukup dijelaskan di task\"\n    }\n  ],\n  \"passed_checks\": [\n    \"data_model\"\n  ],\n  \"ready\": false\n}",
+  "session_id": "fixture-synthetic-review2-daftar-belanja",
+  "total_cost_usd": 0.1,
+  "usage": {
+    "input_tokens": 3,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 20000,
+    "output_tokens": 2000
+  },
+  "fixture_synthetic": "Ditulis tangan untuk kasus uji agent daftar-belanja (T-013); bukan output nyata."
+}

@@ -1,0 +1,17 @@
+{
+  "type": "result",
+  "subtype": "success",
+  "is_error": false,
+  "duration_ms": 30000,
+  "num_turns": 1,
+  "result": "# Daftar Belanja\n\n## 1. Context & Goal\n\nSatu keluarga mencatat barang yang perlu dibeli, lalu mencentangnya saat belanja.\n\n## 2. Scope\n\n### In scope\n\n- Tambah, ubah, hapus, dan centang item belanja (F-01, F-02).\n\n### Non-goals\n\n- Berbagi daftar dengan keluarga lain.\n\n## 3. Tech Constraints\n\n- Flutter untuk web dan HP, API Hono + TypeScript, PostgreSQL + Drizzle.\n\n## 4. Data Model\n\n```mermaid\nerDiagram\n    users ||--o{ items : owns\n    users {\n        uuid id PK\n        text firebase_uid\n    }\n    items {\n        uuid id PK\n        uuid user_id FK\n        text name\n        integer quantity\n        boolean done\n    }\n```\n\n- `items.quantity` minimal 1 (CHECK).\n\n## 5. API Contract\n\n- GET /items — daftar item milik user.\n- POST /items — tambah item.\n- PUT /items/{id} — ubah nama dan jumlah item.\n- DELETE /items/{id} — hapus item.\n\n## 6. Functional Requirements\n\n### FR-01: Tambah item\n\nFitur: F-01\n\nAcceptance criteria:\n- [ ] Given user login, When menambah item \"Susu\" jumlah 2, Then item tampil di daftar.\n\n### FR-02: Ubah item\n\nFitur: F-01. Layar edit ada di rute `/items/{id}/edit`, berisi form nama dan jumlah yang terisi data lama.\n\nAcceptance criteria:\n- [ ] Given item \"Susu\", When membuka /items/{id}/edit dan mengubah jumlah ke 3, Then daftar menampilkan jumlah 3.\n\n### FR-03: Centang item\n\nFitur: F-02\n\nAcceptance criteria:\n- [ ] Given item belum dicentang, When dicentang, Then item tampil sebagai selesai.\n\n## 7. Non-Functional Requirements\n\n- **NFR-01:** daftar 200 item tampil dalam 1 detik.\n",
+  "session_id": "fixture-synthetic-prd-daftar-belanja",
+  "total_cost_usd": 0.1,
+  "usage": {
+    "input_tokens": 3,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 20000,
+    "output_tokens": 2000
+  },
+  "fixture_synthetic": "Ditulis tangan untuk kasus uji agent daftar-belanja (T-013); bukan output nyata."
+}

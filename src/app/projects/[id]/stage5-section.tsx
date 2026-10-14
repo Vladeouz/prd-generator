@@ -2,13 +2,30 @@ import { Badge } from '../../../components/ui/badge.tsx';
 import { Card } from '../../../components/ui/card.tsx';
 import type { ProjectDetail, StageUsage } from '../../../projects/projects.ts';
 import { SEVERITY_TEXT } from '../../../stages/stage-5/review-text.ts';
-import { SEVERITIES, type Stage5Output } from '../../../stages/stage-5/validate.ts';
+import { SEVERITIES, type Severity, type Stage5Output } from '../../../stages/stage-5/validate.ts';
 import { stageNumber } from '../format.ts';
 import { DecisionForm } from './decision-form.tsx';
 import { StageLayout, UsageCard } from './stage-layout.tsx';
 import { StageRunner } from './stage-runner.tsx';
 
 const SAVED_MESSAGE = 'Keputusan tersimpan. Tahap berikutnya: PRD — siap dijalankan.';
+
+/** Jumlah temuan per keparahan; status juga tertulis sebagai teks. */
+export function SeveritySummary({ findings }: { findings: { severity: Severity }[] }) {
+  return (
+    <div className="flex flex-wrap gap-2" data-testid="severity-summary">
+      {SEVERITIES.map((severity) => {
+        const count = findings.filter((f) => f.severity === severity).length;
+        return count > 0 ? (
+          <Badge key={severity} tone={severity} dot>
+            {count} {SEVERITY_TEXT[severity].toLowerCase()}
+          </Badge>
+        ) : null;
+      })}
+      {findings.length === 0 && <Badge tone="success">Tidak ada temuan</Badge>}
+    </div>
+  );
+}
 
 /** Buku keputusan: semua keputusan proyek, ditulis apa adanya ke PRD oleh aplikasi (D-05). */
 function DecisionBook({ project }: { project: ProjectDetail }) {
@@ -80,17 +97,7 @@ export function Stage5Section({ project, usage }: { project: ProjectDetail; usag
     >
       {output && (
         <>
-          <div className="flex flex-wrap gap-2" data-testid="severity-summary">
-            {SEVERITIES.map((severity) => {
-              const count = output.findings.filter((f) => f.severity === severity).length;
-              return count > 0 ? (
-                <Badge key={severity} tone={severity} dot>
-                  {count} {SEVERITY_TEXT[severity].toLowerCase()}
-                </Badge>
-              ) : null;
-            })}
-            {output.findings.length === 0 && <Badge tone="success">Tidak ada temuan</Badge>}
-          </div>
+          <SeveritySummary findings={output.findings} />
           {decided && (
             <p className="text-sm text-success" data-testid="decisions-saved">
               {SAVED_MESSAGE} Kamu masih bisa mengubah keputusan di bawah.
@@ -98,6 +105,8 @@ export function Stage5Section({ project, usage }: { project: ProjectDetail; usag
           )}
           <DecisionForm
             projectId={project.id}
+            origin="review1"
+            next="PRD"
             findings={output.findings}
             saved={saved}
             savedMessage={SAVED_MESSAGE}

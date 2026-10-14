@@ -1,5 +1,6 @@
 // Definisi tahap yang tersedia di aplikasi; setiap task tahap menambahkan definisinya di sini.
 import type { StageRegistry } from '../jobs/job-queue.ts';
+import { review2Definition } from './review-2/definition.ts';
 import { stage2Definition } from './stage-2/definition.ts';
 import { stage3Definition } from './stage-3/definition.ts';
 import { stage4Definition } from './stage-4/definition.ts';
@@ -14,5 +15,6 @@ export function createStageRegistry(options: Stage6Options = {}): StageRegistry 
     stage4: stage4Definition() as StageRegistry['stage4'],
     stage5: stage5Definition() as StageRegistry['stage5'],
     stage6: stage6Definition(options) as StageRegistry['stage6'],
+    review2: review2Definition() as StageRegistry['review2'],
   };
 }

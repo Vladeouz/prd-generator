@@ -36,7 +36,8 @@ export type StageDefinition<T = unknown> = {
   buildPrompt(context: StageContext): string | Promise<string>;
   /** Mengubah teks `result` menjadi output; melempar error bila tidak bisa. */
   parse(result: string): T;
-  validate(output: T): StageValidation;
+  /** `context` dipakai validator yang memeriksa output terhadap data proyek (review kedua). */
+  validate(output: T, context: StageContext): StageValidation;
   /** Dijalankan di transaksi yang sama dengan pencatatan output yang berlaku. */
   onSuccess?(context: { tx: Tx; projectId: string; output: T; now: string }): void;
 };
@@ -92,14 +93,14 @@ export type RunStageDeps = { db: Db; runner: ClaudeRunner; clock: Clock };
 
 export type StageRunOutcome<T> = { output: T; stageRunId: string; attempts: number };
 
-function check<T>(definition: StageDefinition<T>, result: string) {
+function check<T>(definition: StageDefinition<T>, result: string, context: StageContext) {
   let output: T;
   try {
     output = definition.parse(result);
   } catch (error) {
     return { errors: [`parse gagal: ${(error as Error).message}`] };
   }
-  const { errors } = definition.validate(output);
+  const { errors } = definition.validate(output, context);
   return errors.length === 0 ? { output } : { errors };
 }
 
@@ -153,7 +154,7 @@ export async function runStage<T>(
       costEstimateUsd: result.costUsd,
       durationMs: result.durationMs,
     };
-    const checked = check(definition, result.result);
+    const checked = check(definition, result.result, { db, projectId });
 
     if ('output' in checked) {
       db.transaction((tx) => {

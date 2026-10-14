@@ -3,10 +3,11 @@
 //   `projects.template_commit` saat prompt dibuat (NFR-04).
 // - Template yang tidak valid menggagalkan job sebelum `claude` dipanggil (FR-11).
 // - Output yang valid disusun dengan bagian 8 (`composePrd`) dan disimpan sebagai dokumen `prd`
-//   versi berikutnya.
+//   versi berikutnya. Proyek lalu pindah ke review kedua, atau ke TASKS bila PRD ini ditulis ulang
+//   setelah keputusan review kedua.
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
-import { documents, projects } from '../../core/db/schema.ts';
+import { decisions, documents, projects } from '../../core/db/schema.ts';
 import { composePrd, prdAppendix } from '../../projects/compose-prd.ts';
 import { readTemplate } from '../../template/template.ts';
 import { extractMarkdown } from '../parse.ts';
@@ -81,8 +82,15 @@ ${formatTechnicalContext(technicalContext(db, projectId))}`,
           createdAt: now,
         })
         .run();
+      // PRD yang ditulis ulang setelah keputusan review kedua langsung lanjut ke TASKS, sehingga
+      // perbaikan review kedua membuat PRD ulang tepat satu kali (FR-07).
+      const afterReview2 = tx
+        .select({ id: decisions.id })
+        .from(decisions)
+        .where(and(eq(decisions.projectId, projectId), eq(decisions.origin, 'review2')))
+        .get();
       tx.update(projects)
-        .set({ currentStage: 'review2', updatedAt: now })
+        .set({ currentStage: afterReview2 ? 'stage7' : 'review2', updatedAt: now })
         .where(eq(projects.id, projectId))
         .run();
     },

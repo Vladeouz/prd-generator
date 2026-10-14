@@ -71,7 +71,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `prompts/stage-6.md`, `src/stages/stage-6/**`, `src/projects/compose-prd.ts`, layar tahap 6 dan pratinjau Markdown, test terkait
   - done when: prompt berisi `docs/conventions.md` dari `TEMPLATE_DIR` apa adanya dan meminta bagian 1 sampai 7 saja; bagian 8 disusun aplikasi dari keputusan, jawaban `guess`, dan asumsi (dibuktikan test yang memastikan teks keputusan sama persis dengan data, termasuk kasus seperti RV-08 di uji end-to-end); validator diturunkan dari `validatePrd` di `docs/reference/e2e-gym.mjs` dan menerima fixture yang dibangun dari `docs/reference/e2e-output/PRD.md` (tanpa bagian 8); layar menampilkan progres job dan pratinjau PRD; **(manual)** dengan `claude` sungguhan, satu proyek dijalankan sampai tahap 6 dan PRD lolos validator; `pnpm check` hijau
 
-- [ ] T-013 Review kedua setelah PRD
+- [x] T-013 Review kedua setelah PRD
   - layer: app · depends_on: T-012 · refs: FR-07
   - files: `prompts/review-2.md`, `src/stages/review-2/**`, layar review kedua, test terkait
   - done when: review memeriksa data model, aturan bisnis tanpa constraint, dan rute UI tanpa endpoint pendukung; test dengan fixture PRD yang sengaja tidak punya `GET` per item untuk form edit (kasus uji agent `daftar-belanja`) menghasilkan temuan `RV2-xx`; memilih perbaikan membuat PRD ulang tepat satu kali; `pnpm check` hijau

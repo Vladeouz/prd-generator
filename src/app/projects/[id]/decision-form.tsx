@@ -1,6 +1,7 @@
 'use client';
-// Keputusan atas temuan review kritis (FR-06): setiap temuan punya 2–3 opsi dengan konsekuensinya,
-// dan rekomendasi sudah terpilih. Tersimpan sebagai keputusan RV-xx.
+// Keputusan atas temuan review (FR-06, FR-07): setiap temuan punya 2–3 opsi dengan konsekuensinya,
+// dan rekomendasi sudah terpilih. Tersimpan sebagai keputusan RV-xx (review kritis) atau RV2-xx
+// (review kedua; opsi `changes_prd` membuat PRD ditulis ulang).
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { Badge } from '../../../components/ui/badge.tsx';
@@ -10,15 +11,33 @@ import { StickyActionBar } from '../../../components/ui/sticky-action-bar.tsx';
 import { CATEGORY_TEXT, SEVERITY_TEXT } from '../../../stages/stage-5/review-text.ts';
 import type { Finding } from '../../../stages/stage-5/validate.ts';
 
+type DecisionFinding = Omit<Finding, 'category' | 'options'> & {
+  category: string;
+  options: { label: string; consequence: string; changes_prd?: boolean }[];
+};
+
 type Props = {
   projectId: string;
-  findings: Finding[];
+  origin: 'review1' | 'review2';
+  findings: DecisionFinding[];
+  /** Nama tahap berikutnya di samping tombol simpan. */
+  next: string;
+  /** Pesan bila keputusan membuat PRD ditulis ulang. */
+  regenerateMessage?: string;
   /** Opsi tersimpan per kode temuan; temuan tanpa pilihan tersimpan memakai rekomendasi. */
   saved: Record<string, string>;
   savedMessage: string;
 };
 
-export function DecisionForm({ projectId, findings, saved, savedMessage }: Props) {
+export function DecisionForm({
+  projectId,
+  origin,
+  findings,
+  next,
+  regenerateMessage,
+  saved,
+  savedMessage,
+}: Props) {
   const router = useRouter();
   const [chosen, setChosen] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -41,7 +60,7 @@ export function DecisionForm({ projectId, findings, saved, savedMessage }: Props
     setMessage('');
     setFailed(false);
     try {
-      const response = await fetch(`/api/projects/${projectId}/decisions/review1`, {
+      const response = await fetch(`/api/projects/${projectId}/decisions/${origin}`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -50,7 +69,7 @@ export function DecisionForm({ projectId, findings, saved, savedMessage }: Props
       });
       const body = await response.json();
       if (response.ok) {
-        setMessage(savedMessage);
+        setMessage(body.regenerate && regenerateMessage ? regenerateMessage : savedMessage);
         router.refresh();
       } else {
         setErrors(body.error?.details ?? {});
@@ -65,9 +84,12 @@ export function DecisionForm({ projectId, findings, saved, savedMessage }: Props
   }
 
   const changed = findings.filter((f) => chosen[f.id] !== f.recommended_option).length;
+  const fixes = findings.filter((f) =>
+    f.options.some((o) => o.label === chosen[f.id] && o.changes_prd === true),
+  ).length;
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-5" data-testid="decisions-review1">
+    <form onSubmit={submit} className="flex flex-col gap-5" data-testid={`decisions-${origin}`}>
       {findings.map((f) => (
         <Card
           key={f.id}
@@ -114,6 +136,11 @@ export function DecisionForm({ projectId, findings, saved, savedMessage }: Props
                         Rekomendasi
                       </Badge>
                     )}
+                    {option.changes_prd && (
+                      <Badge tone="medium" size="sm">
+                        Mengubah PRD
+                      </Badge>
+                    )}
                   </span>
                   <span className="text-ink-muted">{option.consequence}</span>
                 </span>
@@ -125,12 +152,17 @@ export function DecisionForm({ projectId, findings, saved, savedMessage }: Props
       ))}
 
       <StickyActionBar
-        next="PRD"
+        next={next}
         summary={
           <>
             <span className="font-semibold text-ink">{findings.length} temuan diputuskan</span>
             {changed > 0 && ` · ${changed} berbeda dari rekomendasi`}
             <span className="block">Menjadi bagian Assumptions &amp; Decisions di PRD.</span>
+            {origin === 'review2' && fixes > 0 && (
+              <span className="block" data-testid="regenerate-note">
+                {fixes} perbaikan dipilih: PRD ditulis ulang sekali (sekitar 4–5 menit).
+              </span>
+            )}
             {message && (
               <span
                 className={`block ${failed ? 'text-high' : 'text-success'}`}
