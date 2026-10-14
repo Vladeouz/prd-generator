@@ -7,8 +7,11 @@ import { StageLayout, UsageCard } from './stage-layout.tsx';
 import { StageRunner } from './stage-runner.tsx';
 import { TemplateInvalidCard } from './stage6-section.tsx';
 
-/** Perkiraan durasi tahap 7 dari uji end-to-end (±3 menit), untuk FR-02. */
-export const STAGE7_ESTIMATE = 'sekitar 3 menit';
+/**
+ * Perkiraan durasi tahap 7 (FR-02): ±3 menit di uji end-to-end, ±7–8 menit per percobaan saat
+ * verifikasi T-014, dan bisa dua kali lipat bila output dicoba ulang.
+ */
+export const STAGE7_ESTIMATE = 'sekitar 5–15 menit';
 
 type Props = { project: ProjectDetail; usage?: StageUsage; template?: TemplateStatus };
 

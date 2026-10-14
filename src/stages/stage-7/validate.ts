@@ -4,12 +4,16 @@
 //   pipeline kontrak);
 // - tepat satu task penghapusan fitur contoh notes, setelah task fitur pertama;
 // - setiap "done when" diakhiri `pnpm check` hijau;
-// - task dengan kriteria **(manual)** menyebut persiapan `.env`, layanan Docker
-//   (`docker compose up`), dan perintah Flutter web dengan `--web-browser-flag=--incognito`.
+// - task dengan kriteria **(manual)** menyebut persiapan `.env` dan layanan Docker
+//   (`docker compose up`); task manual yang menyentuh app Flutter (layer `app` atau files di
+//   `apps/app`) juga menyebut perintah Flutter web, dan setiap `flutter run -d chrome` memakai
+//   `--web-browser-flag=--incognito` (keputusan user setelah verifikasi manual T-014);
+// - lebih dari 60 task hanya peringatan (target MVP 20–45 task).
 // Perbedaan lain dari rujukan:
 // - `refs` NFR-xx juga harus ada di PRD; `layer` harus salah satu dari daftar di prompt;
-// - "done when" dibaca sampai akhir baris (rujukan berhenti di karakter `·`), dan metadata task
-//   adalah semua baris berindentasi di bawahnya (termasuk langkah manual bernomor);
+// - metadata task adalah semua baris berindentasi di bawah judulnya, termasuk setelah baris kosong;
+//   "done when" mencakup semua baris kriteria sampai akhir task tanpa langkah manual bernomor, dan
+//   baris kriteria terakhir yang harus diakhiri `pnpm check` hijau;
 // - "done when terlalu singkat" (peringatan) di bawah 30 karakter, karena setiap done when kini
 //   memuat `pnpm check` hijau;
 // - batas minimal 10 task diganti "minimal satu task", karena setup sudah disediakan template dan
@@ -47,8 +51,16 @@ export function parseTasks(md: string): ParsedTask[] {
     const t = line.match(/^- \[[ x]\] (T-\d{3})\s+(.+)$/);
     if (!t) continue;
     const meta: string[] = [];
-    for (let j = i + 1; j < lines.length && /^\s{2,}\S/.test(lines[j] as string); j++) {
-      meta.push((lines[j] as string).trim());
+    for (let j = i + 1; j < lines.length; j++) {
+      const next = lines[j] as string;
+      if (/^\s{2,}\S/.test(next)) {
+        meta.push(next.trim());
+        continue;
+      }
+      // Baris kosong di dalam task (misalnya antara sub-butir dan paragraf done when) tidak
+      // mengakhiri task bila baris isi berikutnya masih berindentasi.
+      const following = lines.slice(j + 1).find((l) => l.trim() !== '');
+      if (next.trim() !== '' || following === undefined || !/^\s{2,}\S/.test(following)) break;
     }
     const joined = meta.join('\n');
     const pick = (key: string) =>
@@ -70,11 +82,26 @@ export function parseTasks(md: string): ParsedTask[] {
       refs: list(refs),
       hasRefs: refs !== null,
       files: pick('files'),
-      doneWhen: joined.match(/done when:\s*(.+)/i)?.[1]?.trim() ?? null,
+      doneWhen: doneWhenOf(meta),
       block: [line, ...meta].join('\n'),
     });
   }
   return tasks;
+}
+
+/**
+ * Kriteria *done when*: dari baris `done when:` sampai akhir task, termasuk sub-butir dan paragraf
+ * lanjutan, tanpa langkah manual bernomor (`1.`, `2.`, …). Diperbaiki setelah verifikasi manual
+ * T-014: sebelumnya hanya baris pertama yang dibaca, sehingga done when multi-baris ditolak.
+ */
+function doneWhenOf(meta: string[]): string | null {
+  const start = meta.findIndex((line) => /^(?:- )?done when:/i.test(line));
+  if (start === -1) return null;
+  const first = (meta[start] as string).replace(/^(?:- )?done when:\s*/i, '');
+  const criteria = [first, ...meta.slice(start + 1).filter((line) => !/^\d+\.\s/.test(line))]
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return criteria.length ? criteria.join('\n') : null;
 }
 
 /** Setup yang sudah ada di template: dikenali dari judul task atau file konfigurasinya. */
@@ -94,6 +121,8 @@ const NOTES_REMOVAL = /\bnotes?\b/i;
 const REMOVE = /hapus|menghapus|penghapusan|buang/i;
 const ENDS_WITH_CHECK = /`?pnpm check`? hijau\.?$/i;
 const FLUTTER_WEB = /flutter run -d chrome/;
+/** Lebih dari ini hanya peringatan: task mungkin terlalu kecil (target MVP 20–45 task). */
+export const MAX_TASKS = 60;
 
 export function validateTasks(md: string, prd: PrdInfo & { nfrIds: string[] }): StageValidation {
   const errors: string[] = [];
@@ -102,6 +131,9 @@ export function validateTasks(md: string, prd: PrdInfo & { nfrIds: string[] }): 
   if (!/^# \S/.test(md)) errors.push('TASKS harus dimulai dengan "# "');
   if (!/^## Fase 0/m.test(md)) errors.push('tidak ada "## Fase 0"');
   if (tasks.length === 0) errors.push('tidak ada task');
+  if (tasks.length > MAX_TASKS) {
+    warnings.push(`${tasks.length} task, lebih dari ${MAX_TASKS} (target MVP 20–45 task)`);
+  }
 
   const seen = new Set<string>();
   for (const t of tasks) {
@@ -124,7 +156,7 @@ export function validateTasks(md: string, prd: PrdInfo & { nfrIds: string[] }): 
           : false;
       if (!known) errors.push(`${t.id} merujuk ${r} yang tidak ada di PRD`);
     }
-    if (t.doneWhen && !ENDS_WITH_CHECK.test(t.doneWhen)) {
+    if (t.doneWhen && !ENDS_WITH_CHECK.test(t.doneWhen.split('\n').at(-1) as string)) {
       errors.push(`${t.id} done when tidak diakhiri \`pnpm check\` hijau`);
     }
     const setup = TEMPLATE_SETUP.filter(
@@ -140,7 +172,10 @@ export function validateTasks(md: string, prd: PrdInfo & { nfrIds: string[] }): 
       if (!/docker compose up/.test(t.block)) {
         errors.push(`${t.id} manual tanpa menyalakan layanan Docker (\`docker compose up\`)`);
       }
-      if (!FLUTTER_WEB.test(t.block)) {
+      // Perintah Flutter web hanya wajib untuk task yang menyentuh app Flutter (keputusan user
+      // setelah verifikasi manual T-014: task manual yang hanya menguji API tidak memakai Flutter).
+      const touchesApp = t.layer === 'app' || (t.files ?? '').includes('apps/app');
+      if (touchesApp && !FLUTTER_WEB.test(t.block)) {
         errors.push(`${t.id} manual tanpa perintah Flutter web (\`flutter run -d chrome …\`)`);
       }
     }

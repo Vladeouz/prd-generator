@@ -105,26 +105,41 @@ describe('menjalankan tahap 7', () => {
       .from(stageRuns)
       .where(and(eq(stageRuns.projectId, 'p1'), eq(stageRuns.stage, 'stage7')))
       .get();
-    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '1', isCurrent: 1 });
+    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '2', isCurrent: 1 });
   });
 
   it('TASKS nyata dengan task setup template ditolak lalu dicoba ulang dengan daftar error', async () => {
     // Fixture asli tahap 7 (TASKS.md uji end-to-end), yang harus ditolak.
     const flow = flowWith([loadClaudeFixture('stage7'), F.stage7()]);
     await projectReadyForTasks(flow);
-    await runStage(flow, 'stage7');
+    const job = await runStage(flow, 'stage7');
     expect(flow.runner.prompts[7]).toContain(
       '- T-001 adalah setup yang sudah disediakan template (monorepo, Docker Compose, emulator)',
     );
     expect(tasksDocuments()).toHaveLength(1);
+
+    // GET /api/jobs/{id} menyebut kedua percobaan dan alasan penolakan yang pertama (layar job).
+    const body = await (await flow.jobsApi.get(job?.id as string)).json();
+    expect(
+      body.attempts.map((a: { attempt: number; status: string }) => [a.attempt, a.status]),
+    ).toEqual([
+      [1, 'failed'],
+      [2, 'succeeded'],
+    ]);
+    expect(body.attempts[0].errors).toContain(
+      'T-001 adalah setup yang sudah disediakan template (monorepo, Docker Compose, emulator)',
+    );
   });
 
   it('menjalankan ulang tahap 7 menyimpan TASKS versi berikutnya', async () => {
     const flow = flowWith([F.stage7(), F.stage7()]);
     await projectReadyForTasks(flow);
     await runStage(flow, 'stage7');
-    await runStage(flow, 'stage7');
+    const second = await runStage(flow, 'stage7');
     expect(tasksDocuments().map((d) => d.version)).toEqual([1, 2]);
+    // Percobaan job sebelumnya tidak ikut terhitung di job berikutnya.
+    const body = await (await flow.jobsApi.get(second?.id as string)).json();
+    expect(body.attempts).toEqual([{ attempt: 1, status: 'succeeded', errors: [] }]);
   });
 
   it('TEMPLATE_DIR tidak valid: job gagal tanpa memanggil claude (FR-11)', async () => {

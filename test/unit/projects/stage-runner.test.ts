@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { jobToPoll, trackedJob } from '../../../src/app/projects/[id]/stage-runner.tsx';
+import {
+  attemptNote,
+  jobToPoll,
+  trackedJob,
+} from '../../../src/app/projects/[id]/stage-runner.tsx';
 import type { Job } from '../../../src/jobs/job-queue.ts';
 
 const NOW = '2026-10-14T00:00:00.000Z';
@@ -47,5 +51,25 @@ describe('jobToPoll', () => {
   it('tidak ada job berjalan: tidak ada polling', () => {
     expect(jobToPoll(null, null)).toBeNull();
     expect(jobToPoll(job('d', 'stage6', 'failed'), null)).toBeNull();
+  });
+});
+
+describe('attemptNote', () => {
+  it('belum ada percobaan yang gagal: tanpa keterangan', () => {
+    expect(attemptNote([])).toBeNull();
+  });
+
+  it('percobaan pertama ditolak: menyebut percobaan ke berapa dan alasannya', () => {
+    expect(
+      attemptNote([
+        {
+          attempt: 1,
+          status: 'failed',
+          errors: ['T-029 done when tidak diakhiri `pnpm check` hijau', 'T-035 x', 'T-042 y'],
+        },
+      ]),
+    ).toBe(
+      'Percobaan 2 dari 2. Percobaan 1 ditolak: T-029 done when tidak diakhiri `pnpm check` hijau; T-035 x (+1 lainnya). Claude sedang memperbaikinya.',
+    );
   });
 });

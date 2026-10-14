@@ -64,7 +64,7 @@ describe('Stage7Section', () => {
   it('siap: tombol jalankan dengan perkiraan durasi (FR-02)', () => {
     const html = render(project());
     expect(html).toContain('Jalankan penulisan tasks');
-    expect(html).toContain('Perkiraan sekitar 3 menit');
+    expect(html).toContain('Perkiraan sekitar 5–15 menit');
   });
 
   it('TASKS tersimpan: pratinjau Markdown, versi, dan versi PRD sumbernya', () => {

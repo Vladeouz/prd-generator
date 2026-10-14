@@ -13,6 +13,7 @@ import type { Clock } from '../core/clock.ts';
 import type { Db } from '../core/db/client.ts';
 import { type STAGES, stageRuns } from '../core/db/schema.ts';
 import { brandedInstanceCheck } from '../core/errors.ts';
+import { MAX_ATTEMPTS } from './attempts.ts';
 
 export type Stage = (typeof STAGES)[number];
 
@@ -42,7 +43,7 @@ export type StageDefinition<T = unknown> = {
   onSuccess?(context: { tx: Tx; projectId: string; output: T; now: string }): void;
 };
 
-export const MAX_ATTEMPTS = 2;
+export { MAX_ATTEMPTS } from './attempts.ts';
 
 /** Output tahap yang sedang berlaku (`is_current = 1`), atau null bila belum ada. */
 export function currentOutput<T>(db: Db, projectId: string, stage: Stage): T | null {

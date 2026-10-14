@@ -154,13 +154,21 @@ function tasksGym() {
         /pnpm check`? hijau$/.test(text) ? line : `${text}; \`pnpm check\` hijau`,
       ),
   );
+  // Format langkah manual mengikuti prompt tahap 7: penanda **(manual)** di kriteria, lalu langkah
+  // bernomor di bawah done when.
   const manual = [
-    '    **(manual)** persiapan: `.env` ada di root (salin dari `.env.example`), `docker compose up -d --wait`, `pnpm --filter api dev` di terminal terpisah.',
-    '    1. Dari `apps/app`: `flutter run -d chrome --web-port 8081 --web-browser-flag=--incognito --dart-define-from-file=config/dev.json`.',
-    '    2. Daftar dengan email baru: tampil halaman verifikasi email; setelah verifikasi di emulator, tampil "Belum punya akses".',
+    '    1. Persiapan: `.env` ada di root (salin dari `.env.example`), `docker compose up -d --wait`, `pnpm --filter api dev` di terminal terpisah.',
+    '    2. Dari `apps/app`: `flutter run -d chrome --web-port 8081 --web-browser-flag=--incognito --dart-define-from-file=config/dev.json`.',
+    '    3. Daftar dengan email baru: tampil halaman verifikasi email; setelah verifikasi di emulator, tampil "Belum punya akses".',
   ].join('\n');
   blocks = blocks.flatMap((block) => {
-    if (block.startsWith('- [ ] T-015 ')) return [`${block}\n${manual}`];
+    if (block.startsWith('- [ ] T-015 ')) {
+      const marked = block.replace(
+        /; `pnpm check` hijau$/,
+        '; **(manual)** pendaftaran di web sesuai langkah di bawah; `pnpm check` hijau',
+      );
+      return [`${marked}\n${manual}`];
+    }
     if (!block.startsWith('- [ ] T-016 ')) return [block];
     return [
       block,

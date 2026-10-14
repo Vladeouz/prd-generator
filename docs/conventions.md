@@ -138,8 +138,19 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - Tahap 7 (`src/stages/stage-7/`):
   - prompt berisi `docs/conventions.md` template (apa yang sudah disediakan, dan prosedur menghapus fitur contoh notes) dan PRD terbaru;
   - template dibaca di `buildPrompt` seperti tahap 6;
-  - `validateTasks(md, { frIds, endpoints, nfrIds })` memeriksa terhadap PRD terbaru: tanpa task setup template (`TEMPLATE_SETUP`, dikenali dari judul atau file konfigurasi), tepat satu task hapus notes setelah task fitur pertama, setiap *done when* diakhiri `pnpm check` hijau, dan task **(manual)** menyebut `.env`, `docker compose up`, dan `flutter run -d chrome … --web-browser-flag=--incognito`;
+  - `validateTasks(md, { frIds, endpoints, nfrIds })` memeriksa terhadap PRD terbaru:
+    - tanpa task setup template (`TEMPLATE_SETUP`, dikenali dari judul atau file konfigurasi);
+    - tepat satu task hapus notes setelah task fitur pertama;
+    - *done when* boleh multi-baris: dari baris `done when:` sampai akhir task, termasuk sub-butir dan paragraf setelah baris kosong, tanpa langkah manual bernomor (`1.`, `2.`, …). Baris kriteria terakhirnya harus diakhiri `pnpm check` hijau;
+    - setiap task **(manual)** menyebut `.env` dan `docker compose up`;
+    - perintah Flutter web (`flutter run -d chrome …`) hanya wajib untuk task manual dengan layer `app` atau `files` yang menyentuh `apps/app`;
+    - setiap `flutter run -d chrome` memakai `--web-browser-flag=--incognito`;
+    - lebih dari `MAX_TASKS` (60) task hanya peringatan;
+  - ukuran task (prompt versi 2): satu task setara satu sesi agent yang bermakna, misalnya satu fitur di satu layer lengkap dengan test-nya. Targetnya 20–45 task untuk MVP;
+  - keputusan aturan manual, ukuran task, dan *done when* multi-baris diambil user setelah verifikasi manual T-014 (lihat `docs/logs/T-014.md`);
   - output disimpan sebagai dokumen `tasks` versi berikutnya, dan proyek pindah ke `export`.
+- `GET /api/jobs/{id}` mengembalikan job beserta `attempts` (`JobQueue.attempts`: percobaan job itu dari `stage_runs`, dikenali dari proyek, tahap, dan waktu mulai job). `StageRunner` menampilkan `attemptNote` ("Percobaan 2 dari 2. Percobaan 1 ditolak: …") selama job berjalan. `MAX_ATTEMPTS` ada di `src/stages/attempts.ts` agar bisa dipakai komponen klien.
+- Fixture **verifikasi** di `test/fixtures/claude/verification/`: output nyata dari verifikasi manual yang dipakai sebagai test regresi, disalin apa adanya dari database lokal, dengan sumbernya di field `fixture_source` (contoh: `t014-prd.md` dan `t014-stage7-attempt{1,2}.json`).
 - Fixture **sintetis** di `test/fixtures/claude/synthetic/`: ditulis tangan bila belum ada output nyata (kasus `daftar-belanja`), dibangun dengan `node test/fixtures/claude/build-synthetic-fixtures.mjs`, dan ditandai field `fixture_synthetic`.
 - Pratinjau Markdown: `MarkdownPreview` (`src/components/ui/markdown-preview.tsx`, `react-markdown` + `remark-gfm`), dengan gaya `.prd-markdown` di `globals.css`.
 - Integration test yang menjalankan beberapa tahap memakai `test/helpers/stage-flow.ts` (`createFlow`, `projectThrough(flow, 'stage4')`, `GYM_FIXTURES`). `test/helpers/review-flaws.ts` berisi `injectFlaws` dan `scoreReview` dari `e2e-gym.mjs`.
