@@ -7,6 +7,7 @@ import { formatDateTime, formatTokens } from '../format.ts';
 import { DeleteProjectButton } from './delete-project-button.tsx';
 import { Stage2Section } from './stage2-section.tsx';
 import { Stage3Section } from './stage3-section.tsx';
+import { Stage4Section } from './stage4-section.tsx';
 import { projectSteps, selectedStage } from './steps.ts';
 
 type Props = {
@@ -59,11 +60,9 @@ export function ProjectView({ project, usage = {}, stage, template }: Props) {
             <DeleteProjectButton projectId={project.id} name={project.name} />
           </Card>
         </div>
-        {selected === 'stage2' ? (
-          <Stage2Section project={project} usage={usage.stage2} />
-        ) : (
-          <Stage3Section project={project} usage={usage.stage3} />
-        )}
+        {selected === 'stage2' && <Stage2Section project={project} usage={usage.stage2} />}
+        {selected === 'stage3' && <Stage3Section project={project} usage={usage.stage3} />}
+        {selected === 'stage4' && <Stage4Section project={project} usage={usage.stage4} />}
       </div>
     </>
   );

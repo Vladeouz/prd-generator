@@ -144,7 +144,8 @@ describe('stepper proyek', () => {
     expect(selectedStage(project(), '3')).toBe('stage2');
     expect(selectedStage(atStage3())).toBe('stage3');
     expect(selectedStage(atStage3(), '2')).toBe('stage2');
-    expect(selectedStage(project({ currentStage: 'stage5' }))).toBe('stage3');
+    // Tahap 5 belum punya layar: jatuh ke tahap terakhir yang punya layar (tahap 4 sejak T-010).
+    expect(selectedStage(project({ currentStage: 'stage5' }))).toBe('stage4');
   });
 });
 
