@@ -1,4 +1,4 @@
-// Membangun fixture TURUNAN tahap 3 di test/fixtures/claude/derived/ (keputusan T-009).
+// Membangun fixture TURUNAN di test/fixtures/claude/derived/ (tahap 3: keputusan T-009; tahap 6: T-012).
 //
 //   node test/fixtures/claude/build-derived-fixtures.mjs
 //
@@ -108,13 +108,33 @@ function umkmProfileB() {
   };
 }
 
+/**
+ * PRD gym (uji end-to-end) tanpa bagian 8: sejak D-05, AI hanya menulis bagian 1–7 dan aplikasi
+ * menyusun bagian 8 dari data. Bagian 1–7 apa adanya.
+ */
+function prdGym() {
+  const envelope = JSON.parse(readFileSync(join(here, 'stage6.json'), 'utf8'));
+  const start = envelope.result.indexOf('\n## 8. Assumptions & Decisions');
+  if (start === -1) throw new Error('PRD gym tidak punya bagian 8');
+  return {
+    envelope: { ...envelope, session_id: 'fixture-derived-gym-stage6' },
+    output: `${envelope.result.slice(0, start).trimEnd()}\n`,
+    derived: {
+      source: 'test/fixtures/claude/stage6.json (docs/reference/e2e-output/PRD.md)',
+      changes: ['bagian 8 (Assumptions & Decisions dan Open Questions) dihapus'],
+    },
+  };
+}
+
 mkdirSync(target, { recursive: true });
 for (const [name, build] of [
   ['stage3-gym', gym],
   ['stage3-umkm-b', umkmProfileB],
+  ['stage6-gym', prdGym],
 ]) {
   const { envelope, output, derived } = build();
-  const result = { ...envelope, result: JSON.stringify(output, null, 2), fixture_derived: derived };
+  const text = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
+  const result = { ...envelope, result: text, fixture_derived: derived };
   writeFileSync(join(target, `${name}.json`), `${JSON.stringify(result, null, 2)}\n`);
   console.log(`derived/${name}.json`);
 }

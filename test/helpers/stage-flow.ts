@@ -21,11 +21,19 @@ export const GYM_FIXTURES = {
   stage3: () => loadClaudeFixture('derived/stage3-gym'),
   stage4: () => loadClaudeFixture('stage4'),
   stage5: () => loadClaudeFixture('stage5'),
+  /** PRD nyata tanpa bagian 8 (bagian 8 disusun aplikasi). */
+  stage6: () => loadClaudeFixture('derived/stage6-gym'),
 };
 
-export function createFlow(db: Db, clock: Clock, responses: ClaudeResult[]) {
+export function createFlow(
+  db: Db,
+  clock: Clock,
+  responses: ClaudeResult[],
+  options: { templateDir?: string } = {},
+) {
   const runner = new FakeClaudeRunner(responses);
-  const queue = new JobQueue({ db, runner, clock, stages: createStageRegistry() });
+  const stages = createStageRegistry({ templateDir: () => options.templateDir });
+  const queue = new JobQueue({ db, runner, clock, stages });
   return {
     db,
     clock,
