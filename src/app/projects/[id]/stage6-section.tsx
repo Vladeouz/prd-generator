@@ -8,8 +8,8 @@ import { Review2Section } from './review2-section.tsx';
 import { StageLayout, UsageCard } from './stage-layout.tsx';
 import { StageRunner } from './stage-runner.tsx';
 
-/** Perkiraan durasi tahap 6 dari uji end-to-end (±4,5 menit), untuk FR-02. */
-export const STAGE6_ESTIMATE = 'sekitar 4–5 menit';
+/** Perkiraan durasi tahap 6 (FR-02): ±4,5 menit di uji end-to-end, ±9–10 menit saat verifikasi T-012/T-014. */
+export const STAGE6_ESTIMATE = 'sekitar 5–10 menit';
 
 type Props = { project: ProjectDetail; usage?: StageUsage; template?: TemplateStatus };
 

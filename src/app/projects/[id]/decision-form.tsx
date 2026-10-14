@@ -160,7 +160,7 @@ export function DecisionForm({
             <span className="block">Menjadi bagian Assumptions &amp; Decisions di PRD.</span>
             {origin === 'review2' && fixes > 0 && (
               <span className="block" data-testid="regenerate-note">
-                {fixes} perbaikan dipilih: PRD ditulis ulang sekali (sekitar 4–5 menit).
+                {fixes} perbaikan dipilih: PRD ditulis ulang sekali (sekitar 5–10 menit).
               </span>
             )}
             {message && (
