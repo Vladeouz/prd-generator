@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Card } from '../../../components/ui/card.tsx';
 import type { StageUsage } from '../../../projects/projects.ts';
-import { formatDuration, formatTokens } from '../format.ts';
+import { formatCost, formatDuration, formatTokens } from '../format.ts';
 
 type Props = {
   id: string;
@@ -82,7 +82,11 @@ export function UsageCard({ usage }: { usage: StageUsage | undefined }) {
       <h2 className="text-[15px] font-bold">Pemakaian tahap ini</h2>
       <span className="font-mono text-[13px] text-ink-muted" data-testid="stage-usage">
         {usage
-          ? [formatTokens(usage), usage.durationMs !== null ? formatDuration(usage.durationMs) : '']
+          ? [
+              formatTokens(usage),
+              formatCost(usage.costUsd),
+              usage.durationMs !== null ? formatDuration(usage.durationMs) : '',
+            ]
               .filter(Boolean)
               .join(' · ')
           : 'Belum ada'}

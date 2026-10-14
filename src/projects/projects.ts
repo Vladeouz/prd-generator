@@ -198,34 +198,5 @@ export function deleteProject({ db }: Pick<ProjectDeps, 'db'>, id: string): void
   });
 }
 
-export type StageUsage = TokenTotals & {
-  /** Durasi run yang berlaku (null bila belum ada run yang berhasil). */
-  durationMs: number | null;
-};
-
-/** Token per tahap (semua percobaan, termasuk yang gagal) dan durasi run yang berlaku. */
-export function getStageUsage(
-  { db }: Pick<ProjectDeps, 'db'>,
-  id: string,
-): Partial<Record<Stage, StageUsage>> {
-  const rows = db
-    .select({
-      stage: stageRuns.stage,
-      inputTokens: stageRuns.inputTokens,
-      outputTokens: stageRuns.outputTokens,
-      durationMs: stageRuns.durationMs,
-      isCurrent: stageRuns.isCurrent,
-    })
-    .from(stageRuns)
-    .where(eq(stageRuns.projectId, id))
-    .all();
-  const usage: Partial<Record<Stage, StageUsage>> = {};
-  for (const row of rows) {
-    const total = usage[row.stage] ?? { inputTokens: 0, outputTokens: 0, durationMs: null };
-    total.inputTokens += row.inputTokens ?? 0;
-    total.outputTokens += row.outputTokens ?? 0;
-    if (row.isCurrent === 1) total.durationMs = row.durationMs;
-    usage[row.stage] = total;
-  }
-  return usage;
-}
+// Pemakaian per tahap dipindah ke usage.ts (T-016); diekspor ulang untuk pemanggil lama.
+export { getStageUsage, type StageUsage } from './usage.ts';

@@ -7,11 +7,11 @@
 // - kegagalan runner (exit code, batas waktu, envelope rusak, is_error) tidak dicoba ulang dan
 //   tidak menyimpan output apa pun.
 import { randomUUID } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { type ClaudeResult, ClaudeRunError, type ClaudeRunner } from '../claude/types.ts';
 import type { Clock } from '../core/clock.ts';
 import type { Db } from '../core/db/client.ts';
-import { type STAGES, stageRuns } from '../core/db/schema.ts';
+import { DOCUMENT_KINDS, decisions, documents, STAGES, stageRuns } from '../core/db/schema.ts';
 import { brandedInstanceCheck } from '../core/errors.ts';
 import { MAX_ATTEMPTS } from './attempts.ts';
 
@@ -59,6 +59,49 @@ export function currentOutput<T>(db: Db, projectId: string, stage: Stage): T | n
     )
     .get();
   return run?.outputJson ? (JSON.parse(run.outputJson) as T) : null;
+}
+
+/** Tahap yang menghasilkan dokumen; dokumen ikut tidak berlaku bila tahap sebelumnya dijalankan ulang. */
+export const DOCUMENT_STAGES = { prd: 'stage6', tasks: 'stage7' } as const satisfies Record<
+  (typeof DOCUMENT_KINDS)[number],
+  Stage
+>;
+
+/**
+ * Menjalankan ulang sebuah tahap (PRD bagian 5, FR-10): output tahap-tahap sesudahnya tidak berlaku
+ * lagi (`is_current = 0`) dan dokumen yang dihasilkan tahap sesudahnya dihapus. Keputusan review
+ * kedua ikut dihapus bila tahap sebelum PRD dijalankan ulang, karena PRD-nya akan ditulis ulang
+ * dari awal. Run tahap 6 sendiri (termasuk penulisan ulang setelah review kedua) mempertahankan
+ * keputusan itu. Jawaban, pilihan fitur, dan keputusan lain diganti oleh `onSuccess` tahapnya saat
+ * tahap itu dijalankan lagi; prasyarat tiap tahap memastikan tahap yang tidak berlaku dijalankan
+ * ulang dulu.
+ */
+export function invalidateLaterStages(tx: Tx, projectId: string, stage: Stage) {
+  const later = STAGES.slice(STAGES.indexOf(stage) + 1);
+  if (later.length === 0) return;
+  tx.update(stageRuns)
+    .set({ isCurrent: 0 })
+    .where(
+      and(
+        eq(stageRuns.projectId, projectId),
+        inArray(stageRuns.stage, later),
+        eq(stageRuns.isCurrent, 1),
+      ),
+    )
+    .run();
+  const kinds = DOCUMENT_KINDS.filter((kind) =>
+    (later as readonly Stage[]).includes(DOCUMENT_STAGES[kind]),
+  );
+  if (kinds.length > 0) {
+    tx.delete(documents)
+      .where(and(eq(documents.projectId, projectId), inArray(documents.kind, kinds)))
+      .run();
+  }
+  if (STAGES.indexOf(stage) < STAGES.indexOf('stage6')) {
+    tx.delete(decisions)
+      .where(and(eq(decisions.projectId, projectId), eq(decisions.origin, 'review2')))
+      .run();
+  }
 }
 
 /** Prompt percobaan ulang: prompt awal ditambah daftar error (pola uji end-to-end). */
@@ -178,6 +221,7 @@ export async function runStage<T>(
             finishedAt: clock(),
           })
           .run();
+        invalidateLaterStages(tx, projectId, definition.stage);
         definition.onSuccess?.({ tx, projectId, output: checked.output as T, now: clock() });
       });
       return { output: checked.output as T, stageRunId: measured.id, attempts: attempt };

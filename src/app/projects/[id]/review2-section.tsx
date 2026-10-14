@@ -1,7 +1,9 @@
 import { Card } from '../../../components/ui/card.tsx';
 import type { ProjectDetail } from '../../../projects/projects.ts';
+import type { StageEstimate } from '../../../projects/usage.ts';
 import type { Review2Output } from '../../../stages/review-2/validate.ts';
 import { DecisionForm } from './decision-form.tsx';
+import { confirmationText } from './run-confirmation.ts';
 import { StageRunner } from './stage-runner.tsx';
 import { SeveritySummary } from './stage5-section.tsx';
 
@@ -13,7 +15,14 @@ const REGENERATE_MESSAGE =
  * Review kedua di layar PRD (FR-07): temuan tentang data model, aturan bisnis tanpa constraint,
  * dan rute UI tanpa endpoint pendukung, diputuskan sebagai RV2-xx.
  */
-export function Review2Section({ project }: { project: ProjectDetail }) {
+export function Review2Section({
+  project,
+  estimate,
+}: {
+  project: ProjectDetail;
+  /** Perkiraan tahap 6, untuk konfirmasi sebelum PRD ditulis ulang (FR-10). */
+  estimate?: StageEstimate;
+}) {
   const output = project.stageOutputs.review2 as Review2Output | undefined;
   const saved = project.decisions.filter((d) => d.origin === 'review2');
   const deciding = project.currentStage === 'review2';
@@ -38,7 +47,7 @@ export function Review2Section({ project }: { project: ProjectDetail }) {
         hasOutput={output !== undefined}
         estimate="sekitar 1 menit"
       />
-      {output && !deciding && saved.length > 0 && (
+      {!deciding && saved.length > 0 && (
         <div className="flex flex-col gap-2 text-sm" data-testid="review2-decided">
           <p className="text-success">
             Keputusan review kedua tersimpan. Jalankan ulang review kedua untuk meninjau PRD
@@ -67,6 +76,7 @@ export function Review2Section({ project }: { project: ProjectDetail }) {
             saved={Object.fromEntries(saved.map((d) => [d.code, d.chosenOption]))}
             savedMessage={SAVED_MESSAGE}
             regenerateMessage={REGENERATE_MESSAGE}
+            regenerateConfirmation={estimate && confirmationText('Penulisan ulang PRD', estimate)}
           />
         </>
       )}

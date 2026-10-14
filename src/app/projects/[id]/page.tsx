@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getDb } from '../../../core/db/client.ts';
 import { AppError } from '../../../core/errors.ts';
 import { getProjectDetail, getStageUsage } from '../../../projects/projects.ts';
+import { stageEstimate } from '../../../projects/usage.ts';
 import { templateStatus } from '../../template-status.ts';
 import { ProjectView } from './project-view.tsx';
 
@@ -23,6 +24,10 @@ export default async function ProjectPage({ params, searchParams }: Props) {
         usage={getStageUsage({ db }, id)}
         stage={typeof tahap === 'string' ? tahap : undefined}
         template={await templateStatus()}
+        estimates={{
+          stage6: stageEstimate({ db }, 'stage6'),
+          stage7: stageEstimate({ db }, 'stage7'),
+        }}
       />
     );
   } catch (error) {
