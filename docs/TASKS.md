@@ -76,7 +76,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `prompts/review-2.md`, `src/stages/review-2/**`, layar review kedua, test terkait
   - done when: review memeriksa data model, aturan bisnis tanpa constraint, dan rute UI tanpa endpoint pendukung; test dengan fixture PRD yang sengaja tidak punya `GET` per item untuk form edit (kasus uji agent `daftar-belanja`) menghasilkan temuan `RV2-xx`; memilih perbaikan membuat PRD ulang tepat satu kali; `pnpm check` hijau
 
-- [ ] T-014 Tahap 7: TASKS
+- [x] T-014 Tahap 7: TASKS
   - layer: app · depends_on: T-013 · refs: FR-08
   - files: `prompts/stage-7.md`, `src/stages/stage-7/**`, layar tahap 7, test terkait
   - done when: validator diturunkan dari `validateTasks` di `docs/reference/e2e-gym.mjs` dengan aturan tambahan FR-08; validator terbukti menolak `docs/reference/e2e-output/TASKS.md` karena berisi task setup yang sudah disediakan template, dan menerima fixture yang memenuhi FR-08; setiap kriteria FR-08 terbukti oleh test; **(manual)** dengan `claude` sungguhan, proyek dari T-012 menghasilkan TASKS yang lolos validator; `pnpm check` hijau
