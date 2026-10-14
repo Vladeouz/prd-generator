@@ -42,7 +42,7 @@ export function createFlow(
     jobsApi: jobHandlers(queue),
     answersApi: answerHandlers({ db, clock }),
     featuresApi: featureHandlers({ db, clock }),
-    decisionsApi: decisionHandlers({ db, clock }),
+    decisionsApi: decisionHandlers({ db, clock, queue }),
   };
 }
 export type Flow = ReturnType<typeof createFlow>;

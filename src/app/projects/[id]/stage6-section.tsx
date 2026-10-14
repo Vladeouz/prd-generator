@@ -4,6 +4,7 @@ import { Card } from '../../../components/ui/card.tsx';
 import { MarkdownPreview } from '../../../components/ui/markdown-preview.tsx';
 import type { ProjectDetail, StageUsage } from '../../../projects/projects.ts';
 import { formatDateTime, stageNumber } from '../format.ts';
+import { Review2Section } from './review2-section.tsx';
 import { StageLayout, UsageCard } from './stage-layout.tsx';
 import { StageRunner } from './stage-runner.tsx';
 
@@ -81,6 +82,7 @@ export function Stage6Section({ project, usage, template }: Props) {
         )
       }
     >
+      {prd && <Review2Section project={project} />}
       {prd && (
         <Card size="main" data-testid="prd-preview">
           <span className="mb-4 block font-mono text-xs text-ink-muted">

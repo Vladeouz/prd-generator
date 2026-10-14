@@ -15,4 +15,7 @@ export const CATEGORY_TEXT: Record<string, string> = {
   scope_creep: 'Fitur tambahan',
   testability: 'Bisa diuji',
   stack: 'Stack',
+  data_model: 'Data model',
+  business_rule: 'Aturan bisnis',
+  ui_endpoint: 'Rute UI dan endpoint',
 };
