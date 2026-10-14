@@ -56,7 +56,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `src/app/globals.css`, `src/app/layout.tsx`, `src/components/ui/**`, `src/app/page.tsx`, `src/app/projects/**`, `src/app/settings/**`, test terkait
   - done when: semua token warna, tipografi, radius, dan jarak di `docs/design/design.md` didefinisikan sebagai CSS custom property untuk mode gelap dan terang, dan komponen tidak memakai nilai warna mentah (dibuktikan dengan pencarian `#[0-9a-fA-F]{3,6}` di `src/components` dan `src/app` yang hanya menemukan `globals.css`); komponen dasar di `design.md` ada dengan test komponen; tombol tema berganti antara gelap dan terang dan pilihannya bertahan setelah dimuat ulang; beranda, halaman proyek (tahap 2 dan 3), dan pengaturan dibangun ulang dengan komponen dan tata letak `design.md`, mengikuti `docs/design/mockups/Main.dc.html` dan `Questions.dc.html`; `StickyActionBar` menyebut tahap berikutnya di samping tombol simpan; test komponen dan integration test yang sudah ada tetap lulus; **(manual)** user membandingkan beranda dan layar tahap 2 di Chrome dengan mockup dalam kedua tema, dan memastikan tampilan di lebar 390 px tetap terbaca tanpa geser ke samping; `pnpm check` hijau
 
-- [ ] T-010 Tahap 4: struktur fitur
+- [x] T-010 Tahap 4: struktur fitur
   - layer: app · depends_on: T-009, T-020 · refs: FR-05
   - files: `prompts/stage-4.md`, `src/stages/stage-4/**`, layar tahap 4, `src/app/api/projects/[id]/features/**`, test terkait
   - done when: validator diturunkan dari `validateStage4` di `docs/reference/e2e-gym.mjs`; setiap kriteria FR-05 terbukti oleh test; fitur rekomendasi yang tidak dicentang masuk non-goals pada input tahap berikutnya (dibuktikan test); `pnpm check` hijau

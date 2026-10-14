@@ -5,7 +5,7 @@ import type { ProjectStage } from '../../../projects/stage-labels.ts';
 import { formatCount, stageNumber } from '../format.ts';
 
 /** Tahap yang sudah punya layar. Tahap berikutnya ditambahkan saat layarnya dibuat. */
-export const VIEW_STAGES = ['stage2', 'stage3'] as const;
+export const VIEW_STAGES = ['stage2', 'stage3', 'stage4'] as const;
 export type ViewStage = (typeof VIEW_STAGES)[number];
 
 const FLOW: { number: number; label: string; stages: ProjectStage[] }[] = [
@@ -36,6 +36,10 @@ function status(project: ProjectDetail, number: number, stages: ProjectStage[]):
 
 function meta(project: ProjectDetail, stages: ProjectStage[], kind: StepStatus) {
   const [stage] = stages;
+  if (stage === 'stage4') {
+    const output = project.stageOutputs.stage4 as { mvp_features: unknown[] } | undefined;
+    return output ? `${output.mvp_features.length} fitur MVP` : undefined;
+  }
   if (stage !== 'stage2' && stage !== 'stage3') return undefined;
   const output = project.stageOutputs[stage] as Questions;
   if (stage === 'stage3' && kind === 'current' && output && project.profileChoice === null) {
@@ -75,12 +79,13 @@ export function projectSteps(
 }
 
 /**
- * Tahap yang dibuka: `?tahap=2` atau `?tahap=3` bila tahap itu sudah terbuka; selain itu tahap
- * proyek saat ini (tahap sesudah 3 belum punya layar, jadi jatuh ke tahap 3).
+ * Tahap yang dibuka: `?tahap=N` bila tahap itu punya layar dan sudah terbuka; selain itu tahap
+ * proyek saat ini, atau tahap terakhir yang punya layar bila tahap saat ini belum punya layar.
  */
 export function selectedStage(project: ProjectDetail, requested?: string): ViewStage {
-  const current: ViewStage = project.currentStage === 'stage2' ? 'stage2' : 'stage3';
-  if (requested === '2') return 'stage2';
-  if (requested === '3' && current === 'stage3') return 'stage3';
-  return current;
+  const current = stageNumber(project.currentStage);
+  const open = VIEW_STAGES.filter((stage) => stageNumber(stage) <= current);
+  const fallback = open.at(-1) ?? 'stage2';
+  const match = open.find((stage) => String(stageNumber(stage)) === requested);
+  return match ?? fallback;
 }
