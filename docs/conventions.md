@@ -135,6 +135,11 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
   - validator memakai `validateReview` (aturan bersama tahap 5) dengan kategori `data_model`, `business_rule`, `ui_endpoint` dan id `RV2-xx`. Setiap opsi punya `changes_prd`, setiap temuan butuh opsi `true` dan `false`, dan setiap celah wajib menjadi temuan `ui_endpoint`. `StageDefinition.validate` menerima `{ db, projectId }` untuk pemeriksaan seperti ini;
   - `PUT …/decisions/review2` hanya bisa dilakukan saat proyek di `review2`. Bila ada opsi `changes_prd` yang dipilih, handler (dengan `queue`) menjalankan tahap 6 sekali. Run tahap 6 yang punya keputusan `review2` memindahkan proyek ke `stage7`, sehingga PRD tidak ditulis ulang dua kali;
   - layarnya `Review2Section` di layar PRD, memakai `DecisionForm` dengan `origin`.
+- Tahap 7 (`src/stages/stage-7/`):
+  - prompt berisi `docs/conventions.md` template (apa yang sudah disediakan, dan prosedur menghapus fitur contoh notes) dan PRD terbaru;
+  - template dibaca di `buildPrompt` seperti tahap 6;
+  - `validateTasks(md, { frIds, endpoints, nfrIds })` memeriksa terhadap PRD terbaru: tanpa task setup template (`TEMPLATE_SETUP`, dikenali dari judul atau file konfigurasi), tepat satu task hapus notes setelah task fitur pertama, setiap *done when* diakhiri `pnpm check` hijau, dan task **(manual)** menyebut `.env`, `docker compose up`, dan `flutter run -d chrome … --web-browser-flag=--incognito`;
+  - output disimpan sebagai dokumen `tasks` versi berikutnya, dan proyek pindah ke `export`.
 - Fixture **sintetis** di `test/fixtures/claude/synthetic/`: ditulis tangan bila belum ada output nyata (kasus `daftar-belanja`), dibangun dengan `node test/fixtures/claude/build-synthetic-fixtures.mjs`, dan ditandai field `fixture_synthetic`.
 - Pratinjau Markdown: `MarkdownPreview` (`src/components/ui/markdown-preview.tsx`, `react-markdown` + `remark-gfm`), dengan gaya `.prd-markdown` di `globals.css`.
 - Integration test yang menjalankan beberapa tahap memakai `test/helpers/stage-flow.ts` (`createFlow`, `projectThrough(flow, 'stage4')`, `GYM_FIXTURES`). `test/helpers/review-flaws.ts` berisi `injectFlaws` dan `scoreReview` dari `e2e-gym.mjs`.

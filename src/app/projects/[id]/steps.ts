@@ -5,7 +5,7 @@ import type { ProjectStage } from '../../../projects/stage-labels.ts';
 import { formatCount, stageNumber } from '../format.ts';
 
 /** Tahap yang sudah punya layar. Tahap berikutnya ditambahkan saat layarnya dibuat. */
-export const VIEW_STAGES = ['stage2', 'stage3', 'stage4', 'stage5', 'stage6'] as const;
+export const VIEW_STAGES = ['stage2', 'stage3', 'stage4', 'stage5', 'stage6', 'stage7'] as const;
 export type ViewStage = (typeof VIEW_STAGES)[number];
 
 const FLOW: { number: number; label: string; stages: ProjectStage[] }[] = [
@@ -39,6 +39,11 @@ function meta(project: ProjectDetail, stages: ProjectStage[], kind: StepStatus) 
   if (stage === 'stage4') {
     const output = project.stageOutputs.stage4 as { mvp_features: unknown[] } | undefined;
     return output ? `${output.mvp_features.length} fitur MVP` : undefined;
+  }
+  if (stage === 'stage7') {
+    const tasks = project.documents.tasks;
+    if (tasks) return `Versi ${tasks.version}`;
+    return kind === 'current' ? 'Sekitar 3 menit' : undefined;
   }
   if (stage === 'stage6') {
     const prd = project.documents.prd;

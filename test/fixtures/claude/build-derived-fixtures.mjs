@@ -1,4 +1,5 @@
-// Membangun fixture TURUNAN di test/fixtures/claude/derived/ (tahap 3: keputusan T-009; tahap 6: T-012).
+// Membangun fixture TURUNAN di test/fixtures/claude/derived/ (tahap 3: keputusan T-009; tahap 6: T-012;
+// tahap 7: T-014).
 //
 //   node test/fixtures/claude/build-derived-fixtures.mjs
 //
@@ -126,11 +127,72 @@ function prdGym() {
   };
 }
 
+/**
+ * TASKS gym (uji end-to-end) yang disesuaikan dengan FR-08 (T-014). Aslinya ditolak validator
+ * karena berisi task setup yang sudah disediakan template; fixture asli tetap dipakai sebagai contoh
+ * yang harus ditolak.
+ */
+function tasksGym() {
+  const envelope = JSON.parse(readFileSync(join(here, 'stage7.json'), 'utf8'));
+  const removed = { 'T-001': '-', 'T-007': 'T-006' };
+  // Blok task dipisah baris kosong; heading fase tetap di tempatnya.
+  let blocks = envelope.result.split(/\n\n(?=- \[ \] T-|## )/);
+  blocks = blocks.filter(
+    (block) => !Object.keys(removed).some((id) => block.startsWith(`- [ ] ${id} `)),
+  );
+  blocks = blocks.map((block) =>
+    block
+      .replace(/depends_on: ([^·\n]+)/, (_match, list) => {
+        const ids = list
+          .split(',')
+          .map((id) => id.trim())
+          .map((id) => removed[id] ?? id)
+          .filter((id) => id !== '-');
+        return `depends_on: ${[...new Set(ids)].join(', ') || '-'} `;
+      })
+      .replace(/(\n {2}- done when: .+?)\.?$/m, (line, text) =>
+        /pnpm check`? hijau$/.test(text) ? line : `${text}; \`pnpm check\` hijau`,
+      ),
+  );
+  const manual = [
+    '    **(manual)** persiapan: `.env` ada di root (salin dari `.env.example`), `docker compose up -d --wait`, `pnpm --filter api dev` di terminal terpisah.',
+    '    1. Dari `apps/app`: `flutter run -d chrome --web-port 8081 --web-browser-flag=--incognito --dart-define-from-file=config/dev.json`.',
+    '    2. Daftar dengan email baru: tampil halaman verifikasi email; setelah verifikasi di emulator, tampil "Belum punya akses".',
+  ].join('\n');
+  blocks = blocks.flatMap((block) => {
+    if (block.startsWith('- [ ] T-015 ')) return [`${block}\n${manual}`];
+    if (!block.startsWith('- [ ] T-016 ')) return [block];
+    return [
+      block,
+      [
+        '- [ ] T-044 Hapus fitur contoh notes',
+        '  - layer: app · depends_on: T-016 · refs: -',
+        '  - files: `apps/api/src/features/notes/`, `apps/api/src/db/schema/notes.ts`, `apps/app/lib/features/notes/`, `docs/conventions.md`',
+        '  - done when: langkah "Menghapus fitur contoh notes" di `docs/conventions.md` selesai, termasuk migrasi `drop_notes`; `git grep -i note` tidak menemukan sisa rujukan fitur contoh; `pnpm check` hijau',
+      ].join('\n'),
+    ];
+  });
+  return {
+    envelope: { ...envelope, session_id: 'fixture-derived-gym-stage7' },
+    output: blocks.join('\n\n'),
+    derived: {
+      source: 'test/fixtures/claude/stage7.json (docs/reference/e2e-output/TASKS.md)',
+      changes: [
+        'T-001 (monorepo, Docker Compose, emulator) dan T-007 (pipeline kontrak) dihapus; depends_on ke keduanya diganti dependensinya',
+        'T-044 "Hapus fitur contoh notes" ditambahkan setelah T-016',
+        'setiap done when diakhiri `pnpm check` hijau',
+        'T-015 diberi langkah **(manual)** dengan `.env`, Docker, dan Flutter web incognito',
+      ],
+    },
+  };
+}
+
 mkdirSync(target, { recursive: true });
 for (const [name, build] of [
   ['stage3-gym', gym],
   ['stage3-umkm-b', umkmProfileB],
   ['stage6-gym', prdGym],
+  ['stage7-gym', tasksGym],
 ]) {
   const { envelope, output, derived } = build();
   const text = typeof output === 'string' ? output : JSON.stringify(output, null, 2);

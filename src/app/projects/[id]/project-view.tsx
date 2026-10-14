@@ -10,6 +10,7 @@ import { Stage3Section } from './stage3-section.tsx';
 import { Stage4Section } from './stage4-section.tsx';
 import { Stage5Section } from './stage5-section.tsx';
 import { Stage6Section } from './stage6-section.tsx';
+import { Stage7Section } from './stage7-section.tsx';
 import { projectSteps, selectedStage } from './steps.ts';
 
 type Props = {
@@ -68,6 +69,9 @@ export function ProjectView({ project, usage = {}, stage, template }: Props) {
         {selected === 'stage5' && <Stage5Section project={project} usage={usage.stage5} />}
         {selected === 'stage6' && (
           <Stage6Section project={project} usage={usage.stage6} template={template} />
+        )}
+        {selected === 'stage7' && (
+          <Stage7Section project={project} usage={usage.stage7} template={template} />
         )}
       </div>
     </>

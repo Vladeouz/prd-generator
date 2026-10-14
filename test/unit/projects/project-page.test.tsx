@@ -144,8 +144,8 @@ describe('stepper proyek', () => {
     expect(selectedStage(project(), '3')).toBe('stage2');
     expect(selectedStage(atStage3())).toBe('stage3');
     expect(selectedStage(atStage3(), '2')).toBe('stage2');
-    // Tahap 7 belum punya layar: jatuh ke tahap terakhir yang punya layar (tahap 6 sejak T-012).
-    expect(selectedStage(project({ currentStage: 'stage7' }))).toBe('stage6');
+    // Ekspor belum punya layar: jatuh ke tahap terakhir yang punya layar (tahap 7 sejak T-014).
+    expect(selectedStage(project({ currentStage: 'export' }))).toBe('stage7');
   });
 });
 
