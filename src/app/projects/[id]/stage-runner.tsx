@@ -14,6 +14,27 @@ export function formatElapsed(ms: number): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
+const isActive = (job: Job | null): job is Job =>
+  job !== null && (job.status === 'queued' || job.status === 'running');
+
+/**
+ * Job tahap ini yang dipantau. Job aktif dari server (props, setelah `router.refresh()`) menggantikan
+ * state lama bila id-nya berbeda, misalnya job tahap 6 yang dimulai dari keputusan review kedua
+ * setelah layar sudah tampil.
+ */
+export function trackedJob(current: Job | null, activeJob: Job | null, stage: string): Job | null {
+  return activeJob?.stage === stage && activeJob.id !== current?.id ? activeJob : current;
+}
+
+/**
+ * Job yang di-polling: job tahap ini bila berjalan; bila tidak, job tahap lain yang berjalan di
+ * proyek ini, agar halaman dimuat ulang (dan tahap berikutnya terbuka) saat job itu selesai.
+ */
+export function jobToPoll(job: Job | null, activeJob: Job | null): Job | null {
+  if (isActive(job)) return job;
+  return isActive(activeJob) ? activeJob : null;
+}
+
 type Props = {
   projectId: string;
   stage: string;
@@ -40,14 +61,20 @@ export function StageRunner({
   const [job, setJob] = useState<Job | null>(activeJob?.stage === stage ? activeJob : null);
   const [now, setNow] = useState(() => Date.now());
   const [message, setMessage] = useState('');
-  const running = job !== null && (job.status === 'queued' || job.status === 'running');
+  const running = isActive(job);
+  const polled = jobToPoll(job, activeJob);
+  const polledId = polled?.id;
 
   useEffect(() => {
-    if (!running || !job) return;
+    setJob((current) => trackedJob(current, activeJob, stage));
+  }, [activeJob, stage]);
+
+  useEffect(() => {
+    if (!polledId) return;
     const tick = setInterval(() => setNow(Date.now()), 1000);
     const poll = setInterval(async () => {
       try {
-        const response = await fetch(`/api/jobs/${job.id}`, { cache: 'no-store' });
+        const response = await fetch(`/api/jobs/${polledId}`, { cache: 'no-store' });
         if (!response.ok) return;
         const latest = (await response.json()) as Job;
         if (latest.status !== 'queued' && latest.status !== 'running') {
@@ -62,7 +89,7 @@ export function StageRunner({
       clearInterval(tick);
       clearInterval(poll);
     };
-  }, [running, job, router]);
+  }, [polledId, router]);
 
   async function start() {
     setMessage('');

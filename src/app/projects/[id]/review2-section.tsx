@@ -7,7 +7,7 @@ import { SeveritySummary } from './stage5-section.tsx';
 
 const SAVED_MESSAGE = 'Keputusan tersimpan. Tahap berikutnya: TASKS — siap dijalankan.';
 const REGENERATE_MESSAGE =
-  'Keputusan tersimpan. PRD sedang ditulis ulang dengan perbaikan yang kamu pilih (sekitar 4–5 menit).';
+  'Keputusan tersimpan. PRD sedang ditulis ulang dengan perbaikan yang kamu pilih (sekitar 5–10 menit).';
 
 /**
  * Review kedua di layar PRD (FR-07): temuan tentang data model, aturan bisnis tanpa constraint,
