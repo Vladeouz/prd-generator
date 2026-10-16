@@ -1,0 +1,127 @@
+// Satu proyek dari input ide sampai export ke folder proyek buatan, lewat UI, dengan runner palsu
+// mode `flow` (fixture nyata gym). Tahap 3 gagal validasi sekali lalu berhasil di percobaan ulang
+// (FAKE_CLAUDE_INVALID_ONCE di playwright.config.ts).
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { expect, type Page, test } from '@playwright/test';
+import Database from 'better-sqlite3';
+import { e2eEnvironment } from './environment.ts';
+
+const env = e2eEnvironment(process.env.PRD_E2E_DIR as string);
+
+/** Menjalankan tahap lewat tombolnya (dengan konfirmasi bila ada) sampai banner job hilang. */
+async function runStage(page: Page, stage: string, button: string, confirm = false) {
+  const runner = page.getByTestId(`runner-${stage}`);
+  await runner.getByRole('button', { name: button, exact: true }).click();
+  if (confirm) await runner.getByRole('button', { name: 'Ya, jalankan' }).click();
+  await expect(runner.getByTestId('job-banner')).toBeVisible();
+  await expect(runner.getByTestId('job-banner')).toBeHidden({ timeout: 30_000 });
+  await expect(runner.getByTestId('job-error')).toHaveCount(0);
+}
+
+async function save(page: Page, button: string) {
+  await page.getByRole('button', { name: button, exact: true }).click();
+}
+
+/** Membaca database server (read-only); hanya untuk memeriksa yang tidak tampil di layar. */
+function query<T>(sql: string, ...params: unknown[]): T[] {
+  const db = new Database(env.databasePath, { readonly: true });
+  try {
+    return db.prepare(sql).all(...params) as T[];
+  } finally {
+    db.close();
+  }
+}
+
+const stageRuns = (projectId: string, stage: string) =>
+  query<{ attempt: number; status: string; isCurrent: number; errorsJson: string | null }>(
+    'select attempt, status, is_current as isCurrent, errors_json as errorsJson from stage_runs where project_id = ? and stage = ? order by attempt',
+    projectId,
+    stage,
+  );
+
+const documentVersions = (projectId: string) =>
+  query<{ kind: string; version: number }>(
+    'select kind, version from documents where project_id = ? order by created_at',
+    projectId,
+  ).map((d) => [d.kind, d.version]);
+
+test('dari input ide sampai export, dengan satu percobaan ulang', async ({ page, request }) => {
+  // Tahap 1: input ide.
+  await page.goto('/');
+  await page.getByLabel('Nama proyek').fill('Uji end-to-end');
+  await page.getByRole('textbox', { name: 'Ide' }).fill('Aplikasi membership untuk sebuah gym.');
+  await page.getByRole('button', { name: 'Buat proyek' }).click();
+  await page.waitForURL(/\/projects\/[^/?]+/);
+  const projectId = new URL(page.url()).pathname.split('/')[2] as string;
+
+  // Tahap 2: klarifikasi produk, semua pertanyaan memakai default.
+  await runStage(page, 'stage2', 'Jalankan klarifikasi produk');
+  await save(page, 'Simpan jawaban');
+
+  // Tahap 3: percobaan pertama ditolak validator, keterangannya tampil selama percobaan ulang.
+  const runner3 = page.getByTestId('runner-stage3');
+  await runner3.getByRole('button', { name: 'Jalankan klarifikasi teknis', exact: true }).click();
+  await expect(runner3.getByTestId('attempt-note')).toContainText('Percobaan 2 dari 2');
+  await expect(runner3.getByTestId('attempt-note')).toContainText('default_policy_key');
+  await expect(runner3.getByTestId('job-banner')).toBeHidden({ timeout: 30_000 });
+  await expect(runner3.getByTestId('job-error')).toHaveCount(0);
+  const runs = stageRuns(projectId, 'stage3');
+  expect(runs.map((r) => [r.attempt, r.status, r.isCurrent])).toEqual([
+    [1, 'failed', 0],
+    [2, 'succeeded', 1],
+  ]);
+  expect(runs[0]?.errorsJson).toContain('default_policy_key');
+  await save(page, 'Simpan jawaban');
+
+  // Tahap 4: struktur fitur, fitur rekomendasi tidak dicentang.
+  await runStage(page, 'stage4', 'Jalankan struktur fitur');
+  await save(page, 'Simpan pilihan fitur');
+
+  // Tahap 5: review kritis, rekomendasi setiap temuan.
+  await runStage(page, 'stage5', 'Jalankan review kritis');
+  await save(page, 'Simpan keputusan');
+
+  // Tahap 6: PRD (dengan konfirmasi), lalu review kedua.
+  await runStage(page, 'stage6', 'Jalankan penulisan prd', true);
+  await runStage(page, 'review2', 'Jalankan review kedua');
+  // Rekomendasi fixture review kedua memuat satu perbaikan PRD: PRD ditulis ulang tepat sekali.
+  await save(page, 'Simpan keputusan');
+  await page.getByRole('button', { name: 'Ya, simpan dan tulis ulang PRD' }).click();
+
+  // Tahap 7: TASKS (dengan konfirmasi), setelah PRD versi 2 selesai.
+  await expect(
+    page.getByTestId('runner-stage7').getByRole('button', { name: 'Jalankan penulisan tasks' }),
+  ).toBeVisible({ timeout: 30_000 });
+  expect(documentVersions(projectId)).toEqual([
+    ['prd', 1],
+    ['prd', 2],
+  ]);
+  await runStage(page, 'stage7', 'Jalankan penulisan tasks', true);
+
+  // Tahap 8: export ke folder proyek turunan template.
+  await page.goto(`/projects/${projectId}?tahap=8`);
+  await page.getByLabel('Folder proyek').fill(env.targetDir);
+  await page.getByRole('button', { name: 'Tulis ke folder proyek' }).click();
+  await expect(page.getByTestId('export-written').getByRole('listitem')).toHaveText([
+    join(env.targetDir, 'docs', 'PRD.md'),
+    join(env.targetDir, 'docs', 'TASKS.md'),
+  ]);
+
+  for (const [kind, file] of [
+    ['prd', 'PRD.md'],
+    ['tasks', 'TASKS.md'],
+  ] as const) {
+    const response = await request.get(`/api/projects/${projectId}/documents/${kind}`);
+    expect(response.ok()).toBe(true);
+    const written = readFileSync(join(env.targetDir, 'docs', file), 'utf8');
+    expect(written.trimEnd()).toBe((await response.text()).replace(/\r\n/g, '\n').trimEnd());
+  }
+  const status = execFileSync('git', ['status', '--porcelain'], {
+    cwd: env.targetDir,
+    encoding: 'utf8',
+  });
+  // Hanya kedua dokumen yang berubah di folder proyek (FR-09).
+  expect(status.split('\n').filter(Boolean).sort()).toEqual([' M docs/PRD.md', ' M docs/TASKS.md']);
+});

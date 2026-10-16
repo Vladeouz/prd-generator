@@ -9,6 +9,11 @@ export type Db = BetterSQLite3Database<typeof schema> & { $client: Database.Data
 
 /** Database utama aplikasi, di-ignore Git. */
 export const MAIN_DATABASE_PATH = join(process.cwd(), 'data', 'prd-generator.db');
+
+/** `DATABASE_PATH` (opsional) mengganti database utama, misalnya database sementara test end-to-end. */
+export const databasePath = (env: Record<string, string | undefined> = process.env) =>
+  env.DATABASE_PATH?.trim() || MAIN_DATABASE_PATH;
+
 export const MIGRATIONS_FOLDER = join(process.cwd(), 'drizzle');
 
 /**
@@ -36,6 +41,6 @@ export function getDb(): Db {
   if (process.env.NODE_ENV === 'test') {
     throw new Error('getDb() dipanggil saat NODE_ENV=test; test harus memakai createTestDb().');
   }
-  globalDb[globalKey] ??= openDatabase(MAIN_DATABASE_PATH);
+  globalDb[globalKey] ??= openDatabase(databasePath());
   return globalDb[globalKey];
 }

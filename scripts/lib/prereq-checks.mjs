@@ -159,6 +159,31 @@ export function checkTemplateDir(root, env = process.env) {
   return { status: OK, detail: `${value} (${at})` };
 }
 
+/** Path Chromium yang dipakai `@playwright/test` di proyek ini, atau null bila tidak terbaca. */
+export function playwrightChromiumPath(root) {
+  const code =
+    "const { chromium } = await import('@playwright/test'); console.log(chromium.executablePath());";
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: 30_000,
+    windowsHide: true,
+  });
+  return result.status === 0 ? firstLine(result.stdout ?? '').trim() || null : null;
+}
+
+/** Browser untuk test end-to-end (`pnpm test:e2e`, bagian dari `pnpm check`). */
+export function checkPlaywrightBrowser(root, executablePath = playwrightChromiumPath(root)) {
+  if (executablePath && existsSync(executablePath)) {
+    return { status: OK, detail: 'Chromium terpasang' };
+  }
+  return {
+    status: FAIL,
+    detail: 'Chromium untuk Playwright belum terpasang',
+    fix: 'Jalankan `pnpm exec playwright install chromium` (sekali per mesin, setelah `pnpm install`).',
+  };
+}
+
 export function prereqChecks(root) {
   return [
     { name: 'Node.js', run: () => checkNode(root) },
@@ -167,5 +192,6 @@ export function prereqChecks(root) {
     { name: 'Claude Code', run: () => checkClaude(root) },
     { name: 'File .env', run: () => checkEnvFile(root) },
     { name: 'TEMPLATE_DIR', run: () => checkTemplateDir(root) },
+    { name: 'Browser Playwright', run: () => checkPlaywrightBrowser(root) },
   ];
 }

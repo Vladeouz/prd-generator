@@ -8,7 +8,7 @@ Lihat pohon folder di bagian 3 PRD. Proyek satu paket pnpm tanpa workspace; `pnp
 
 ## Prasyarat lingkungan
 
-Diperiksa `pnpm prereq` (`scripts/prereq.mjs`, logikanya di `scripts/lib/prereq-checks.mjs`), yang menampilkan tabel status beserta saran perbaikan dan tidak pernah membuat atau mengubah file. Semua wajib: Node.js 24, pnpm versi `packageManager`, Git, perintah `claude`, file `.env`, dan `TEMPLATE_DIR` (path absolut ke folder yang berisi `docs/conventions.md` dan `scripts/init-project.mjs`). `TEMPLATE_DIR` dari variabel lingkungan proses menang atas `.env`, sama dengan Next.js. Login Claude Code hanya disebut sebagai pengingat. Prasyarat baru ditambahkan ke `prereq-checks.mjs`, test-nya, dan tabel Prasyarat di `README.md`.
+Diperiksa `pnpm prereq` (`scripts/prereq.mjs`, logikanya di `scripts/lib/prereq-checks.mjs`), yang menampilkan tabel status beserta saran perbaikan dan tidak pernah membuat atau mengubah file. Semua wajib: Node.js 24, pnpm versi `packageManager`, Git, perintah `claude`, file `.env`, `TEMPLATE_DIR` (path absolut ke folder yang berisi `docs/conventions.md` dan `scripts/init-project.mjs`), dan Chromium untuk Playwright (`pnpm exec playwright install chromium`, dibutuhkan test end-to-end). `TEMPLATE_DIR` dari variabel lingkungan proses menang atas `.env`, sama dengan Next.js. Login Claude Code hanya disebut sebagai pengingat. Prasyarat baru ditambahkan ke `prereq-checks.mjs`, test-nya, dan tabel Prasyarat di `README.md`.
 
 ## Versi yang dipin
 
@@ -34,6 +34,7 @@ Library dipin ke versi pasti (tanpa `^` atau `~`) saat pertama dipasang, lalu di
 | `react-markdown` | 10.1.0 | T-012 |
 | `remark-gfm` | 4.0.1 | T-012 |
 | `happy-dom` (dev) | 21.0.1 | T-016 |
+| `@playwright/test` (dev) | 1.64.0 (browser: `pnpm exec playwright install chromium`) | T-017 |
 
 Pasang dengan `pnpm add -E <nama>` (atau `-D -E`) agar versi langsung pasti. Paket yang butuh build script saat install didaftarkan di `allowBuilds` pada `pnpm-workspace.yaml` (saat ini `esbuild`, dipakai drizzle-kit); tanpa itu pnpm 12 keluar dengan `ERR_PNPM_IGNORED_BUILDS`. Build script yang tidak dibutuhkan didaftarkan dengan nilai `false` beserta alasannya di komentar: `better-sqlite3` 13 membawa binary prebuilt yang dimuat lebih dulu, sedangkan build script-nya hanya `node-gyp rebuild` yang butuh Python dan compiler C++. Jangan biarkan nilai placeholder `set this to true or false` yang ditulis pnpm.
 
@@ -58,6 +59,7 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 | `pnpm typecheck` | `next typegen` lalu `tsc --noEmit` |
 | `pnpm test:unit` | Vitest, `test/unit/**/*.test.ts` |
 | `pnpm test:int` | Vitest, `test/int/**/*.int.test.ts` (`vitest.int.config.ts`) |
+| `pnpm test:e2e` | Playwright, `test/e2e/**/*.spec.ts` (`playwright.config.ts`): build produksi lalu alur UI dengan runner palsu |
 | `pnpm claude:smoke` | Satu pemanggilan `claude` sungguhan dengan prompt kecil (memakai kuota; hanya untuk verifikasi manual) |
 | `pnpm db:generate` | `drizzle-kit generate`: membuat migrasi di `drizzle/` dari `src/core/db/schema.ts` |
 
@@ -68,7 +70,7 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 
 ### `pnpm check`
 
-`scripts/check.mjs` menjalankan Biome, typecheck, unit test, dan integration test berurutan (end-to-end ditambahkan di T-017). Semua langkah selalu dijalankan walaupun ada yang gagal; ringkasan di akhir menampilkan status dan waktu per langkah, dan output lengkap langkah yang gagal disimpan di `.check-logs/<waktu run>/` (di-ignore Git). Langkah verifikasi baru ditambahkan ke `STEPS`. Harus hijau sebelum task dicentang.
+`scripts/check.mjs` menjalankan Biome, typecheck, unit test, integration test, dan end-to-end berurutan. Semua langkah selalu dijalankan walaupun ada yang gagal; ringkasan di akhir menampilkan status dan waktu per langkah, dan output lengkap langkah yang gagal disimpan di `.check-logs/<waktu run>/` (di-ignore Git). Langkah verifikasi baru ditambahkan ke `STEPS`; `hint(output)` opsional menambah saran perbaikan di ringkasan (contoh: browser Playwright belum terpasang). Harus hijau sebelum task dicentang dan selesai di bawah 5 menit (NFR-05; saat T-017 sekitar 1 menit, end-to-end sekitar 40 detik).
 
 ## Lint dan format (Biome)
 
@@ -86,7 +88,7 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 ## Database
 
 - SQLite lewat `better-sqlite3` + Drizzle. Skema di `src/core/db/schema.ts`, migrasi SQL hasil `pnpm db:generate` di `drizzle/` (di-commit, termasuk `meta/`; jangan diedit tangan). Setelah mengubah skema, jalankan `pnpm db:generate --name <ringkas>`; integration test `migrations.int.test.ts` gagal bila skema dan migrasi tidak sinkron.
-- Database utama `data/prd-generator.db` (di-ignore Git), dibuka lewat `getDb()` di `src/core/db/client.ts`. Koneksinya disimpan di `globalThis` agar hot reload tidak membuka koneksi baru (temuan spike T-002). `getDb()` melempar error saat `NODE_ENV=test`.
+- Database utama `data/prd-generator.db` (di-ignore Git), dibuka lewat `getDb()` di `src/core/db/client.ts`. Koneksinya disimpan di `globalThis` agar hot reload tidak membuka koneksi baru (temuan spike T-002). `getDb()` melempar error saat `NODE_ENV=test`. `DATABASE_PATH` (opsional) mengganti path database utama; dipakai test end-to-end.
 - `openDatabase(path)` menyalakan `foreign_keys` (wajib per koneksi agar cascade berjalan), WAL, dan `busy_timeout`, lalu menjalankan migrasi yang belum diterapkan. Migrasi idempoten, jadi aman dipanggil setiap kali aplikasi membuka database.
 - Setiap kolom enum dibatasi CHECK. Daftar nilainya diekspor dari `schema.ts` (`STAGES`, `JOB_STATUSES`, dll.) untuk dipakai ulang oleh Zod; jangan menulis ulang daftarnya. Aturan "satu baris aktif" memakai partial unique index (contoh: `jobs_one_active_idx` pada ekspresi `(1)` dengan `WHERE status in ('queued', 'running')`).
 - Id (`text`) dan timestamp (ISO 8601 UTC) diisi aplikasi, tanpa default di database.
@@ -182,7 +184,7 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - Token input dicatat termasuk cache (`input_tokens` + `cache_creation_input_tokens` + `cache_read_input_tokens`), karena `input_tokens` saja hampir selalu 1–3. `costUsd` adalah `total_cost_usd` dari envelope, perkiraan, bukan tagihan.
 - Di Windows, proses dihentikan dengan `taskkill /PID <pid> /T /F`. `child.kill()` hanya mematikan `cmd.exe` dan membiarkan `claude` berjalan (spike T-002). Jangan memakai `detached: true`.
 - `CLAUDE_COMMAND` (opsional, `.env`) mengganti perintah `claude` di aplikasi. Untuk menguji UI tanpa kuota: `CLAUDE_COMMAND=node <path absolut>/test/helpers/fake-claude-cli.mjs`, `FAKE_CLAUDE_MODE=fixture`, `FAKE_CLAUDE_FIXTURE=<path envelope>`, dan opsional `FAKE_CLAUDE_DELAY_MS` untuk meniru durasi.
-- `FAKE_CLAUDE_MODE=flow` menjalankan satu proyek dari tahap 2 sampai 7 tanpa kuota: fixture dipilih dari nama tahap di baris pertama prompt (`Kamu adalah tahap "…"`), dengan pemetaan `FLOW_FIXTURES` di `test/helpers/fake-claude-flow.mjs` (sama dengan `GYM_FIXTURES`). Prompt baru atau nama tahap yang berubah wajib ditambahkan ke pemetaan itu; `test/int/claude/fake-flow.int.test.ts` gagal bila ada prompt yang tidak dikenali.
+- `FAKE_CLAUDE_MODE=flow` menjalankan satu proyek dari tahap 2 sampai 7 tanpa kuota: fixture dipilih dari nama tahap di baris pertama prompt (`Kamu adalah tahap "…"`), dengan pemetaan `FLOW_FIXTURES` di `test/helpers/fake-claude-flow.mjs` (sama dengan `GYM_FIXTURES`). `FAKE_CLAUDE_INVALID_ONCE=<nama tahap>` dengan `FAKE_CLAUDE_INVALID_FIXTURE` dan `FAKE_CLAUDE_STATE_DIR` menjawab pemanggilan pertama tahap itu dengan fixture yang ditolak validator, untuk menguji percobaan ulang; `FAKE_CLAUDE_RETRY_DELAY_MS` memperlambat percobaan ulangnya agar keterangannya terlihat di layar (lihat `flowResponse`). Prompt baru atau nama tahap yang berubah wajib ditambahkan ke pemetaan itu; `test/int/claude/fake-flow.int.test.ts` gagal bila ada prompt yang tidak dikenali.
 - NFR-02: `CliClaudeRunner` menolak perintah `claude` sungguhan (`claude`, `claude.cmd`, path ke sana) saat `NODE_ENV=test`. Integration test memakai `test/helpers/fake-claude-cli.mjs` sebagai perintah (perilaku diatur `FAKE_CLAUDE_MODE`).
 - Fixture `test/fixtures/claude/<tahap>.json` adalah envelope lengkap, dibaca lewat `loadClaudeFixture()` dan parser yang sama dengan output sungguhan. Fixture dari uji nyata dibangun ulang dengan `node test/fixtures/claude/build-fixtures.mjs` (sumber: `docs/reference/e2e-output/`); file JSON-nya dikecualikan dari Biome.
 - **Fixture turunan** di `test/fixtures/claude/derived/`: salinan output nyata yang diubah karena kontrak tahapnya berubah setelah uji nyata (misalnya `default_policy_key` di tahap 3). Dibangun dengan `node test/fixtures/claude/build-derived-fixtures.mjs`; setiap perubahan dicatat di field `fixture_derived` envelope-nya. Fixture asli tetap apa adanya dan dipakai sebagai contoh yang harus ditolak validator.
@@ -214,3 +216,11 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - Unit test di `test/unit/**`, mengikuti struktur folder sumber (`scripts/lib/prereq-checks.mjs` → `test/unit/scripts/prereq-checks.test.ts`). Test yang butuh file memakai folder sementara (`mkdtempSync`) dan menghapusnya di `afterEach`.
 - Interaksi komponen klien (klik, state) diuji dengan DOM sungguhan lewat `happy-dom`: tambahkan `// @vitest-environment happy-dom` di baris pertama file test, render dengan `createRoot` dan `act` dari React, dan stub `fetch` dengan `vi.stubGlobal`. Contoh: `test/unit/projects/run-confirmation.test.tsx`. Test tampilan statis tetap memakai `renderToStaticMarkup`.
 - Teks UI dan pesan untuk user dalam Bahasa Indonesia.
+- Test end-to-end (`test/e2e/`, Playwright):
+  - `playwright.config.ts` menjalankan `pnpm build && pnpm start --port 3517` dengan lingkungan dari `test/e2e/environment.ts`: folder sementara OS berisi database (`DATABASE_PATH`), repo template buatan (`TEMPLATE_DIR`), folder proyek turunan template (repo Git) sebagai tujuan export, dan penanda runner palsu. Database utama tidak pernah dipakai. Folder sisa run sebelumnya dihapus saat run berikutnya dimulai;
+  - lingkungan dibuat sekali di proses utama Playwright; worker membaca path-nya dari `PRD_E2E_DIR` lewat `e2eEnvironment(dir)`;
+  - config dan spec tidak mengimpor kode `src/` yang memakai class dengan static field (`AppError`, `ClaudeRunError`): transform TypeScript Playwright gagal memuatnya. Nilai yang dibutuhkan (misalnya penanda placeholder) ditulis ulang dengan komentar sumbernya;
+  - NFR-02: `CLAUDE_COMMAND` menunjuk `test/helpers/fake-claude-cli.mjs` mode `flow`, dan `claude`/`claude.cmd` di PATH server diganti shim yang keluar dengan kode 97;
+  - satu worker dan satu server, jadi test berjalan berurutan. Build memakai `.next` bawaan; `next build` tidak menghapus `.next/dev`, jadi `pnpm dev` yang sedang berjalan tidak terganggu, tetapi hasil `pnpm build` sebelumnya tertimpa;
+  - interaksi lewat role dan label yang tampil di layar; `data-testid` yang sudah ada (`runner-<tahap>`, `job-banner`, `attempt-note`, `export-written`) untuk wilayah layar. Yang tidak tampil di layar (`stage_runs`, versi dokumen) dibaca dari database read-only;
+  - output kegagalan (screenshot, trace) di `.check-logs/playwright/`.

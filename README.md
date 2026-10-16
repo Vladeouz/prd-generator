@@ -12,6 +12,7 @@ Aplikasi web lokal yang mengubah ide proyek menjadi `docs/PRD.md` dan `docs/TASK
 | Claude Code | Perintah `claude` tersedia dan sudah login |
 | `.env` | Disalin dari `.env.example` |
 | `TEMPLATE_DIR` | Path absolut ke salinan lokal repo template (`git clone https://github.com/Vladeouz/profil-a-template.git`) |
+| Browser Playwright | `pnpm exec playwright install chromium` sekali per mesin, untuk test end-to-end di `pnpm check` |
 
 ## Memulai
 
@@ -19,6 +20,7 @@ Perintah di bawah berjalan di CMD, PowerShell, dan Git Bash.
 
 ```
 pnpm install
+pnpm exec playwright install chromium
 copy .env.example .env      (Git Bash: cp .env.example .env)
 ```
 

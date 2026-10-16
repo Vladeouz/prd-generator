@@ -17,6 +17,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test:unit": "vitest run",
     "test:int": "vitest run --config vitest.int.config.ts",
+    "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "claude:smoke": "node src/claude/smoke.ts"
   },
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.64.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/better-sqlite3": "9.6.0",
     "@types/node": "^24.19.2",
