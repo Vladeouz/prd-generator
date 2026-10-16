@@ -28,7 +28,10 @@ export function HomeView({ projects, template }: Props) {
   return (
     <>
       <AppHeader template={template} />
-      <main className="mx-auto flex max-w-[1120px] flex-col gap-16 px-5 pt-12 pb-24 sm:px-8 sm:pt-18">
+      <main
+        id="konten"
+        className="mx-auto flex max-w-[1120px] flex-col gap-16 px-5 pt-12 pb-24 sm:px-8 sm:pt-18"
+      >
         <section
           aria-labelledby="hero-title"
           className="flex flex-col items-center gap-7 text-center"

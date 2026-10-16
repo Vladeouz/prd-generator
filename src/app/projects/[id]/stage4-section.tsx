@@ -1,5 +1,6 @@
 import { Badge } from '../../../components/ui/badge.tsx';
 import { Card } from '../../../components/ui/card.tsx';
+import { EmptyState } from '../../../components/ui/states.tsx';
 import type { ProjectDetail, StageUsage } from '../../../projects/projects.ts';
 import type { MvpFeature, Stage4Output } from '../../../stages/stage-4/validate.ts';
 import { stageNumber } from '../format.ts';
@@ -62,13 +63,10 @@ export function Stage4Section({ project, usage }: { project: ProjectDetail; usag
             estimate="sekitar 1 menit"
           />
         ) : (
-          <p
-            className="rounded-panel border border-dashed border-line px-4.5 py-4 text-sm text-ink-muted"
-            data-testid="stage4-not-ready"
-          >
+          <EmptyState data-testid="stage4-not-ready">
             Simpan jawaban klarifikasi teknis dan pilih stack dulu, lalu struktur fitur bisa
             dijalankan.
-          </p>
+          </EmptyState>
         )
       }
       aside={

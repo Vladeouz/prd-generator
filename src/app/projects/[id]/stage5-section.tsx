@@ -1,5 +1,6 @@
 import { Badge } from '../../../components/ui/badge.tsx';
 import { Card } from '../../../components/ui/card.tsx';
+import { EmptyState } from '../../../components/ui/states.tsx';
 import type { ProjectDetail, StageUsage } from '../../../projects/projects.ts';
 import { SEVERITY_TEXT } from '../../../stages/stage-5/review-text.ts';
 import { SEVERITIES, type Severity, type Stage5Output } from '../../../stages/stage-5/validate.ts';
@@ -7,6 +8,7 @@ import { stageNumber } from '../format.ts';
 import { DecisionForm } from './decision-form.tsx';
 import { StageLayout, UsageCard } from './stage-layout.tsx';
 import { StageRunner } from './stage-runner.tsx';
+import { STAGE6_ESTIMATE } from './stage6-section.tsx';
 
 const SAVED_MESSAGE = 'Keputusan tersimpan. Tahap berikutnya: PRD — siap dijalankan.';
 
@@ -31,18 +33,20 @@ export function SeveritySummary({ findings }: { findings: { severity: Severity }
 function DecisionBook({ project }: { project: ProjectDetail }) {
   const items = [...project.decisions].sort((a, b) => a.code.localeCompare(b.code));
   return (
-    <Card as="section" className="flex flex-col gap-2.5">
-      <h2 className="text-[15px] font-bold">Buku keputusan</h2>
+    <Card as="section" aria-labelledby="decision-book-title" className="flex flex-col gap-3">
+      <h2 id="decision-book-title" className="text-[15px] font-bold">
+        Buku keputusan
+      </h2>
       <p className="text-[13px] text-ink-muted">
         Ditulis apa adanya ke PRD oleh aplikasi, bukan oleh AI.
       </p>
       {items.length === 0 ? (
         <p className="text-sm text-ink-muted">Belum ada keputusan tersimpan.</p>
       ) : (
-        <ul className="flex flex-col gap-2 text-[13px]" data-testid="decision-book">
+        <ul className="flex flex-col gap-2.5 text-[13px]" data-testid="decision-book">
           {items.map((d) => (
-            <li key={d.code} className="flex gap-2">
-              <span className="font-mono text-ink-muted">{d.code}</span>
+            <li key={d.code} className="flex gap-2.5 border-t border-line-subtle pt-2.5">
+              <span className="min-w-12 font-mono text-xs font-semibold text-accent">{d.code}</span>
               <span className="text-ink-secondary">{d.chosenOption}</span>
             </li>
           ))}
@@ -78,12 +82,9 @@ export function Stage5Section({ project, usage }: { project: ProjectDetail; usag
             estimate="sekitar 1 menit"
           />
         ) : (
-          <p
-            className="rounded-panel border border-dashed border-line px-4.5 py-4 text-sm text-ink-muted"
-            data-testid="stage5-not-ready"
-          >
+          <EmptyState data-testid="stage5-not-ready">
             Simpan pilihan fitur rekomendasi dulu, lalu review kritis bisa dijalankan.
-          </p>
+          </EmptyState>
         )
       }
       aside={
@@ -106,7 +107,7 @@ export function Stage5Section({ project, usage }: { project: ProjectDetail; usag
           <DecisionForm
             projectId={project.id}
             origin="review1"
-            next="PRD"
+            next={`PRD, ${STAGE6_ESTIMATE}`}
             findings={output.findings}
             saved={saved}
             savedMessage={SAVED_MESSAGE}

@@ -2,15 +2,20 @@
 // Pengganti perintah `claude` untuk integration test runner CLI. Tidak pernah memanggil Claude.
 // `--version` mencetak versi palsu lalu keluar. Selain itu, perilaku diatur lewat variabel lingkungan:
 //
-//   FAKE_CLAUDE_MODE  ok (bawaan) | exit | bad-json | bad-envelope | is-error | hang | fixture
+//   FAKE_CLAUDE_MODE  ok (bawaan) | exit | bad-json | bad-envelope | is-error | hang | fixture | flow
 //   FAKE_CLAUDE_FIXTURE  untuk mode fixture: path envelope (misalnya test/fixtures/claude/stage2.json)
 //                        yang dicetak apa adanya
-//   FAKE_CLAUDE_DELAY_MS  untuk mode fixture: jeda sebelum mencetak (meniru durasi pemanggilan)
+//   FAKE_CLAUDE_DELAY_MS  untuk mode fixture dan flow: jeda sebelum mencetak (meniru durasi pemanggilan)
 //   FAKE_CLAUDE_PID_FILE  bila diisi, pid proses ini ditulis ke file itu (untuk memeriksa kill)
+//
+// Mode `flow` memilih fixture gym (sama dengan GYM_FIXTURES di test/helpers/stage-flow.ts) dari
+// nama tahap di baris pertama prompt (`Kamu adalah tahap "…"`), sehingga satu proyek bisa dijalankan
+// dari tahap 2 sampai 7 lewat UI tanpa kuota.
 //
 // Mode `ok` mengembalikan envelope yang `result`-nya JSON berisi yang diterima script: argumen,
 // isi stdin, cwd, dan isi folder cwd. Dengan begitu test bisa memeriksa cara runner memanggilnya.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { flowFixture } from './fake-claude-flow.mjs';
 
 if (process.argv.includes('--version')) {
   process.stdout.write('9.9.9 (Claude Code palsu)\n');
@@ -69,6 +74,18 @@ process.stdin.on('end', () => {
         Number(process.env.FAKE_CLAUDE_DELAY_MS ?? 0),
       );
       break;
+    case 'flow': {
+      const fixture = flowFixture(stdin);
+      if (!fixture) {
+        process.stderr.write('Tahap tidak dikenali dari prompt (runner palsu mode flow)\n');
+        process.exit(4);
+      }
+      setTimeout(
+        () => process.stdout.write(readFileSync(fixture, 'utf8')),
+        Number(process.env.FAKE_CLAUDE_DELAY_MS ?? 0),
+      );
+      break;
+    }
     case 'hang':
       setInterval(() => {}, 1000);
       break;

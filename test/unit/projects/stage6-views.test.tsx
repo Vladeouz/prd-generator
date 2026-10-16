@@ -97,7 +97,8 @@ describe('Stage6Section', () => {
       }),
     );
     expect(html).toContain('Penulisan PRD sedang berjalan');
-    expect(html).toContain('(perkiraan sekitar 5–10 menit)');
+    expect(html).toContain(' · perkiraan sekitar 5–10 menit');
+    expect(html).toContain('boleh meninggalkan halaman ini');
     expect(html).toContain('role="progressbar"');
   });
 
@@ -111,7 +112,11 @@ describe('Stage6Section', () => {
     );
     expect(html).toContain('data-testid="prd-preview"');
     expect(html).toContain('<h1>Aplikasi Membership Gym</h1>');
-    expect(html).toContain('<h2>8. Assumptions &amp; Decisions</h2>');
+    expect(html).toContain('<h2 id="bagian-1" tabindex="-1">1. Context &amp; Goal</h2>');
+    expect(html).toMatch(
+      /<h2 id="bagian-\d+" tabindex="-1">8\. Assumptions &amp; Decisions<\/h2><p class="prd-markdown-note" data-testid="appendix-note">Disusun aplikasi/,
+    );
+    expect(html.match(/data-testid="appendix-note"/g)).toHaveLength(1);
     expect(html).toContain('<strong>RV-01</strong> (stack_deploy): Serverless bertabrakan.');
     expect(html).toContain('<input type="checkbox" disabled=""/>');
     expect(html).toContain('data-testid="prd-version">2<');

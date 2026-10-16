@@ -1,5 +1,6 @@
 import { buttonClass } from '../../../components/ui/button.tsx';
 import { Card } from '../../../components/ui/card.tsx';
+import { EmptyState } from '../../../components/ui/states.tsx';
 import type { ProjectDetail } from '../../../projects/projects.ts';
 import { ExportForm } from './export-form.tsx';
 import { StageLayout } from './stage-layout.tsx';
@@ -19,12 +20,9 @@ export function ExportSection({ project }: { project: ProjectDetail }) {
       description="Bawa PRD dan TASKS ke proyek yang dibuat dari repo template, lalu mulai sesi Claude Code pertama di proyek itu."
       runner={
         ready ? null : (
-          <p
-            className="rounded-panel border border-dashed border-line px-4.5 py-4 text-sm text-ink-muted"
-            data-testid="export-not-ready"
-          >
+          <EmptyState data-testid="export-not-ready">
             Selesaikan PRD dan TASKS dulu, lalu dokumennya bisa diekspor.
-          </p>
+          </EmptyState>
         )
       }
     >

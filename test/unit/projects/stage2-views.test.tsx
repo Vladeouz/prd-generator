@@ -57,9 +57,11 @@ describe('Stage2Section', () => {
 
   it('job berjalan: status dan waktu berjalan, boleh meninggalkan halaman', () => {
     const html = render(project({ activeJob: job({}) }));
-    expect(html).toMatch(/data-testid="job-status">Klarifikasi produk sedang berjalan · \d+:\d{2}/);
-    expect(html).toContain('(perkiraan sekitar 20 detik)');
-    expect(html).toContain('Kamu boleh meninggalkan halaman ini.');
+    expect(html).toMatch(
+      /data-testid="job-status">Klarifikasi produk sedang berjalan<\/p><p[^>]*data-testid="job-elapsed">Berjalan <span[^>]*>\d+:\d{2}<\/span>/,
+    );
+    expect(html).toContain(' · perkiraan sekitar 20 detik');
+    expect(html).toContain('boleh meninggalkan halaman ini');
     expect(html).not.toContain('Jalankan klarifikasi produk');
   });
 

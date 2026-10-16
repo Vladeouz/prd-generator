@@ -8,7 +8,10 @@ export function SettingsView({ settings }: { settings: Settings }) {
   return (
     <>
       <AppHeader template={{ valid, commit: settings.templateCommit }} />
-      <main className="mx-auto flex max-w-[760px] flex-col gap-5 px-5 pt-12 pb-24 sm:px-8">
+      <main
+        id="konten"
+        className="mx-auto flex max-w-[760px] flex-col gap-5 px-5 pt-12 pb-24 sm:px-8"
+      >
         <h1 className="text-[28px] font-extrabold tracking-[-0.02em] sm:text-[34px]">Pengaturan</h1>
 
         <Card

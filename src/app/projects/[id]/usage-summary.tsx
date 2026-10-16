@@ -16,6 +16,8 @@ export function UsageSummary({ usage }: { usage: Partial<Record<Stage, StageUsag
     return value ? [{ stage, value }] : [];
   });
   const total = usageTotals(usage);
+  // Panjang bilah relatif terhadap tahap dengan token terbanyak (mockup Prd.dc.html).
+  const most = Math.max(1, ...rows.map(({ value }) => value.inputTokens + value.outputTokens));
   return (
     <Card as="section" aria-labelledby="usage-title" className="flex flex-col gap-2.5 text-[13px]">
       <h2 id="usage-title" className="text-[15px] font-bold">
@@ -37,6 +39,17 @@ export function UsageSummary({ usage }: { usage: Partial<Record<Stage, StageUsag
               <tr key={stage} className="border-t border-line-subtle first:border-t-0">
                 <th scope="row" className="py-1.5 pr-2 text-left font-semibold">
                   {STAGE_LABELS[stage]}
+                  <span
+                    className="mt-1 block h-1.5 overflow-hidden rounded-full bg-line-subtle"
+                    aria-hidden="true"
+                  >
+                    <span
+                      className="block h-full rounded-full bg-accent"
+                      style={{
+                        width: `${Math.max(2, Math.round(((value.inputTokens + value.outputTokens) / most) * 100))}%`,
+                      }}
+                    />
+                  </span>
                 </th>
                 <td className="py-1.5 pr-2 font-mono text-ink-muted">
                   {formatCount(value.inputTokens)} / {formatCount(value.outputTokens)}

@@ -1,4 +1,5 @@
 import { Card } from '../../../components/ui/card.tsx';
+import { EmptyState } from '../../../components/ui/states.tsx';
 import type { ProjectDetail, StageUsage } from '../../../projects/projects.ts';
 import { PROFILE_CHOICE_TEXT } from '../../../stages/stage-3/profile-text.ts';
 import type { Stage3Output } from '../../../stages/stage-3/validate.ts';
@@ -45,12 +46,9 @@ export function Stage3Section({ project, usage }: { project: ProjectDetail; usag
             estimate="sekitar 30 detik"
           />
         ) : (
-          <p
-            className="rounded-panel border border-dashed border-line px-4.5 py-4 text-sm text-ink-muted"
-            data-testid="stage3-not-ready"
-          >
+          <EmptyState data-testid="stage3-not-ready">
             Simpan jawaban klarifikasi produk dulu, lalu klarifikasi teknis bisa dijalankan.
-          </p>
+          </EmptyState>
         )
       }
       aside={

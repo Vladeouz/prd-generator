@@ -1,10 +1,11 @@
 import type { TemplateStatus } from '../../../components/ui/app-header.tsx';
 import { Card } from '../../../components/ui/card.tsx';
-import { MarkdownPreview } from '../../../components/ui/markdown-preview.tsx';
+import { EmptyState } from '../../../components/ui/states.tsx';
 import type { ProjectDetail, StageUsage } from '../../../projects/projects.ts';
 import type { StageEstimate } from '../../../projects/usage.ts';
 import { formatDateTime, stageNumber } from '../format.ts';
-import { confirmationText } from './run-confirmation.ts';
+import { DocumentCard, ExportPanel } from './document-panels.tsx';
+import { bannerEstimate, confirmationText } from './run-confirmation.ts';
 import { StageLayout, UsageCard } from './stage-layout.tsx';
 import { StageRunner } from './stage-runner.tsx';
 import { TemplateInvalidCard } from './stage6-section.tsx';
@@ -27,12 +28,9 @@ export function Stage7Section({ project, usage, template, estimate }: Props) {
   const tasks = project.documents.tasks;
 
   let runner = (
-    <p
-      className="rounded-panel border border-dashed border-line px-4.5 py-4 text-sm text-ink-muted"
-      data-testid="stage7-not-ready"
-    >
+    <EmptyState title="TASKS belum bisa ditulis" data-testid="stage7-not-ready">
       Selesaikan PRD dan keputusan review kedua dulu, lalu TASKS bisa ditulis.
-    </p>
+    </EmptyState>
   );
   if (ready && !(template?.valid ?? false)) {
     runner = <TemplateInvalidCard document="TASKS" />;
@@ -46,6 +44,7 @@ export function Stage7Section({ project, usage, template, estimate }: Props) {
         latestJob={project.latestJob}
         hasOutput={tasks !== null}
         estimate={STAGE7_ESTIMATE}
+        {...bannerEstimate(estimate)}
         confirmation={estimate && confirmationText('Penulisan TASKS', estimate)}
       />
     );
@@ -73,18 +72,12 @@ export function Stage7Section({ project, usage, template, estimate }: Props) {
               </dl>
             </Card>
             <UsageCard usage={usage} />
+            <ExportPanel project={project} />
           </>
         )
       }
     >
-      {tasks && (
-        <Card size="main" data-testid="tasks-preview">
-          <span className="mb-4 block font-mono text-xs text-ink-muted">
-            TASKS · versi {tasks.version}
-          </span>
-          <MarkdownPreview markdown={tasks.content} label="Pratinjau TASKS" />
-        </Card>
-      )}
+      {tasks && <DocumentCard kind="tasks" content={tasks.content} version={tasks.version} />}
     </StageLayout>
   );
 }

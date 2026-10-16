@@ -37,7 +37,7 @@
   --text-secondary: #2f3640;
   --text-muted: #5b6472;
   --text-faint: #646d79;
-  --accent: #3d5fd9;
+  --accent: #3858d3;
   --on-accent: #ffffff;
   --success: #126b33;
   --severity-high: #a93a0b;
@@ -128,8 +128,14 @@
     line-height: 1.3;
   }
   .prd-markdown h1 {
-    font-size: 26px;
+    font-size: 28px;
+    font-weight: 800;
     letter-spacing: -0.02em;
+  }
+  @media (width >= 40rem) {
+    .prd-markdown h1 {
+      font-size: 34px;
+    }
   }
   .prd-markdown h2 {
     margin-top: 1.6em;
@@ -183,10 +189,22 @@
     padding: 0;
     background: none;
   }
-  .prd-markdown table {
-    display: block;
+  .prd-markdown-table {
     overflow-x: auto;
+    border-radius: var(--radius-control);
+  }
+  .prd-markdown table {
     border-collapse: collapse;
+  }
+  /* Keterangan di bawah heading bagian 8 PRD (disusun aplikasi, D-05). */
+  .prd-markdown .prd-markdown-note {
+    margin-top: 0.4em;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  /* Tautan daftar isi tidak menempelkan heading ke tepi atas layar. */
+  .prd-markdown h2 {
+    scroll-margin-top: 16px;
   }
   .prd-markdown th,
   .prd-markdown td {
