@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   checkEnvFile,
   checkNode,
+  checkPlaywrightBrowser,
   checkTemplateDir,
   FAIL,
   OK,
@@ -105,5 +106,21 @@ describe('checkTemplateDir', () => {
     const result = checkTemplateDir(root, {});
     expect(result.status).toBe(OK);
     expect(result.detail).toContain(other);
+  });
+});
+
+describe('checkPlaywrightBrowser', () => {
+  it('OK bila file Chromium ada', () => {
+    const browser = join(root, 'chrome.exe');
+    writeFileSync(browser, '');
+    expect(checkPlaywrightBrowser(root, browser).status).toBe(OK);
+  });
+
+  it('gagal dengan saran install bila Chromium belum ada atau path tidak terbaca', () => {
+    for (const path of [join(root, 'tidak-ada.exe'), null]) {
+      const result = checkPlaywrightBrowser(root, path);
+      expect(result.status).toBe(FAIL);
+      expect(result.fix).toContain('pnpm exec playwright install chromium');
+    }
   });
 });

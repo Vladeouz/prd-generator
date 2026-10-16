@@ -10,12 +10,13 @@
 //
 // Mode `flow` memilih fixture gym (sama dengan GYM_FIXTURES di test/helpers/stage-flow.ts) dari
 // nama tahap di baris pertama prompt (`Kamu adalah tahap "…"`), sehingga satu proyek bisa dijalankan
-// dari tahap 2 sampai 7 lewat UI tanpa kuota.
+// dari tahap 2 sampai 7 lewat UI tanpa kuota. Satu tahap bisa dibuat gagal validasi sekali
+// (FAKE_CLAUDE_INVALID_ONCE, lihat flowResponse di fake-claude-flow.mjs).
 //
 // Mode `ok` mengembalikan envelope yang `result`-nya JSON berisi yang diterima script: argumen,
 // isi stdin, cwd, dan isi folder cwd. Dengan begitu test bisa memeriksa cara runner memanggilnya.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { flowFixture } from './fake-claude-flow.mjs';
+import { flowResponse } from './fake-claude-flow.mjs';
 
 if (process.argv.includes('--version')) {
   process.stdout.write('9.9.9 (Claude Code palsu)\n');
@@ -75,15 +76,12 @@ process.stdin.on('end', () => {
       );
       break;
     case 'flow': {
-      const fixture = flowFixture(stdin);
-      if (!fixture) {
+      const response = flowResponse(stdin, process.env);
+      if (!response) {
         process.stderr.write('Tahap tidak dikenali dari prompt (runner palsu mode flow)\n');
         process.exit(4);
       }
-      setTimeout(
-        () => process.stdout.write(readFileSync(fixture, 'utf8')),
-        Number(process.env.FAKE_CLAUDE_DELAY_MS ?? 0),
-      );
+      setTimeout(() => process.stdout.write(readFileSync(response.file, 'utf8')), response.delayMs);
       break;
     }
     case 'hang':

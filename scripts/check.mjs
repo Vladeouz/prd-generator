@@ -4,8 +4,8 @@
 //   node scripts/check.mjs   (pnpm check)
 //
 // Langkah yang gagal tidak menghentikan langkah berikutnya; semua hasil dilaporkan di ringkasan dan
-// exit code bukan 0 bila ada satu saja yang gagal. Langkah baru (misalnya end-to-end)
-// ditambahkan ke STEPS.
+// exit code bukan 0 bila ada satu saja yang gagal. Langkah baru ditambahkan ke
+// STEPS.
 //
 // Output setiap langkah tampil di terminal sekaligus ditampung; output lengkap langkah yang gagal
 // ditulis ke `.check-logs/<waktu run>/<no>-<langkah>.log` (di-ignore Git) agar kegagalan yang tidak
@@ -28,6 +28,16 @@ const STEPS = [
   { name: 'Typecheck', command: 'pnpm typecheck', cwd: ROOT },
   { name: 'Unit test', command: 'pnpm test:unit', cwd: ROOT },
   { name: 'Integration test', command: 'pnpm test:int', cwd: ROOT },
+  {
+    // Build produksi di port 3517 dengan database sementara dan runner palsu (playwright.config.ts).
+    name: 'End-to-end',
+    command: 'pnpm test:e2e',
+    cwd: ROOT,
+    hint: (output) =>
+      output.includes("Executable doesn't exist")
+        ? 'browser belum terpasang: pnpm exec playwright install chromium'
+        : '',
+  },
 ];
 
 function formatDuration(ms) {
@@ -89,7 +99,9 @@ async function runStep(step, index) {
     ...step,
     ok,
     durationMs,
-    detail: ok ? '' : [`exit ${exit}`, step.hint?.(), logFile].filter(Boolean).join('; '),
+    detail: ok
+      ? ''
+      : [`exit ${exit}`, step.hint?.(output.toString()), logFile].filter(Boolean).join('; '),
   };
 }
 

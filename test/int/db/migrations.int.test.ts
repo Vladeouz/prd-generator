@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  databasePath,
   getDb,
   MAIN_DATABASE_PATH,
   MIGRATIONS_FOLDER,
@@ -77,5 +78,11 @@ describe('database utama', () => {
     const existedBefore = existsSync(MAIN_DATABASE_PATH);
     expect(() => getDb()).toThrow(/NODE_ENV=test/);
     expect(existsSync(MAIN_DATABASE_PATH)).toBe(existedBefore);
+  });
+
+  it('DATABASE_PATH (opsional) mengganti path database utama, misalnya untuk test end-to-end', () => {
+    expect(databasePath({})).toBe(MAIN_DATABASE_PATH);
+    expect(databasePath({ DATABASE_PATH: '  ' })).toBe(MAIN_DATABASE_PATH);
+    expect(databasePath({ DATABASE_PATH: 'D:/tmp/e2e.db' })).toBe('D:/tmp/e2e.db');
   });
 });
