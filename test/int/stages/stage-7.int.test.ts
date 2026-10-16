@@ -105,7 +105,7 @@ describe('menjalankan tahap 7', () => {
       .from(stageRuns)
       .where(and(eq(stageRuns.projectId, 'p1'), eq(stageRuns.stage, 'stage7')))
       .get();
-    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '2', isCurrent: 1 });
+    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '3', isCurrent: 1 });
   });
 
   it('TASKS nyata dengan task setup template ditolak lalu dicoba ulang dengan daftar error', async () => {

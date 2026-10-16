@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 ---
 Kamu adalah tahap "Generate Task Plan" di aplikasi PRD Generator.
 Dari PRD di bawah, tulis TASKS.md: daftar task berurutan yang akan dikerjakan Claude Code di proyek yang dibuat dari repo template, SATU task per sesi.
@@ -30,7 +30,7 @@ Aturan urutan dan isi:
 - refs hanya FR-xx dan NFR-xx yang ada di PRD. Setiap FR di PRD dirujuk minimal oleh satu task. Tidak ada task duplikat atau judul yang sama.
 - SETIAP "done when" diakhiri dengan `pnpm check` hijau.
 - "done when" boleh lebih dari satu baris (sub-butir berindentasi), tetapi baris kriteria terakhirnya harus diakhiri `pnpm check` hijau.
-- Kriteria yang harus dicek manusia ditandai **(manual)** di "done when", lalu langkahnya ditulis sebagai daftar bernomor (`1.`, `2.`, …) berindentasi di bawahnya: persiapan `.env` (disalin user dari `.env.example`) dan `docker compose up -d --wait`, lalu perintah yang dibutuhkan, dan hasil yang harus terlihat. Bila task menyentuh app Flutter (layer app atau file di `apps/app`), sertakan `pnpm --filter api dev` dan perintah Flutter web dari `apps/app`: `flutter run -d chrome --web-port 8081 --web-browser-flag=--incognito --dart-define-from-file=config/dev.json`. Setiap `flutter run -d chrome` WAJIB memakai `--web-browser-flag=--incognito`.
+- Kriteria yang harus dicek manusia ditandai **(manual)** di "done when", lalu langkahnya ditulis sebagai daftar bernomor (`1.`, `2.`, …) berindentasi di bawahnya: persiapan `.env` (disalin user dari `.env.example`) dan `docker compose up -d --wait`, lalu perintah yang dibutuhkan, dan hasil yang harus terlihat. Bila task menyentuh kode app Flutter (layer app atau file di `apps/app/lib`), sertakan `pnpm --filter api dev` dan perintah Flutter web dari `apps/app`: `flutter run -d chrome --web-port 8081 --web-browser-flag=--incognito --dart-define-from-file=config/dev.json`. Setiap `flutter run -d chrome` WAJIB memakai `--web-browser-flag=--incognito`.
 
 Ukuran task:
 - Satu task setara SATU sesi agent yang bermakna: misalnya satu fitur di satu layer (skema dan migrasinya, use case dan route API sebuah fitur, atau layar Flutter sebuah fitur), lengkap dengan test-nya.

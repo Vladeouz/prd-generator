@@ -144,7 +144,7 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
     - tepat satu task hapus notes setelah task fitur pertama;
     - *done when* boleh multi-baris: dari baris `done when:` sampai akhir task, termasuk sub-butir dan paragraf setelah baris kosong, tanpa langkah manual bernomor (`1.`, `2.`, …). Baris kriteria terakhirnya harus diakhiri `pnpm check` hijau;
     - setiap task **(manual)** menyebut `.env` dan `docker compose up`;
-    - perintah Flutter web (`flutter run -d chrome …`) hanya wajib untuk task manual dengan layer `app` atau `files` yang menyentuh `apps/app`;
+    - perintah Flutter web (`flutter run -d chrome …`) hanya wajib untuk task manual dengan layer `app` atau `files` yang menyentuh `apps/app/lib` (file native seperti `apps/app/ios/` tidak dihitung);
     - setiap `flutter run -d chrome` memakai `--web-browser-flag=--incognito`;
     - lebih dari `MAX_TASKS` (60) task hanya peringatan;
   - ukuran task (prompt versi 2): satu task setara satu sesi agent yang bermakna, misalnya satu fitur di satu layer lengkap dengan test-nya. Targetnya 20–45 task untuk MVP;

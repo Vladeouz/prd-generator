@@ -5,9 +5,10 @@
 // - tepat satu task penghapusan fitur contoh notes, setelah task fitur pertama;
 // - setiap "done when" diakhiri `pnpm check` hijau;
 // - task dengan kriteria **(manual)** menyebut persiapan `.env` dan layanan Docker
-//   (`docker compose up`); task manual yang menyentuh app Flutter (layer `app` atau files di
-//   `apps/app`) juga menyebut perintah Flutter web, dan setiap `flutter run -d chrome` memakai
-//   `--web-browser-flag=--incognito` (keputusan user setelah verifikasi manual T-014);
+//   (`docker compose up`); task manual yang menyentuh kode app Flutter (layer `app` atau files di
+//   `apps/app/lib`) juga menyebut perintah Flutter web, dan setiap `flutter run -d chrome` memakai
+//   `--web-browser-flag=--incognito` (keputusan user setelah verifikasi manual T-014; file native
+//   seperti `apps/app/ios/` tidak dihitung);
 // - lebih dari 60 task hanya peringatan (target MVP 20–45 task).
 // Perbedaan lain dari rujukan:
 // - `refs` NFR-xx juga harus ada di PRD; `layer` harus salah satu dari daftar di prompt;
@@ -173,8 +174,9 @@ export function validateTasks(md: string, prd: PrdInfo & { nfrIds: string[] }): 
         errors.push(`${t.id} manual tanpa menyalakan layanan Docker (\`docker compose up\`)`);
       }
       // Perintah Flutter web hanya wajib untuk task yang menyentuh app Flutter (keputusan user
-      // setelah verifikasi manual T-014: task manual yang hanya menguji API tidak memakai Flutter).
-      const touchesApp = t.layer === 'app' || (t.files ?? '').includes('apps/app');
+      // setelah verifikasi manual T-014: task manual yang hanya menguji API tidak memakai Flutter,
+      // dan file native seperti `apps/app/ios/` tidak diuji lewat Flutter web).
+      const touchesApp = t.layer === 'app' || (t.files ?? '').includes('apps/app/lib');
       if (touchesApp && !FLUTTER_WEB.test(t.block)) {
         errors.push(`${t.id} manual tanpa perintah Flutter web (\`flutter run -d chrome …\`)`);
       }
