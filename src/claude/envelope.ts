@@ -23,6 +23,21 @@ const excerpt = (text: string, max = 300) => {
   return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
 };
 
+/**
+ * Isi `result` dari stdout yang berupa envelope, tanpa memeriksa bagian lain; `null` bila stdout
+ * bukan JSON atau tidak punya `result` berupa teks. Dipakai untuk menampilkan pesan error utuh
+ * (misalnya di `pnpm claude:smoke`), karena pesan `ClaudeRunError` hanya memuat cuplikannya.
+ */
+export function envelopeResult(stdout: string): string | null {
+  try {
+    const json: unknown = JSON.parse(stdout);
+    if (typeof json === 'object' && json !== null && 'result' in json) {
+      return typeof json.result === 'string' ? json.result : null;
+    }
+  } catch {}
+  return null;
+}
+
 export function parseEnvelope(stdout: string, durationMs: number): ClaudeResult {
   let json: unknown;
   try {

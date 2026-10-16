@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseEnvelope } from '../../../src/claude/envelope.ts';
+import { envelopeResult, parseEnvelope } from '../../../src/claude/envelope.ts';
 import { ClaudeRunError } from '../../../src/claude/types.ts';
 
 const usage = {
@@ -90,5 +90,20 @@ describe('parseEnvelope', () => {
       parseEnvelope(JSON.stringify({ is_error: true, subtype: 'error_max_turns', usage }), 1),
     );
     expect(error.message).toContain('error_max_turns');
+  });
+});
+
+describe('envelopeResult', () => {
+  it('mengembalikan result utuh, termasuk dari envelope is_error tanpa usage', () => {
+    const long = 'x'.repeat(1000);
+    expect(envelopeResult(JSON.stringify({ is_error: true, result: long }))).toBe(long);
+  });
+
+  it('null bila stdout bukan JSON atau tidak punya result berupa teks', () => {
+    expect(envelopeResult('ini bukan JSON')).toBeNull();
+    expect(envelopeResult('')).toBeNull();
+    expect(envelopeResult('null')).toBeNull();
+    expect(envelopeResult(JSON.stringify({ is_error: true, subtype: 'error' }))).toBeNull();
+    expect(envelopeResult(JSON.stringify({ result: 42 }))).toBeNull();
   });
 });

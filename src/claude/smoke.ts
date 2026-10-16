@@ -9,6 +9,7 @@
 //
 // Dijalankan langsung oleh Node 24 (type stripping), jadi import relatif memakai `.ts`.
 import { CliClaudeRunner } from './cli-runner.ts';
+import { envelopeResult } from './envelope.ts';
 import { ClaudeRunError } from './types.ts';
 
 const PROMPT = `Balas HANYA dengan JSON berikut, tanpa teks lain dan tanpa code fence:
@@ -42,5 +43,8 @@ try {
   if (!(error instanceof ClaudeRunError)) throw error;
   console.error(`GAGAL [${error.code}]: ${error.message}`);
   if (error.details.stderr) console.error(`stderr: ${error.details.stderr.trim()}`);
+  // Pesan error hanya memuat cuplikan; tampilkan `result` dari envelope secara utuh bila ada.
+  const result = envelopeResult(error.details.stdout ?? '');
+  if (result !== null) console.error(`result (utuh dari envelope):\n${result}`);
   process.exitCode = 1;
 }
