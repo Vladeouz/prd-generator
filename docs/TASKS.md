@@ -93,7 +93,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
 
 ## Fase 2 — Integrasi dan penyelesaian
 
-- [ ] T-021 Penyempurnaan UI/UX dan aksesibilitas
+- [x] T-021 Penyempurnaan UI/UX dan aksesibilitas
   - layer: app · depends_on: T-016 · refs: `docs/design/design.md`
   - files: `src/components/**`, `src/app/**`, test terkait
   - done when: layar review kritis dan PRD mengikuti `docs/design/mockups/Review.dc.html` dan `Prd.dc.html`; setiap layar punya keadaan kosong, memuat, dan error yang jelas dalam Bahasa Indonesia; semua elemen interaktif bisa dipakai dengan keyboard dan punya fokus yang terlihat; kontras teks memenuhi `design.md` di kedua tema (diperiksa dengan alat pemeriksa kontras dan hasilnya dicatat di log); **(manual)** user menjalankan satu proyek dari beranda sampai ekspor dengan runner palsu (`CLAUDE_COMMAND`) di kedua tema dan lebar 390 px, lalu mengonfirmasi tampilannya; `pnpm check` hijau
