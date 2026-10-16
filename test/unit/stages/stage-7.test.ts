@@ -126,7 +126,7 @@ describe('validateTasks', () => {
     ]);
   });
 
-  it('perintah Flutter web hanya wajib untuk task manual yang menyentuh apps/app', () => {
+  it('perintah Flutter web hanya wajib untuk task manual yang menyentuh apps/app/lib', () => {
     const apiOnly = (layer: string, files: string) =>
       [
         '# TASKS — Uji',
@@ -156,9 +156,14 @@ describe('validateTasks', () => {
     expect(validateTasks(apiOnly('app', '`apps/api/scripts/perf.ts`'), prd).errors).toEqual([
       flutter,
     ]);
+    expect(validateTasks(apiOnly('test', '`apps/app/lib/features/x/`'), prd).errors).toEqual([
+      flutter,
+    ]);
+    // File native app (kasus T-045 di verifikasi manual ulang T-014) tidak memerlukan Flutter web.
+    expect(validateTasks(apiOnly('infra', '`apps/app/ios/`'), prd).errors).toEqual([]);
     expect(
       validateTasks(apiOnly('test', '`apps/app/integration_test/perf.dart`'), prd).errors,
-    ).toEqual([flutter]);
+    ).toEqual([]);
   });
 
   it('done when multi-baris: sub-butir dan paragraf setelah baris kosong, tanpa langkah bernomor', () => {
@@ -199,6 +204,15 @@ describe('regresi verifikasi manual T-014 (output nyata)', () => {
     expect(parseTasks(attempt(1)).find((t) => t.id === 'T-081')).toMatchObject({ layer: 'test' });
   });
 
+  it('verifikasi ulang percobaan 1 (T-045 dengan files apps/app/ios/) sekarang diterima', () => {
+    const md = extractMarkdown(loadClaudeFixture('verification/t014-rerun-stage7-attempt1').result);
+    expect(validateTasks(md, info)).toEqual({ errors: [], warnings: [] });
+    const t045 = parseTasks(md).find((t) => t.id === 'T-045');
+    expect(t045).toMatchObject({ layer: 'infra' });
+    expect(t045?.files).toContain('apps/app/ios/');
+    expect(t045?.block).toMatch(/(manual)/);
+  });
+
   it('percobaan 2 (done when multi-baris) sekarang diterima', () => {
     expect(validateTasks(attempt(2), info)).toEqual({
       errors: [],
@@ -213,7 +227,7 @@ describe('regresi verifikasi manual T-014 (output nyata)', () => {
 describe('prompts/stage-7.md', () => {
   it('punya versi, placeholder, dan aturan FR-08', () => {
     const prompt = loadPrompt('stage-7');
-    expect(prompt.version).toBe('2');
+    expect(prompt.version).toBe('3');
     expect(prompt.body).toContain('Target 20 sampai 45 task untuk MVP.');
     expect(prompt.body).toContain('Satu task setara SATU sesi agent yang bermakna');
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
@@ -225,5 +239,6 @@ describe('prompts/stage-7.md', () => {
     expect(prompt.body).toContain('Tepat SATU task "Hapus fitur contoh notes"');
     expect(prompt.body).toContain('SETIAP "done when" diakhiri dengan `pnpm check` hijau.');
     expect(prompt.body).toContain('--web-browser-flag=--incognito');
+    expect(prompt.body).toContain('layer app atau file di `apps/app/lib`');
   });
 });
