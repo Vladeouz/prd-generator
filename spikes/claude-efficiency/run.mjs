@@ -118,7 +118,8 @@ CONFIGS['P-C'] = CONFIGS.C;
 CONFIGS.D = CONFIGS.C;
 // Run tambahan setelah hasil pertama (thinking tidak bisa dimatikan di Sonnet 5.5):
 //   E  D + --effort low
-//   F  E + batas ukuran PRD di prompt (stage6Compact)
+//   F  E + batas ukuran PRD di prompt (stage6Compact, ±30 KB)
+//   G  E + batas ukuran ±45 KB dan path endpoint lengkap (stage6Medium, opsi b pilihan user)
 CONFIGS.E = { args: [...CONFIGS.C.args, '--effort', 'low'], env: CONFIGS.C.env };
 
 /** Urutan: probe dulu (murah), lalu tahap 2, lalu tahap 6 dengan A (paling lama) terakhir. */
@@ -137,6 +138,7 @@ const RUNS = [
   { id: 's6-A', config: 'A', prompt: 'stage6', stage: 6 },
   { id: 's6-E', config: 'E', prompt: 'stage6Selected', stage: 6, extra: true },
   { id: 's6-F', config: 'E', prompt: 'stage6Compact', stage: 6, extra: true },
+  { id: 's6-G', config: 'E', prompt: 'stage6Medium', stage: 6, extra: true },
 ];
 
 // --- pemanggilan -----------------------------------------------------------------------------

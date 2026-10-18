@@ -71,6 +71,15 @@ const SIZE_RULES = `BATAS UKURAN (wajib): seluruh PRD paling banyak 30.000 karak
 - bagian 5 berupa tabel, satu baris per endpoint, dengan kolom: Endpoint ("METHOD /path"), Request, Response, Error, Akses;
 - jangan mengulang isi yang sudah ada di bagian lain atau di docs/conventions.md.`;
 
+// Konfigurasi G (opsi b yang dipilih user): batas ±45 KB agar detail aturan bisnis lebih banyak
+// bertahan, dan path endpoint wajib lengkap (s6-F menyingkatnya menjadi `{g}`).
+const MEDIUM_SIZE_RULES = `BATAS UKURAN (wajib): seluruh PRD paling banyak 45.000 karakter. Caranya:
+- paling banyak 20 FR. Satu FR per fitur F-xx atau fitur rekomendasi yang diterima; pecah menjadi FR terpisah hanya untuk bagian yang punya aturan bisnis sendiri (misalnya webhook pembayaran atau booking dengan kuota);
+- paling banyak 6 acceptance criteria per FR, dan paling banyak 3 edge case singkat;
+- bagian 5 berupa tabel, satu baris per endpoint, dengan kolom: Endpoint, Request, Response, Error, Akses. Kolom Endpoint ditulis "METHOD /path" dengan path lengkap (misalnya GET /v1/gyms/{gymId}/plans), tanpa singkatan atau alias path;
+- tulis aturan bisnis dan kode error yang spesifik; jangan menulis detail implementasi seperti query SQL atau rumus yang sudah ada di konvensi;
+- jangan mengulang isi yang sudah ada di bagian lain atau di docs/conventions.md.`;
+
 function replaceOnce(text, from, to) {
   if (text.split(from).length !== 2)
     throw new Error(`Teks prompt tidak ditemukan tepat satu kali: ${from}`);
@@ -111,6 +120,11 @@ export async function buildPrompts() {
       LANGUAGE_LINE,
       `${SIZE_RULES}\n\n${LANGUAGE_LINE}`,
     );
+    const stage6Medium = replaceOnce(
+      stage6Selected,
+      LANGUAGE_LINE,
+      `${MEDIUM_SIZE_RULES}\n\n${LANGUAGE_LINE}`,
+    );
 
     // Bahan pemeriksaan kualitas PRD (run.mjs): fitur yang harus punya FR dan keputusan proyek.
     const draft = featureDraft(db, project.id);
@@ -125,7 +139,7 @@ export async function buildPrompts() {
         ...(draft?.accepted_recommendations ?? []).map((f) => ({ id: f.id, name: f.name })),
       ],
       decisionCodes: prdAppendix(db, project.id).decisions.map((d) => d.code),
-      prompts: { stage2, stage6, stage6Selected, stage6Compact },
+      prompts: { stage2, stage6, stage6Selected, stage6Compact, stage6Medium },
     };
   } finally {
     db.$client.close();
