@@ -20,6 +20,17 @@
 | s6-B | 0 | 73815 (2/56673/17140) | 52693 | 0.7553 | 337.5 | 71069 | 1.35 | (json) | - | lolos (3 peringatan) | 0 |
 | s6-A | 0 | 73416 (2/56667/16747) | 80587 | 2.0684 | 703.2 | 94790 | 1.18 | (json) | - | lolos (0 peringatan) | 0 |
 
+## Kualitas PRD (tahap 6)
+
+Fitur yang harus punya FR: F-01, F-02, F-03, F-04, F-05, F-06, F-07, F-08, F-09, F-10, R-01, R-03, R-06. Keputusan: RV-01, RV-02, RV-03, RV-04, RV-05, RV-06, RV-07, RV-08, RV-09, RV-10, RV2-01, RV2-02, RV2-03, RV2-04, RV2-05, RV2-06.
+
+| Run | FR | Acceptance criteria | Endpoint | Byte bagian 3/4/5/6 | Fitur tanpa FR | Keputusan tidak dirujuk | Tabel tidak disebut di API/FR |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| s6-D | 35 | 181 | 47 | 4241/8509/12240/39018 | - | 0: - | 1/13: class_series |
+| s6-C | 35 | 211 | 52 | 6645/9791/15422/40331 | - | 0: - | 2/14: invitation_redeem_failures, class_series |
+| s6-B | 27 | 164 | 48 | 7311/8762/14228/31417 | - | 0: - | 2/15: invite_redeem_attempts, class_series |
+| s6-A | 34 | 190 | 51 | 8514/9656/20644/44647 | - | 1: RV-01 | 1/13: class_series |
+
 ## Init stream dan error
 
 - **probe-sonnet**: model claude-sonnet-5-5, tools ["Task","Bash","CronCreate","CronDelete","CronList","DesignSync","Edit","EnterWorktree","ExitWorktree","Glob","Grep","ListAgents","Monitor","NotebookEdit","PowerShell","PublishPlugin","PushNotification","Read","RemoteTrigger","ReportFindings","ScheduleWakeup","SendMessage","ShareOnboardingGuide","Skill","TaskStop","ToolSearch","WebFetch","WebSearch","Workflow","Write"], mcp [{"name":"claude.ai Claude Docs","status":"pending","source":"claudeai"},{"name":"claude.ai Zoom for Claude","status":"needs-auth","source":"claudeai"},{"name":"claude.ai Google Drive","status":"pending","source":"claudeai"},{"name":"claude.ai Atlassian Rovo","status":"needs-auth","source":"claudeai"}], slash 65, skills 30, plugins 5; modelUsage claude-sonnet-5-5; stream 11 baris, 1 text_delta, event result di 2.3 dtk, usage true, total_cost_usd true

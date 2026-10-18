@@ -7,7 +7,9 @@ import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { MAIN_DATABASE_PATH, openDatabase } from '../../src/core/db/client.ts';
 import { projects } from '../../src/core/db/schema.ts';
+import { prdAppendix } from '../../src/projects/compose-prd.ts';
 import { stage2Definition } from '../../src/stages/stage-2/definition.ts';
+import { featureDraft } from '../../src/stages/stage-4/features.ts';
 import { stage6Definition } from '../../src/stages/stage-6/definition.ts';
 import { readTemplate } from '../../src/template/template.ts';
 
@@ -61,6 +63,14 @@ const FULL_RULE =
 const SELECTED_RULE =
   '- Bagian 3 singkat: sebut stack dalam beberapa baris, lalu rujuk docs/conventions.md untuk detailnya. Konvensi proyek di bawah adalah sumber kebenaran; bila bertentangan dengan ringkasan stack, ikuti konvensi proyek. Jangan menulis ulang isi konvensi.';
 
+// Konfigurasi F: batas ukuran PRD (NFR-06, ≤ 30 KB).
+const LANGUAGE_LINE = 'Bahasa Indonesia yang jelas.';
+const SIZE_RULES = `BATAS UKURAN (wajib): seluruh PRD paling banyak 30.000 karakter. Caranya:
+- satu FR per fitur F-xx atau fitur rekomendasi yang diterima; jangan memecah FR per sub-fitur;
+- 3 sampai 5 acceptance criteria per FR, dan paling banyak 3 edge case singkat;
+- bagian 5 berupa tabel, satu baris per endpoint, dengan kolom: Endpoint ("METHOD /path"), Request, Response, Error, Akses;
+- jangan mengulang isi yang sudah ada di bagian lain atau di docs/conventions.md.`;
+
 function replaceOnce(text, from, to) {
   if (text.split(from).length !== 2)
     throw new Error(`Teks prompt tidak ditemukan tepat satu kali: ${from}`);
@@ -96,14 +106,26 @@ export async function buildPrompts() {
     let stage6Selected = replaceOnce(stage6, conventions, selected);
     stage6Selected = replaceOnce(stage6Selected, FULL_HEADER, SELECTED_HEADER);
     stage6Selected = replaceOnce(stage6Selected, FULL_RULE, SELECTED_RULE);
+    const stage6Compact = replaceOnce(
+      stage6Selected,
+      LANGUAGE_LINE,
+      `${SIZE_RULES}\n\n${LANGUAGE_LINE}`,
+    );
 
+    // Bahan pemeriksaan kualitas PRD (run.mjs): fitur yang harus punya FR dan keputusan proyek.
+    const draft = featureDraft(db, project.id);
     return {
       projectId: project.id,
       templateCommit: template.template.commit,
       conventions,
       conventionsChars: conventions.length,
       selectedChars: selected.length,
-      prompts: { stage2, stage6, stage6Selected },
+      features: [
+        ...(draft?.mvp_features ?? []).map((f) => ({ id: f.id, name: f.name })),
+        ...(draft?.accepted_recommendations ?? []).map((f) => ({ id: f.id, name: f.name })),
+      ],
+      decisionCodes: prdAppendix(db, project.id).decisions.map((d) => d.code),
+      prompts: { stage2, stage6, stage6Selected, stage6Compact },
     };
   } finally {
     db.$client.close();

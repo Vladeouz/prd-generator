@@ -23,7 +23,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { extractJson, extractMarkdown } from '../../src/stages/parse.ts';
 import { validateStage2 } from '../../src/stages/stage-2/validate.ts';
-import { validatePrd } from '../../src/stages/stage-6/validate.ts';
+import { prdSection, validatePrd } from '../../src/stages/stage-6/validate.ts';
 import { buildPrompts, STAGE6_HEADINGS } from './prompts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -43,6 +43,7 @@ const option = (name) => {
   return i === -1 ? undefined : argv[i + 1];
 };
 const dryRun = flag('--dry-run');
+const rescore = flag('--rescore');
 const command = option('--command') ?? 'claude';
 const only = option('--only')
   ?.split(',')
@@ -115,6 +116,10 @@ const CONFIGS = {
 };
 CONFIGS['P-C'] = CONFIGS.C;
 CONFIGS.D = CONFIGS.C;
+// Run tambahan setelah hasil pertama (thinking tidak bisa dimatikan di Sonnet 5.5):
+//   E  D + --effort low
+//   F  E + batas ukuran PRD di prompt (stage6Compact)
+CONFIGS.E = { args: [...CONFIGS.C.args, '--effort', 'low'], env: CONFIGS.C.env };
 
 /** Urutan: probe dulu (murah), lalu tahap 2, lalu tahap 6 dengan A (paling lama) terakhir. */
 const RUNS = [
@@ -130,6 +135,8 @@ const RUNS = [
   { id: 's6-C', config: 'C', prompt: 'stage6', stage: 6 },
   { id: 's6-B', config: 'B', prompt: 'stage6', stage: 6 },
   { id: 's6-A', config: 'A', prompt: 'stage6', stage: 6 },
+  { id: 's6-E', config: 'E', prompt: 'stage6Selected', stage: 6, extra: true },
+  { id: 's6-F', config: 'E', prompt: 'stage6Compact', stage: 6, extra: true },
 ];
 
 // --- pemanggilan -----------------------------------------------------------------------------
@@ -335,8 +342,49 @@ function summarize(run, config, prompt, raw, conventions) {
     ? Math.round((result.length / usage.output_tokens) * 100) / 100
     : null;
   if (run.stage) record.validation = validate(run.stage, result);
-  if (run.stage === 6) record.copiedConventionLines = copiedConventionLines(conventions, result);
+  scoreStage6(record, run, result, conventions);
   return { record, result, envelope };
+}
+
+function scoreStage6(record, run, result, conventions) {
+  if (run.stage !== 6) return;
+  record.copiedConventionLines = copiedConventionLines(conventions, result);
+  record.quality = prdQuality(result);
+}
+
+/**
+ * Pemeriksaan kualitas di luar validator: fitur yang diterima tanpa FR, keputusan yang tidak
+ * dirujuk, dan tabel erDiagram yang tidak disebut di API Contract atau FR. Bukan pengganti
+ * membaca PRD; hanya untuk membandingkan konfigurasi.
+ */
+function prdQuality(md) {
+  const section = (heading) => prdSection(md, heading);
+  const frs = section('## 6. Functional Requirements');
+  const api = section('## 5. API Contract');
+  const er = md.match(/```mermaid\s*\n\s*erDiagram([\s\S]*?)```/)?.[1] ?? '';
+  const tables = [...er.matchAll(/^\s*([A-Za-z_][\w]*)\s*\{/gm)].map((m) => m[1]);
+  const lower = (text) => text.toLowerCase();
+  return {
+    frCount: (frs.match(/^### FR-\d+/gm) ?? []).length,
+    acceptanceCriteria: (frs.match(/^\s*- \[ \]/gm) ?? []).length,
+    endpoints: new Set(api.match(/\b(GET|POST|PUT|PATCH|DELETE)\s+\/[^\s`|)]*/g) ?? []).size,
+    sectionBytes: Object.fromEntries(
+      [
+        '## 3. Tech Constraints',
+        '## 4. Data Model',
+        '## 5. API Contract',
+        '## 6. Functional Requirements',
+      ].map((h) => [h[3], Buffer.byteLength(section(h), 'utf8')]),
+    ),
+    featuresWithoutFr: built.features
+      .filter((f) => !frs.includes(f.id) && !lower(frs).includes(lower(f.name)))
+      .map((f) => f.id),
+    decisionsNotReferenced: built.decisionCodes.filter(
+      (code) => !new RegExp(`\\b${code}\\b`).test(md),
+    ),
+    tables: tables.length,
+    tablesUnused: tables.filter((t) => !lower(api + frs).includes(lower(t))),
+  };
 }
 
 // --- ringkasan -------------------------------------------------------------------------------
@@ -385,6 +433,22 @@ function summaryMarkdown(meta, records) {
         .replace(/$/, ' |'),
     );
   }
+  out.push(
+    '',
+    '## Kualitas PRD (tahap 6)',
+    '',
+    `Fitur yang harus punya FR: ${meta.features ?? '-'}. Keputusan: ${meta.decisionCodes ?? '-'}.`,
+    '',
+    '| Run | FR | Acceptance criteria | Endpoint | Byte bagian 3/4/5/6 | Fitur tanpa FR | Keputusan tidak dirujuk | Tabel tidak disebut di API/FR |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- |',
+  );
+  for (const r of rows.filter((row) => row.quality)) {
+    const q = r.quality;
+    const b = q.sectionBytes;
+    out.push(
+      `| ${r.id} | ${q.frCount} | ${q.acceptanceCriteria} | ${q.endpoints} | ${b['3']}/${b['4']}/${b['5']}/${b['6']} | ${q.featuresWithoutFr.join(', ') || '-'} | ${q.decisionsNotReferenced.length}: ${q.decisionsNotReferenced.join(', ') || '-'} | ${q.tablesUnused.length}/${q.tables}: ${q.tablesUnused.join(', ') || '-'} |`,
+    );
+  }
   out.push('', '## Init stream dan error', '');
   for (const r of rows) {
     const parts = [];
@@ -415,7 +479,8 @@ for (const [name, text] of Object.entries(built.prompts)) {
   writeFileSync(join(RESULTS, 'prompts', `${name}.txt`), text);
 }
 
-const selected = RUNS.filter((run) => !only || only.includes(run.id));
+// Tanpa --only: 12 run pertama; run tambahan (E, F) hanya lewat --only.
+const selected = RUNS.filter((run) => (only ? only.includes(run.id) : !run.extra));
 if (selected.length === 0) throw new Error(`--only tidak cocok dengan run mana pun: ${only}`);
 
 if (dryRun) {
@@ -433,12 +498,35 @@ if (dryRun) {
   process.exit(0);
 }
 
-const version = spawnSync(`${command} --version`, { shell: true, encoding: 'utf8' });
 const resultsPath = join(RESULTS, 'results.json');
 const saved = existsSync(resultsPath)
   ? JSON.parse(readFileSync(resultsPath, 'utf8'))
   : { runs: {} };
+const quality = {
+  features: built.features.map((f) => f.id).join(', '),
+  decisionCodes: built.decisionCodes.join(', '),
+};
+
+// --rescore: hitung ulang validator dan kualitas dari output tersimpan, tanpa memanggil claude.
+if (rescore) {
+  for (const run of RUNS) {
+    const record = saved.runs[run.id];
+    const file = join(RESULTS, `${run.id}.txt`);
+    if (!record || !run.stage || !existsSync(file)) continue;
+    const result = readFileSync(file, 'utf8');
+    record.validation = validate(run.stage, result);
+    scoreStage6(record, run, result, built.conventions);
+  }
+  saved.meta = { ...saved.meta, ...quality };
+  writeFileSync(resultsPath, JSON.stringify(saved, null, 2));
+  writeFileSync(join(RESULTS, 'summary.md'), summaryMarkdown(saved.meta, saved.runs));
+  console.log(`Dihitung ulang. Ringkasan: ${join(RESULTS, 'summary.md')}`);
+  process.exit(0);
+}
+
+const version = spawnSync(`${command} --version`, { shell: true, encoding: 'utf8' });
 const meta = {
+  ...quality,
   claudeVersion: (version.stdout || version.stderr || '').trim(),
   projectId: built.projectId,
   templateCommit: built.templateCommit,
@@ -448,7 +536,7 @@ const meta = {
 };
 
 console.log(
-  `Claude Code ${meta.claudeVersion}; ${selected.length} pemanggilan. Perkiraan total 30–45 menit.`,
+  `Claude Code ${meta.claudeVersion}; ${selected.length} pemanggilan. Perkiraan: lihat docs/logs/T-022.md.`,
 );
 let failed = 0;
 for (const [index, run] of selected.entries()) {

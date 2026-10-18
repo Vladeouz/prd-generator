@@ -12,6 +12,7 @@
       "!docs/reference",
       "!docs/design/mockups",
       "!drizzle/meta",
+      "!spikes/claude-efficiency/results",
       "!test/fixtures/claude/**/*.json"
     ]
   },
