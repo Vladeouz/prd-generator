@@ -1,0 +1,995 @@
+Kamu adalah tahap "Generate PRD" di aplikasi PRD Generator.
+Tulis PRD final dalam Markdown yang akan dibaca Claude Code untuk membangun aplikasi.
+
+WAJIB menerapkan semua keputusan berikut persis seperti yang DIPUTUSKAN. Draft di bawah masih mengandung masalah yang ditemukan review; PRD final TIDAK boleh mewarisi masalah itu:
+- RV-01 (consistency): Tiga fitur rekomendasi yang sudah kamu pilih (pengingat masa aktif, pengingat jadwal kelas, ekspor laporan) belum masuk ke daftar fitur MVP maupun ke fase mana pun. Kalau dibiarkan, fitur ini bisa hilang saat PRD ditulis, atau dikerjakan tanpa urutan yang jelas.
+  DIPUTUSKAN: Jadikan fitur MVP dan tempatkan sesuai dependensinya
+  Konsekuensi: R-06 masuk setelah F-06 (fase 2), R-01 setelah F-05 dan F-07 (akhir fase 2 atau fase baru), R-03 setelah F-10 (fase 4 atau fase 5 khusus notifikasi). Rencana lengkap dan urutannya aman, tapi scope MVP bertambah.
+- RV-02 (security): Cara menautkan akun login ke data member belum diputuskan, padahal ini menentukan siapa yang bisa melihat data pribadi dan QR check-in seorang member. Kalau penautan otomatis memakai email yang belum diverifikasi, orang lain bisa mendaftar dengan email member lalu mengambil alih datanya.
+  DIPUTUSKAN: Penautan lewat kode undangan sekali pakai dari admin
+  Konsekuensi: Paling aman dan eksplisit: admin membuat undangan (kode/link berumur pendek), member login lalu memasukkan kodenya. Perlu tambahan alur undangan di F-04.
+- RV-03 (dependency_order): F-01 di fase 0 mencakup penautan akun ke data member, padahal data member baru dibuat di F-04 pada fase 1. Penautan ini belum bisa diuji atau selesai di fase 0.
+  DIPUTUSKAN: Pindahkan sub-fitur penautan ke F-04 (fase 1)
+  Konsekuensi: Fase 0 cukup berisi login, pembuatan user, dan peran. Penautan dibuat setelah data member tersedia, dan depends_on tetap rapi.
+- RV-04 (stack_deploy): Keputusan teknis belum menyebut infrastruktur notifikasi dan job terjadwal yang dibutuhkan pengingat masa aktif dan pengingat kelas: registrasi token perangkat FCM, job terjadwal di server, kunci APNs untuk iOS, dan pencegahan notifikasi terkirim dua kali.
+  DIPUTUSKAN: Tambahkan keputusan: FCM untuk push dan job terjadwal pg-boss di dalam API container
+  Konsekuensi: Butuh tabel token perangkat per user, setup APNs untuk iOS, dan job harian/per-kelas yang idempoten. Cocok dengan server yang selalu hidup.
+- RV-05 (security): Foto member disimpan di Cloud Storage for Firebase, tapi peran admin/member ada di PostgreSQL. Aturan keamanan Storage tidak bisa membaca peran dari database, jadi kalau app meng-upload atau membaca foto langsung ke Storage, pembatasan "member hanya melihat datanya sendiri" bisa jebol.
+  DIPUTUSKAN: Akses foto lewat signed URL berumur pendek yang dibuat API
+  Konsekuensi: Otorisasi tetap di server dan Storage dikunci penuh dari client. API perlu endpoint untuk upload dan baca.
+- RV-06 (security): Belum jelas bagaimana admin pertama dibuat. Karena user dibuat otomatis saat request pertama, peran default dan cara menaikkan seseorang jadi admin harus ditetapkan, supaya tidak ada user baru yang otomatis mendapat akses admin.
+  DIPUTUSKAN: Admin pertama dibuat lewat seed/skrip CLI saat deploy, user baru default tanpa peran
+  Konsekuensi: Aman dan bisa diaudit. Butuh langkah setup manual sekali di awal.
+- RV-07 (testability): Aturan perpanjangan dan masa tenggang belum diputuskan, padahal F-05, F-06, F-07, dan F-08 bergantung padanya. Acceptance criteria seperti "masa aktif diperpanjang dengan benar" atau "check-in ditolak kalau kedaluwarsa" belum bisa ditulis secara pasti.
+  DIPUTUSKAN: Tetapkan default sekarang: lanjut dari tanggal kedaluwarsa kalau masih aktif, dari tanggal bayar kalau sudah lewat, tanpa masa tenggang
+  Konsekuensi: Acceptance criteria bisa langsung ditulis dan diuji. Kalau gym punya aturan lain, cukup ubah satu use case.
+- RV-08 (testability): Payment gateway dan metode bayarnya belum dipilih, padahal F-07 dijadwalkan di fase 2. Detail webhook, status pembayaran, dan masa berlaku transaksi berbeda di tiap gateway, jadi acceptance criteria F-07 belum bisa dipastikan dan fase 2 berisiko tertahan.
+  DIPUTUSKAN: Putuskan gateway dan metode bayar sebelum PRD, lalu bungkus di balik interface PaymentGateway
+  Konsekuensi: Acceptance criteria F-07 jadi konkret dan bisa diuji di sandbox. Ganti gateway nanti tetap mudah.
+- RV-09 (testability): Beberapa batas masih kabur, jadi sulit diberi acceptance criteria: ambang status "hampir habis", batas waktu pembatalan booking, dan interval pergantian QR.
+  DIPUTUSKAN: Tetapkan nilai default: hampir habis = 7 hari, batal paling lambat 2 jam sebelum kelas, QR berganti tiap 30 detik
+  Konsekuensi: Semua bisa langsung diuji, dan nilainya bisa disimpan sebagai pengaturan gym.
+- RV-10 (stack_deploy): Aplikasi mobile yang dirilis lewat store dan punya akun login wajib menyediakan cara menghapus akun dari dalam aplikasi (aturan App Store dan Google Play). Ini belum ada di fitur akun.
+  DIPUTUSKAN: Tambahkan permintaan hapus akun di halaman profil
+  Konsekuensi: Lolos review store. Perlu aturan apa yang dihapus dan apa yang tetap disimpan, misalnya riwayat pembayaran untuk pembukuan.
+- RV2-01 (data_model): Pembayaran online bisa lunas sampai 60 menit setelah dibuat, atau bahkan setelah statusnya `expired`. Admin juga boleh mengubah `durationValue`/`durationUnit` paket kapan saja. FR-16 bilang perpanjangan memakai "durasi paket saat itu", tapi tabel `payments` cuma menyimpan snapshot `plan_name` dan `amount`, tanpa durasi. Akibatnya `computeRenewalPeriod` akan membaca durasi terbaru dari `plans`. Member yang bayar paket 1 bulan bisa dapat 3 bulan atau malah 1 minggu, tergantung kapan admin mengedit paketnya.
+  DIPUTUSKAN: Tambah snapshot durasi di payments
+  Konsekuensi: Tambah kolom `plan_duration_value` dan `plan_duration_unit` (NOT NULL, dengan CHECK yang sama seperti `plans`) yang diisi saat pembayaran dibuat. `computeRenewalPeriod` membaca dari snapshot ini. Hasil perpanjangan jadi pasti dan bisa diuji, dan cuma butuh dua kolom plus satu AC tambahan.
+- RV2-02 (business_rule): Aturan "gym tidak boleh tanpa admin" belum dijaga dari race condition. Contohnya, admin A mencabut B bersamaan dengan B mencabut A, atau dua admin terakhir menghapus akunnya bersamaan. Masing-masing transaksi menghitung masih ada 2 admin, lalu keduanya lolos dan gym jadi tanpa admin. Padahal admin baru hanya bisa dibuat lewat undangan atau CLI.
+  DIPUTUSKAN: Kunci baris gyms saat mengubah admin
+  Konsekuensi: Cabut admin dan hapus akun admin menjalankan `SELECT ... FROM gyms WHERE id=$1 FOR UPDATE` sebelum menghitung admin, di transaksi yang sama. Tambah integration test cabut-silang bersamaan. Perubahannya kecil dan konsisten dengan pola keputusan 9.
+- RV2-03 (business_rule): Admin boleh mengubah `startsAt` sesi apa pun, termasuk sesi dari seri berulang, tapi PRD tidak bilang apakah `local_date` ikut berubah. Kalau ikut berubah ke tanggal lain, job `classes.generate-sessions` akan membuat ulang sesi di tanggal asli karena kunci `(series_id, local_date)` sudah kosong, jadi kelasnya dobel. Kalau tidak ikut berubah, `local_date` tidak cocok lagi dengan `starts_at`, padahal cek `MEMBERSHIP_INACTIVE` booking dan filter `from`/`to` memakai `localDate`.
+  DIPUTUSKAN: Sesi seri hanya boleh digeser di tanggal yang sama
+  Konsekuensi: Untuk sesi dengan `series_id`, `startsAt` baru wajib berada di `local_date` yang sama (dihitung dengan zona gym). Kalau tidak, hasilnya `422 details.startsAt`. Kelas satu kali bebas digeser, dan `local_date`-nya selalu dihitung ulang. Aturannya sederhana dan generator tetap idempoten.
+- RV2-04 (business_rule): Member baru boleh dibuat dengan `startOn` sampai 30 hari ke depan. Tapi status, check-in, dan booking hanya melihat `expires_on`. Akibatnya member yang paketnya baru mulai bulan depan sudah berstatus `active` dan bisa check-in serta booking kelas hari ini. Aturan "belum mulai" tidak dijaga di mana pun.
+  DIPUTUSKAN: Batasi startOn tidak boleh di masa depan
+  Konsekuensi: `startOn` hanya boleh hari ini atau sampai 30 hari ke belakang. Kalau member mau mulai nanti, admin cukup menambahkannya di hari mulai. Tidak ada status baru, cukup ubah validasi dan AC FR-08.
+- RV2-05 (ui_endpoint): Halaman detail sesi admin (FR-27: daftar peserta + "N / kapasitas") dan form ubah sesi atau seri butuh data satu sesi atau satu seri. Endpoint yang ada hanya `GET /class-sessions/{sessionId}/bookings`, yang tidak memuat kapasitas atau info sesi, plus endpoint daftar berdasarkan rentang tanggal. Kalau halaman dibuka lewat URL langsung atau di-refresh, datanya tidak bisa diisi tanpa menebak rentang tanggal.
+  DIPUTUSKAN: Tambah GET per sesi dan per seri
+  Konsekuensi: Tambah `GET /v1/gyms/{gymId}/class-sessions/{sessionId}` (admin dan member, member hanya untuk sesi `scheduled`) dan `GET /v1/gyms/{gymId}/class-series/{seriesId}` (admin). Halaman detail dan form edit jadi bisa di-deep-link dengan pola yang sama seperti member.
+- RV2-06 (business_rule): Kalau `gross_amount` dari gateway tidak sama dengan `payments.amount`, PRD hanya bilang "tidak diperpanjang dan dicatat di log". Status akhirnya tidak ditentukan. Kalau tetap `pending`, job `payments.reconcile` akan memeriksanya tiap 10 menit tanpa henti, dan member melihat "Menunggu pembayaran" padahal uangnya sudah masuk.
+  DIPUTUSKAN: Tambah status needs_review
+  Konsekuensi: Status `needs_review` dikecualikan dari rekonsiliasi dan tampil di daftar pembayaran admin dengan filter status, supaya admin bisa menindaklanjuti secara manual (misalnya mencatat pembayaran manual). Ini butuh perubahan CHECK, enum API, dan teks UI.
+
+Struktur WAJIB (heading persis seperti ini, dalam urutan ini):
+# <Nama Produk>
+## 1. Context & Goal
+## 2. Scope
+### In scope
+### Non-goals
+## 3. Tech Constraints
+## 4. Data Model
+## 5. API Contract
+## 6. Functional Requirements
+## 7. Non-Functional Requirements
+
+JANGAN menulis bagian 8 ("Assumptions & Decisions") dan "Open Questions". Aplikasi menambahkan bagian itu sendiri dari keputusan dan jawaban yang tersimpan. Bila perlu, rujuk keputusan dengan id-nya (misalnya RV-01) di bagian 1 sampai 7.
+
+Aturan isi:
+- Bagian 3 merangkum stack di bawah beserta konvensi proyek, singkat dan tegas. Konvensi proyek di bawah adalah sumber kebenaran; bila bertentangan dengan ringkasan stack, ikuti konvensi proyek.
+- Bagian 4: tepat satu blok ```mermaid berisi erDiagram sebagai sumber tunggal skema, lalu daftar singkat constraint penting (unik, index, aturan integritas). Jangan menulis skema dua kali.
+- Bagian 5: setiap endpoint ditulis sebagai "METHOD /path" (misalnya POST /members) dengan request, response, error, dan siapa yang boleh mengakses.
+- Bagian 6: setiap requirement berupa "### FR-01: <judul>" berisi: deskripsi singkat, "Fitur: F-xx", "Acceptance criteria:" dengan checklist "- [ ] Given ... When ... Then ...", dan "Edge cases:".
+- Bagian 7: "NFR-01" dan seterusnya, masing-masing terukur.
+- Fitur di "accepted_recommendations" ikut dikerjakan: masukkan ke In scope dan Functional Requirements, dan tempatkan sesuai dependensinya.
+- Jangan menulis non-goals ke In scope atau Functional Requirements.
+
+Ringkasan stack yang dipakai:
+- Monorepo: apps/app (Flutter untuk web, Android, iOS), apps/api (Hono + TypeScript), packages/contract (OpenAPI + client Dart hasil generate).
+- Flutter: Clean Architecture per fitur (domain: entity, interface repository, use case; data: data source dari client OpenAPI, model/DTO + mapper, repository impl; presentation: widget + Bloc/Cubit). go_router. get_it dengan registrasi manual per fitur. Error sebagai sealed Result.
+- Backend Hono: Clean Architecture per fitur (domain, usecases, infrastructure Drizzle, http route + Zod yang menjadi sumber OpenAPI lewat @hono/zod-openapi).
+- Database: PostgreSQL + Drizzle + drizzle-kit. Lokal lewat Docker Compose.
+- Auth: Firebase Auth di client; backend memverifikasi ID token. Tabel users tanpa password, dibuat saat request pertama berdasarkan firebase_uid. Peran dan keanggotaan di PostgreSQL.
+- File: Cloud Storage for Firebase; PostgreSQL hanya menyimpan path dan metadata.
+- Notifikasi: FCM untuk push; job terjadwal memakai pg-boss.
+- Deploy: API sebagai container yang selalu hidup; Flutter web di hosting statis; mobile lewat store.
+- Testing: Vitest (API), flutter_test + bloc_test + mocktail (app). Lokal: Firebase Auth Emulator.
+
+KONVENSI PROYEK (docs/conventions.md dari repo template, apa adanya):
+"""
+# Konvensi Proyek
+
+Dokumen ini adalah rujukan konvensi untuk manusia dan agent, dan berlaku untuk setiap proyek yang dibuat dari template ini. Isinya mencakup semua konvensi bagian 3 dan 5 PRD pembangunan template (`docs/template-build/PRD.md`) beserta yang ditemukan selama pembangunan (alasannya ada di `docs/template-build/logs/`). Setiap bagian merujuk file contoh di repo: tiru file itu sebelum menulis pola sendiri. Konvensi baru ditambahkan di sini bersamaan dengan kode yang pertama memakainya.
+
+## Struktur repo
+
+```
+.
+├── CLAUDE.md                  # aturan kerja agent
+├── package.json               # script root: prereq, check, lint, format, contract:generate, contract:check, init-project
+├── pnpm-workspace.yaml        # workspace apps/*, packages/*; allowBuilds
+├── biome.json .editorconfig .gitattributes .nvmrc .env.example
+├── docker-compose.yml docker/firebase-emulator/Dockerfile
+├── firebase.json .firebaserc storage.rules
+├── scripts/                   # prereq.mjs, check.mjs, contract.mjs, init-project.mjs
+├── .github/workflows/ci.yml
+├── docs/                      # PRD.md, TASKS.md, logs/ (proyek), conventions.md, template-build/
+├── apps/api/                  # API Hono (lihat bagian API dan Clean Architecture API)
+├── packages/contract/         # openapi.json + package Dart api_client (hasil generate)
+└── apps/app/                  # Flutter (lihat bagian Flutter)
+```
+
+pnpm workspaces tanpa Turborepo (D-09). Paket: `api` (`apps/api`), `app` (`apps/app`, Flutter, bukan paket pnpm), dan `api_client` (`packages/contract/dart`, Dart).
+
+## Prasyarat lingkungan
+
+Diperiksa `pnpm prereq` (`scripts/prereq.mjs`), yang menampilkan tabel status beserta perintah perbaikan dan tidak pernah membuat atau mengubah file. Wajib: Node.js 24, pnpm versi `packageManager` (lewat `corepack enable`), Git, Docker dengan engine hidup (Docker Desktop di Windows), Flutter stable, dan file `.env` (disalin user dari `.env.example`; agent tidak membuatnya). Opsional (peringatan, bukan kegagalan): Android SDK + emulator, NDK/SDK Platform, lokasi Pub cache, dan status layanan Compose. Prasyarat baru ditambahkan ke `prereq.mjs` dan tabel Prasyarat di `README.md`.
+
+## Versi yang dipin
+
+Library dipin ke versi pasti (tanpa `^` atau `~`) saat pertama dipasang, lalu dicatat di sini.
+
+| Komponen | Versi | Dipin di |
+| --- | --- | --- |
+| Node.js | 24 (`.nvmrc`), `engines.node` `>=24 <25` | T-001 |
+| pnpm | 12.6.0 (`packageManager`) | T-001 |
+| `@biomejs/biome` | 2.5.14 | T-001 |
+| PostgreSQL | 17 (`postgres:17-alpine`) | T-002 |
+| `firebase-tools` (image emulator) | 15.32.0, di atas `node:24-trixie-slim` + OpenJDK 21 | T-002 |
+| Flutter | 3.47.5 stable (Dart 3.13.4) | T-004 |
+| `hono` | 4.13.11 | T-005 |
+| `@hono/zod-openapi` | 1.6.3 | T-005 |
+| `@hono/node-server` | 2.1.3 | T-005 |
+| `zod` | 4.6.5 | T-005 |
+| `pino` | 10.3.1 | T-005 |
+| `typescript` | 7.0.2 | T-005 |
+| `tsx` | 4.23.15 | T-005 |
+| `vitest` | 5.0.2 | T-005 |
+| `@types/node` | 26.6.3 | T-005 |
+| `drizzle-orm` | 0.45.3 | T-006 |
+| `drizzle-kit` | 0.31.11 | T-006 |
+| `pg` | 8.23.0 | T-006 |
+| `@types/pg` | 8.23.1 | T-006 |
+| `firebase-admin` | 14.5.0 | T-007 |
+| `pg-boss` | 12.36.0 | T-009 |
+| `swagger_parser` (Dart, dev) | 1.45.0 | T-012 |
+| `build_runner` (Dart, dev) | 2.16.1 | T-012 |
+| `json_serializable` (Dart, dev) | 6.14.1 | T-012 |
+| `retrofit_generator` (Dart, dev) | 10.2.11 | T-012 |
+| `test` (Dart, dev) | 1.32.0 | T-012 |
+| `dio` (Dart) | 5.11.1 | T-012 |
+| `retrofit` (Dart) | 4.10.0 | T-012 |
+| `json_annotation` (Dart) | 4.12.0 | T-012 |
+| `firebase_core` (Flutter) | 4.15.0 | T-004 (spike), T-013 |
+| `firebase_auth` (Flutter) | 6.7.0 | T-004 (spike), T-013 |
+| `get_it` (Flutter) | 9.3.0 | T-013 |
+| `go_router` (Flutter) | 18.0.2 | T-013 |
+| `equatable` (Flutter) | 3.0.0 | T-013 |
+| `flutter_lints` (Flutter, dev) | 6.0.0 | T-004 (spike), T-013 |
+| `mocktail` (Flutter, dev) | 1.0.5 | T-013 |
+| `flutter_bloc` (Flutter) | 9.1.1 (`bloc` 9.2.1 transitif) | T-014 |
+| `bloc_test` (Flutter, dev) | 10.0.0 | T-014 |
+
+Pasang dengan `pnpm --filter <paket> add -E <nama>` agar versi langsung pasti. Paket Dart/Flutter: `flutter pub add <nama>:<versi>` (atau `flutter pub add <nama>` lalu hapus `^` di `pubspec.yaml`); `dio` di app sama persis dengan `packages/contract/dart`. Paket yang butuh build script saat install didaftarkan di `allowBuilds` pada `pnpm-workspace.yaml` (saat ini `esbuild`, dipakai `tsx` dan `vitest`); tanpa itu pnpm 12 keluar dengan `ERR_PNPM_IGNORED_BUILDS`. Build script yang tidak dibutuhkan didaftarkan dengan nilai `false` beserta alasannya di komentar (saat ini `@firebase/util` dan `protobufjs`, dependency `firebase-admin`); jangan biarkan nilai placeholder `set this to true or false` yang ditulis pnpm.
+
+pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila `pnpm add` menambah `minimumReleaseAgeExclude` ke `pnpm-workspace.yaml`, batalkan perubahan itu (`pnpm-workspace.yaml`, `pnpm-lock.yaml`, `package.json`) dan pin versi sebelumnya; jangan melonggarkan policy.
+
+## Git
+
+- Branch `<type>/t-xxx-<ringkas>`, type: `feat`, `fix`, `chore`, `docs`, `test`.
+- Commit `<type>: <ringkasan> (T-xxx)`.
+- Merge ke `master` dilakukan user setelah meninjau hasil.
+- `.gitattributes` memaksa LF untuk semua file teks, kecuali `*.bat` dan `*.cmd` (CRLF). `.editorconfig` mengikuti aturan yang sama.
+
+## Memulai proyek dan log task
+
+- Setelah `pnpm init-project <nama>`, urutan wajibnya: buat `.env` dari `.env.example`, `pnpm prereq`, `docker compose up -d --wait`, `pnpm check` hijau, commit hasil inisialisasi, lalu isi `docs/PRD.md` dan `docs/TASKS.md` dan commit ke `master`. Baru setelah itu sesi agent pertama dimulai. Urutan ini dicetak script (`nextSteps` di `scripts/init-project.mjs`) dan sama dengan README › Memulai proyek baru dari template; ubah keduanya bersamaan. Alasannya dari uji agent `daftar-belanja`: hasil inisialisasi belum di-commit saat sesi agent pertama sehingga tercampur dengan task (log T-001 di repo itu), dan `.env` belum ada saat verifikasi manual (log T-004).
+- Agent memulai sesi hanya dari working tree yang bersih (`git status`). Perubahan yang belum di-commit dan bukan milik task dilaporkan ke user, bukan di-commit sendiri.
+- **Setiap langkah verifikasi manual**, baik di log (`docs/logs/T-xxx.md`) maupun yang disampaikan ke user, ditulis lengkap tanpa merujuk log sebelumnya, dan dimulai dengan persiapan:
+  1. `.env` ada di root. Bila belum, user menyalinnya (`copy .env.example .env`, di Git Bash atau Linux `cp .env.example .env`); agent tidak membuatnya.
+  2. `docker compose up -d --wait`.
+  3. `pnpm --filter api db:migrate`, bila ada migrasi baru atau database baru dibuat.
+  4. `pnpm --filter api dev` (terminal terpisah).
+
+  Perintah Flutter web selalu ditulis lengkap dengan flag incognito, dijalankan dari `apps/app`: `flutter run -d chrome --web-port 8081 --web-browser-flag=--incognito --dart-define-from-file=config/dev.json` (alasannya di Lingkungan Flutter dan Android). Android: `flutter run -d <id emulator> --dart-define-from-file=config/dev.json`.
+
+## Script dan perintah root
+
+- Semua script otomatisasi ditulis dalam Node (`.mjs`) di `scripts/`, bukan shell, agar berjalan sama di CMD, PowerShell, Git Bash, dan Linux CI. Contoh: `scripts/prereq.mjs`.
+- Script memanggil perintah eksternal lewat `spawnSync(perintah, { shell: true })` agar `pnpm.cmd`, `flutter.bat`, dan sejenisnya ditemukan di Windows.
+- Nama script di `package.json` root tidak boleh sama dengan perintah bawaan pnpm (misalnya `doctor`, `init`, `test`, `ci`), karena perintah bawaan selalu menang. Cek dengan `pnpm help <nama>`: bila keluar `unrecognized subcommand`, nama itu aman (PRD D-14).
+- Nama file script sama dengan nama script-nya (`pnpm prereq` → `scripts/prereq.mjs`).
+- Perintah per paket dijalankan dari root dengan `pnpm --filter <paket> <script>` (`pnpm --filter api dev`); tidak ada script root `dev`.
+
+### `pnpm check` dan CI
+
+- `pnpm check` (`scripts/check.mjs`) adalah satu-satunya perintah verifikasi: Biome, typecheck API, unit test API, integration test API, `contract:check`, `flutter analyze`, `flutter test`. Semua langkah selalu dijalankan walaupun ada yang gagal; ringkasan di akhir menampilkan status dan waktu per langkah, dan output lengkap langkah yang gagal disimpan di `.check-logs/<waktu run>/` (di-ignore Git). Harus hijau sebelum task dicentang.
+- Langkah verifikasi baru (tool baru, paket baru) ditambahkan ke `STEPS` di `scripts/check.mjs`, bukan ke `ci.yml`.
+- CI (`.github/workflows/ci.yml`) hanya menjalankan `pnpm check` pada setiap push dan pull request, dengan PostgreSQL sebagai `services` dan emulator Firebase lewat `docker compose` (image di-build dengan cache GitHub Actions). Env tidak di-set di CI: default di `apps/api/test/setup/env.ts` sudah menunjuk layanan itu. Bila gagal, output langkahnya ada di artifact `check-logs`.
+- Versi Flutter di `ci.yml` diperbarui bersamaan dengan README dan tabel versi di atas. Action dipin ke major tag.
+- Runner dipin ke versi image (`runs-on: ubuntu-24.04`), bukan `ubuntu-latest`. Label `latest` dipindah GitHub ke versi Ubuntu baru tanpa perubahan di repo, sehingga versi Docker, Git, dan library sistem bisa berubah diam-diam dan CI gagal tanpa ada commit yang menjelaskannya. Naikkan versi runner secara sengaja dalam commit tersendiri, lalu pastikan `pnpm check` tetap hijau.
+
+## Layanan lokal
+
+`docker compose up -d --wait` (`docker-compose.yml`) menjalankan:
+
+| Service | Port | Isi |
+| --- | --- | --- |
+| `postgres` | 5432 | PostgreSQL 17, data di volume `postgres-data` |
+| `firebase-auth` | 9099 | Auth Emulator, project `demo-template` |
+| `firebase-storage` | 9199 | Storage Emulator, bucket `demo-template.appspot.com` |
+
+- Kedua emulator memakai image `profil-a/firebase-emulator:local` dari `docker/firebase-emulator/Dockerfile` (firebase-tools dipin). Project Firebase `demo-*` (`.firebaserc`) agar emulator tidak pernah menyentuh project sungguhan.
+- Nilai compose diambil dari `.env` dengan default yang sama dengan `.env.example` (`${POSTGRES_DB:-template}`), sehingga compose tetap jalan tanpa `.env` (CI).
+- Setiap service punya healthcheck, sehingga `--wait` hanya selesai bila layanan benar-benar siap. Healthcheck Storage memakai list objek dengan `Bearer owner`, karena root emulator menjawab `501`.
+- `firebase.json` dan `storage.rules` di-mount ke container. Setelah diubah: `docker compose up -d --wait --force-recreate firebase-storage` (tanpa build ulang). `storage.rules` menolak semua akses client; aturan per proyek ditambahkan di sana bila client mengakses Storage langsung.
+- Data Auth Emulator hanya di memori (hilang saat container dibuat ulang); test membuat akun dengan email acak dan tidak membersihkan emulator.
+
+## Lint dan format (Biome)
+
+- Satu alat untuk lint dan format TypeScript, JavaScript, dan JSON: Biome, konfigurasi di `biome.json`.
+- Aturan lint: preset `recommended`. Format: spasi 2, lebar baris 100, LF, kutip tunggal, titik koma selalu.
+- Biome membaca `.gitignore` (`vcs.useIgnoreFile`), jadi file yang di-ignore Git tidak diperiksa.
+- `pnpm lint` untuk memeriksa, `pnpm format` untuk memperbaiki otomatis.
+- File hasil generate yang formatnya ditentukan generatornya dikecualikan lewat `files.includes` di `biome.json` (saat ini `apps/api/drizzle/meta`), agar tidak bentrok saat di-generate ulang.
+
+## Lingkungan Flutter dan Android
+
+Dicek oleh `pnpm prereq` sebagai prasyarat opsional (peringatan, bukan kegagalan); ditemukan di T-004, dipakai untuk `apps/app` sejak T-013.
+
+- **Pub cache satu drive dengan repo (Windows).** Bila repo dan pub cache beda drive (misalnya repo di `D:` dan pub cache bawaan di `%LOCALAPPDATA%\Pub\Cache`), build Android gagal saat kompilasi Kotlin plugin: `Could not close incremental caches … this and base files have different roots`. Atasi di mesin, bukan di proyek: `setx PUB_CACHE D:\pub-cache`, buka terminal baru, lalu `flutter pub get` ulang. `prereq` memperingatkan bila drive repo berbeda dengan drive `PUB_CACHE` (atau lokasi bawaannya) dan menyarankan nilai `setx` yang tepat. Jangan menambah `kotlin.incremental=false` ke `apps/app/android/gradle.properties`; pengaturan itu hanya dipakai di spike T-004 (sudah dihapus).
+- **Flutter web selalu dijalankan dengan `--web-browser-flag=--incognito`**: `flutter run -d chrome --web-port 8081 --web-browser-flag=--incognito --dart-define-from-file=config/dev.json`. Berlaku untuk setiap perintah Flutter web di README, log, dan langkah verifikasi manual. Tanpa flag ini, login dan daftar di web gagal dengan "Terjadi kesalahan. Silakan coba lagi." bila `flutter run` diulang dalam keadaan masih login. Ditemukan di uji agent `daftar-belanja` (log T-006 di repo itu). Penyebabnya:
+  1. `flutter run -d chrome` menyimpan profil Chrome antar-run di `apps/app/.dart_tool/chrome-device` (disalin kembali saat Chrome ditutup), termasuk sesi login Firebase di IndexedDB.
+  2. Saat start, SDK Firebase web memvalidasi sesi tersimpan itu (`accounts:lookup`) di dalam `Firebase.initializeApp()`, sebelum `main.dart` memanggil `useAuthEmulator()`, sehingga request terkirim ke server Google asli.
+  3. Setelah ada request pertama, SDK menolak pindah ke emulator (`auth/emulator-config-failed`), dan `firebase_auth_web` menelan error itu tanpa pesan.
+  4. Semua request auth berikutnya terkirim ke Google dengan API key dummy dan ditolak (`API key not valid`). Di konsol, `logFailure` mencatatnya sebagai `Failure unknown: firebase_auth/unknown: API key not valid…`.
+
+  Mode incognito tidak membaca dan tidak menyimpan IndexedDB profil, jadi setiap run dimulai tanpa sesi dan Auth selalu terhubung ke emulator. Muat ulang (F5) dalam run yang sama tetap mempertahankan login. Bila terlanjur menjalankan tanpa flag dan login gagal, hentikan `flutter run` lalu jalankan lagi dengan flag; sesi lama di profil diabaikan, jadi profil tidak perlu dihapus. Alternatif yang ditolak: mengisi kunci `sessionStorage` internal `firebase_auth_web` sebelum `Firebase.initializeApp()`, karena bergantung pada detail internal plugin. Android tidak terdampak.
+- **NDK dan SDK Platform Android dipasang sebelum build pertama.** Gradle bisa macet bila memasangnya sendiri. Yang dibutuhkan: NDK dan `compileSdk` bawaan Flutter (dibaca `prereq` dari `FlutterExtension.kt` di Flutter SDK; Flutter 3.47.5: NDK `28.2.13676358`, platform 36) serta platform 34 untuk plugin `firebase_core` dan `firebase_auth`. Pasang dengan `%LOCALAPPDATA%\Android\Sdk\cmdline-tools\latest\bin\android.exe sdk install ndk/<versi> platforms/android-<level>` (cmdline-tools lama: `sdkmanager "ndk;<versi>"`). `prereq` menganggap paket terpasang hanya bila isinya lengkap (`source.properties` untuk NDK, `android.jar` untuk platform), jadi folder setengah jadi ikut dilaporkan.
+
+## TypeScript
+
+- `strict` + `noUncheckedIndexedAccess`, `module`/`moduleResolution` `NodeNext`, `verbatimModuleSyntax` (`import type` untuk tipe). Konfigurasi di `apps/api/tsconfig.json`; build produksi memakai `apps/api/tsconfig.build.json` (hanya `src`, keluaran `dist/` dengan struktur sama).
+- Import relatif selalu berakhiran `.js` (`import { AppError } from '../core/http/errors.js';`), walaupun file sumbernya `.ts`.
+- Nama file kebab-case; akhiran menandai peran: `.route.ts`, `.job.ts`, `drizzle-<entity>-repository.ts`, `.test.ts`, `.int.test.ts`.
+- Lint dan format dengan Biome (lihat di atas); typecheck `pnpm --filter api typecheck`.
+
+## API
+
+- Prefix `/v1` untuk semua endpoint kecuali `/health`; resource jamak; JSON camelCase; timestamp ISO 8601 UTC berakhiran `Z`; tanggal kalender `YYYY-MM-DD`.
+- `src/app.ts` merakit app lewat `createApp(deps)` tanpa membaca `process.env`; `src/server.ts` satu-satunya tempat yang memanggil `loadEnv()` dan `serve()`. Test memakai `createTestApp()` (`test/helpers/test-app.ts`).
+- Route didefinisikan dengan `createRoute` dari `@hono/zod-openapi` dan didaftarkan lewat fungsi `registerXxxRoutes(app)` di `features/<fitur>/http/<nama>.route.ts`. Setiap route punya `operationId`; skema yang diekspor diberi nama `.openapi('Nama')`. Contoh: `apps/api/src/features/system/http/health.route.ts`.
+- Urutan middleware: `requestId` → `requestLogger` → `cors`, lalu `onError` dan `notFound`; route publik (`/health`) didaftarkan sebelum `authenticate` di `/v1/*`.
+- Dependency luar (database, verifier token) masuk lewat `AppDeps`; `createApp` merakit repository dan use case (composition root). Contoh: `apps/api/src/app.ts`.
+
+### Env
+
+- Divalidasi Zod di `apps/api/src/core/config/env.ts`. Env salah atau hilang membuat server keluar dengan exit code 1 dan pesan yang menyebut nama variabelnya.
+- Setiap variabel baru ditambahkan bersamaan ke skema `env.ts`, `.env.example`, dan `test/setup/env.ts` (default untuk test).
+- `pnpm --filter api dev` dan `start` membaca `../../.env` lewat `--env-file-if-exists`; variabel yang sudah di-set di shell menang.
+- `FIREBASE_PROJECT_ID` wajib. `FIREBASE_AUTH_EMULATOR_HOST` (`host:port`) opsional; bila di-set, firebase-admin memverifikasi token ke Auth Emulator. Ditolak bila `NODE_ENV=production`.
+- `RUN_WORKER` opsional, hanya `true` atau `false` (tidak di-set = `false`). Lihat bagian Job.
+- `PUSH_ADAPTER` (`none`/`fake`/`fcm`) dan `STORAGE_ADAPTER` (`none`/`fake`/`firebase`) opsional, default `none`; `fake` ditolak bila `NODE_ENV=production`. `FIREBASE_STORAGE_BUCKET` wajib bila `STORAGE_ADAPTER=firebase`. `FIREBASE_STORAGE_EMULATOR_HOST` (`host:port`) opsional, ditolak bila `NODE_ENV=production`. Lihat bagian Port push dan storage.
+- `CORS_ORIGINS` wajib, daftar origin dipisah koma (misalnya `http://localhost:8081` untuk Flutter web). Origin lain tidak mendapat `Access-Control-Allow-Origin`. Lihat `apps/api/src/core/http/cors.ts`.
+
+### Logger
+
+- pino, JSON ke stdout (`apps/api/src/core/logger.ts`). Di handler pakai `c.var.log` (child logger dengan `requestId`).
+- Field `authorization`/`Authorization`, `token`, `idToken`, `email`, `phone` diredaksi menjadi `[REDACTED]` sampai kedalaman 4. Field sensitif baru ditambahkan ke `SENSITIVE_KEYS` beserta test-nya.
+- Log request hanya berisi method, path (tanpa query string), status, durasi, dan `requestId`. Header tidak pernah dicatat.
+
+## Job (pg-boss)
+
+D-05: pg-boss berjalan di proses API, hanya bila `RUN_WORKER=true`. Implementasi di `apps/api/src/core/jobs/boss.ts`, contoh job di `apps/api/src/core/jobs/heartbeat.job.ts`.
+
+- Satu job adalah `JobDefinition` (`name`, `handler`, `cron` opsional) yang dibuat fungsi `xxxJob(deps)` di file `<nama>.job.ts`, lalu didaftarkan di array `jobs` pada `startBoss()` di `src/server.ts`. Job milik fitur ditaruh di `features/<fitur>/jobs/`; `core/jobs` hanya untuk job sistem.
+- Nama queue `<area>.<aksi>` (`system.heartbeat`). Jadwal cron 5 field, zona UTC (`*/5 * * * *`).
+- `startBoss()` mengembalikan `null` tanpa membuka koneksi bila `runWorker` false. Bila true: start, lalu untuk setiap job `createQueue`, `schedule` (bila ada `cron`), dan `work`. Gagal di tengah jalan menghentikan pg-boss lalu melempar ulang error; `server.ts` keluar dengan exit code 1.
+- pg-boss memakai pool sendiri dari `DATABASE_URL` dan schema `pgboss` (dibuat pg-boss, bukan migrasi Drizzle). Listener `error` selalu dipasang dan menulis ke log.
+- Handler menerima array job (`Job<T>[]`) dan memakai logger yang diteruskan ke fungsi job, dengan field `job` dan `jobId`.
+
+### Shutdown
+
+`createShutdown()` di `apps/api/src/core/shutdown.ts`, dipasang untuk `SIGINT` dan `SIGTERM` di `src/server.ts`. Urutan:
+
+1. `server.close()`: tolak koneksi baru dan tunggu request yang sedang berjalan. Koneksi keep-alive yang idle ditutup setiap 100 ms; tanpa itu Node menunggu `keepAliveTimeout` (beberapa detik).
+2. `boss.stop({ graceful: true })`: tunggu job yang sedang berjalan.
+3. Tutup koneksi lain di `closers` (pool database, firebase-admin). Koneksi baru yang perlu ditutup saat shutdown ditambahkan di sini.
+4. `exit(0)`; bila ada langkah yang gagal, error dicatat, langkah berikutnya tetap jalan, dan exit code 1. Sinyal kedua tidak memulai shutdown baru.
+
+Test: `test/int/jobs/boss.int.test.ts` (start, jadwal, job diproses, `RUN_WORKER` mati), `test/int/jobs/shutdown.int.test.ts` (urutan dengan server HTTP dan pg-boss sungguhan, fungsi shutdown dipanggil langsung tanpa sinyal). Koneksi pg-boss di `pg_stat_activity` memakai `application_name` `pgboss:<id>`.
+
+## Autentikasi
+
+- Semua route `/v1/*` dilindungi middleware `authenticate` (`apps/api/src/core/auth/authenticate.ts`) yang dipasang sekali di `app.ts` (`app.use('/v1/*', …)`); route tidak memasang auth sendiri. Route publik hanya di luar `/v1` dan wajib didaftarkan di `PUBLIC_ROUTES` pada `test/int/security/all-routes-require-auth.int.test.ts`.
+- Header `Authorization: Bearer <ID token>`. Header tidak ada atau bukan Bearer → `401` `Missing bearer token`; token tidak valid, kedaluwarsa, atau untuk project lain → `401` `Invalid or expired token`. Kegagalan verifikasi yang bukan kesalahan token (`auth/internal-error`, misalnya sertifikat Google tidak bisa diambil) → `500`.
+- Penolakan token dicatat `authenticate` di level `warn` dengan pesan `rejected ID token` dan field `reason` berisi kode error firebase-admin (`auth/id-token-expired`, `auth/argument-error`, `auth/id-token-revoked`, …), agar penyebab `401` bisa didiagnosis dari log. Hanya `code` yang dicatat, tidak pernah token, klaimnya, atau `message` firebase-admin (pesan itu bisa mengutip klaim `aud`/`iss`/`sub`). Header yang tidak ada atau bukan Bearer tidak dicatat. Dijaga `test/unit/core/auth/authenticate.test.ts` dan `test/int/users/me.int.test.ts` › mencatat kode error firebase-admin.
+- Verifikasi lewat port `TokenVerifier` (`core/auth/firebase-admin.ts`), implementasinya `createFirebaseTokenVerifier(auth)`. `verify(token)` mengembalikan `{ ok: true, identity }` atau `{ ok: false, reason }` (token ditolak, `reason` = kode error firebase-admin); `auth/internal-error` dan error selain `FirebaseAuthError` dilempar ulang (→ `500`). firebase-admin diinisialisasi dengan `projectId` saja (tanpa service account) lewat `createFirebaseAdmin(projectId)` dengan nama app unik.
+- Setelah token valid, use case `syncUser` (`features/users/usecases/sync-user.ts`) melakukan upsert `users` (`ON CONFLICT (firebase_uid)`) dengan email lowercase, `display_name` dari klaim `name`, dan `last_seen_at`; token adalah sumber kebenaran email dan nama. Hasilnya tersedia di handler sebagai `c.var.user` (entity `User`).
+- Route terautentikasi memakai `security: bearerSecurity` dan `401: errorResponse(…)` di `createRoute`. Contoh: `apps/api/src/features/users/http/me.route.ts`.
+
+## Port push dan storage
+
+D-06: layanan luar yang tidak punya emulator atau aturannya berbeda per proyek dipakai lewat port (interface) di `apps/api/src/core/ports/`, dengan adapter di `core/ports/adapters/`. Use case hanya mengimpor port, tidak pernah firebase-admin.
+
+- Adapter `none` (`adapters/none.ts`) adalah default bila env adapter tidak di-set: server tetap start, tetapi setiap pemakaian port melempar `PortNotConfiguredError` yang menyebut env yang harus di-set (`PushSender is not configured: set PUSH_ADAPTER to fcm or fake`). Di route, error ini menjadi `500 INTERNAL_ERROR` dan pesannya tercatat di log. Proyek yang tidak memakai push atau storage cukup membiarkannya `none`.
+- Adapter `fake` hanya untuk development dan test; `loadEnv()` menolaknya bila `NODE_ENV=production` (sama seperti host emulator), sehingga server tidak start.
+- `PushSender.send({ token, title, body, data? })` (`push-sender.ts`) → `{ status: 'sent', messageId }` atau `{ status: 'invalid-token' }` (token tidak terdaftar atau formatnya salah; pemanggil menghapus token itu). Kegagalan lain dilempar. Adapter: `fake-push.ts` (mencatat pesan di `sent`, `markInvalid(token)` untuk mensimulasikan token mati) dan `fcm-push.ts` (firebase-admin messaging; tidak ada emulator FCM, jadi hanya diuji dengan mock; di produksi butuh Application Default Credentials).
+- `FileStorage` (`file-storage.ts`): `save(path, data, { contentType })` menimpa file lama, `read(path)` → `{ data, contentType }` atau `null`, `delete(path)` tidak error bila file tidak ada. Adapter: `fake-storage.ts` (di memori, `paths()` untuk test) dan `firebase-storage.ts` (bucket firebase-admin; memakai Storage Emulator bila `FIREBASE_STORAGE_EMULATOR_HOST` di-set). Akses lewat firebase-admin tidak terikat `storage.rules`.
+- Path file relatif dengan segmen dipisah `/` (`users/<id>/avatar.png`), divalidasi `assertValidFilePath` di setiap adapter: tanpa `/` di awal atau akhir, segmen kosong, `.`/`..`, backslash, karakter kontrol, maksimal 1024 karakter. Path tidak valid → `InvalidFilePathError` sebelum ada request ke Storage.
+- Adapter dipilih dari env oleh `createPorts(env, firebaseApp)` (`core/ports/create-ports.ts`) di `src/server.ts`, lalu masuk ke `createApp` lewat `AppDeps.ports` untuk dirakit ke use case. Klien firebase-admin hanya dibuat untuk adapter yang dipakai. Server mencatat adapter yang dipilih di log `API listening`.
+- Test: `createTestApp()` memakai kedua adapter palsu; test yang perlu memeriksa pesan atau file memberi `ports` sendiri. Integration test Storage Emulator di `test/int/ports/firebase-storage.int.test.ts` memakai prefix acak per run dan menghapus file-nya sendiri (emulator tidak dibersihkan).
+- Layanan luar baru (email, SMS, pembayaran) mengikuti pola yang sama: port + adapter `none` (default, melempar saat dipakai) + adapter `fake` (ditolak di produksi) + adapter sungguhan + pilihan `XXX_ADAPTER` di env.
+
+## Pagination
+
+Helper di `apps/api/src/core/http/pagination.ts`. Contoh route: `listNotesRoute` di `apps/api/src/features/notes/http/notes.route.ts`; contoh repository: `listByUser` di `features/notes/infrastructure/drizzle-note-repository.ts`.
+
+- Query `?limit=20&cursor=<opaque>`: pakai `PaginationQuerySchema` sebagai `request.query`, atau `PaginationQuerySchema.extend({ ... })` bila route punya filter. `limit` 1–100, default 20. Handler menerima `cursor` yang sudah di-decode (`{ createdAt, id }` atau `undefined`).
+- Cursor rusak → `422 VALIDATION_ERROR` dengan `details.cursor` (`custom`, `Invalid cursor`). Hanya bentuk kanonis hasil `encodeCursor` yang diterima.
+- Respons `{ items, nextCursor }` dengan skema `pageSchema(ItemSchema, '<Item>Page')`; nama kedua menjadi nama komponen OpenAPI dan kelas Dart. `nextCursor` `null` di halaman terakhir.
+- Cursor adalah base64url dari `createdAt|id`, urutan `created_at DESC, id DESC`. Repository mengambil `limit + 1` baris dengan kondisi `(created_at, id) < (cursor.createdAt, cursor.id)`, lalu `buildPage(rows, limit, positionOf)` membuang baris tambahan dan membentuk `nextCursor`.
+- **Presisi timestamp.** Semua timestamp berpresisi milidetik (lihat Database), sama dengan `Date`, jadi repository memberi `positionOf` nilai `createdAt` (`Date`) dari baris apa adanya dan membandingkan `(created_at, id) < (${cursor.createdAt}::timestamptz, ${cursor.id}::uuid)`. Baris yang jatuh di milidetik yang sama diurutkan `id DESC` tanpa duplikat (dijaga `test/int/notes/notes.int.test.ts` › tidak ada duplikat bila beberapa note jatuh di milidetik yang sama). Decoder cursor tetap menerima 0–6 digit pecahan.
+- Index pagination per pemilik: `index(...).on(table.userId, table.createdAt.desc().nullsFirst(), table.id.desc().nullsFirst())`. `nullsFirst()` wajib: tanpa itu Drizzle menulis `DESC NULLS LAST`, yang tidak cocok dengan `ORDER BY ... DESC`, sehingga PostgreSQL tetap melakukan `Sort` (dicek dengan `EXPLAIN` di `test/int/notes/notes-schema.int.test.ts`).
+- Jangan menambah `.openapi()` pada `limit`: override itu menghapus `minimum`, `maximum`, dan `default` dari OpenAPI (dijaga test).
+
+## Database
+
+- Drizzle ORM + `pg` (node-postgres). Skema di `apps/api/src/db/schema/`, satu file per tabel, diekspor ulang dari `schema/index.ts`. Contoh: `apps/api/src/db/schema/users.ts`.
+- Tabel snake_case jamak; properti TypeScript camelCase dengan nama kolom ditulis eksplisit (`firebaseUid: text('firebase_uid')`).
+- Kolom bersama dari `schema/columns.ts`: `id()` (`uuid` default `gen_random_uuid()`), `createdAt()`, `updatedAt()` (`$onUpdate`, hanya berlaku lewat `db.update()` Drizzle), `timestamptz(nama)` untuk timestamp lain. Kolom `date` memakai `mode: 'string'`.
+- **Timestamp yang ditulis server diisi jam database (`now()`), tidak pernah `new Date()` host.** `defaultNow()` dan `$onUpdate(() => sql\`now()\`)` di `updatedAt()` memakai jam yang sama, jadi `updated_at` tidak pernah lebih kecil dari `created_at` atau nilai sebelumnya walau jam host API dan database berselisih. Hal yang sama berlaku untuk `set` manual (`updatedAt: sql\`now()\``, contoh: `apps/api/src/features/users/infrastructure/drizzle-user-repository.ts`) dan SQL mentah. Di dalam transaksi `now()` bernilai tetap (waktu mulai transaksi). Dijaga `test/int/db/schema.int.test.ts` › updated_at dari update() Drizzle memakai now() database.
+- **Semua timestamp presisi milidetik:** `timestamptz(3)` dengan `mode: 'date'`, selalu lewat helper di `schema/columns.ts`, tidak pernah `timestamp(...)` langsung. `Date` di JavaScript hanya milidetik, jadi nilai di database, entity, respons API, dan cursor pagination selalu sama persis; nilai yang lebih presisi dibulatkan PostgreSQL ke milidetik. Dijaga `test/int/db/schema.int.test.ts` › semua kolom timestamp di schema public berpresisi milidetik (tabel baru otomatis ikut diperiksa). Akibatnya dua penulisan bisa mendapat timestamp yang sama: test yang membandingkan `updated_at` sebelum dan sesudah update mengisi nilai awal di masa lalu, bukan mengandalkan `toBeGreaterThan` antara dua `now()`.
+- Constraint dan index diberi nama eksplisit `<tabel>_<kolom>_<jenis>` (`users_firebase_uid_unique`, `users_email_lowercase_check`, `notes_title_length_check`, `notes_user_id_fk`, `notes_user_id_created_at_id_index`) agar test dan penanganan error bisa merujuknya. Foreign key ditulis dengan `foreignKey({ name, columns, foreignColumns })`, bukan `.references()`, karena nama bawaan Drizzle tidak mengikuti pola ini. Enum ditulis sebagai `text` + `check`. Contoh: `apps/api/src/db/schema/notes.ts`.
+- Data milik user memakai `user_id` FK ke `users.id` `ON DELETE CASCADE`. Batas panjang teks ditegakkan dengan CHECK `char_length(...)` selain skema Zod route; batas Zod sama atau lebih ketat (Zod menghitung UTF-16 code unit, `char_length` menghitung karakter), jadi input yang lolos Zod tidak pernah melanggar CHECK.
+- Migrasi: ubah skema → `pnpm --filter api db:generate --name <ringkas>` → commit file `apps/api/drizzle/NNNN_<ringkas>.sql` beserta `meta/`. Migrasi yang sudah di-commit tidak diedit. `db:generate` tanpa perubahan skema harus mencetak `No schema changes`.
+- `pnpm --filter api db:migrate` (`src/db/migrate.ts`) menerapkan migrasi ke `DATABASE_URL`; idempoten. Hanya butuh `DATABASE_URL` (`loadDatabaseUrl()`), bukan seluruh env server.
+- Koneksi dibuat lewat `createDb(url)` dari `src/db/client.ts` (mengembalikan `{ db, pool, close }`).
+- Tabel pg-boss ada di schema `pgboss`, dikelola pg-boss sendiri, bukan lewat migrasi Drizzle.
+
+## Format error
+
+Implementasi di `apps/api/src/core/http/errors.ts` dan `error-codes.ts`. Semua error memakai satu bentuk:
+
+```json
+{ "error": { "code": "VALIDATION_ERROR", "message": "Request validation failed", "details": { "title": [ { "code": "too_small", "message": "Too small: expected string to have >=1 characters" } ] } } }
+```
+
+| ErrorCode | HTTP | Kapan |
+| --- | --- | --- |
+| `BAD_REQUEST` | 400 | JSON rusak atau request tidak bisa diproses |
+| `UNAUTHENTICATED` | 401 | Header `Authorization` tidak ada, token tidak valid, atau kedaluwarsa |
+| `FORBIDDEN` | 403 | User terautentikasi tetapi tidak berhak (aturan peran di proyek) |
+| `NOT_FOUND` | 404 | Resource tidak ada, atau milik user lain (D-07) |
+| `CONFLICT` | 409 | Pelanggaran keunikan atau state |
+| `VALIDATION_ERROR` | 422 | Validasi Zod gagal pada body, path, atau query |
+| `INTERNAL_ERROR` | 500 | Error tak terduga; pesan asli tidak pernah dikirim ke client |
+
+`code` stabil dan menjadi dasar teks untuk user di Flutter (D-03). Daftar `ErrorCode` diekspor ke OpenAPI sebagai enum, sehingga client Dart punya daftar yang sama. Kode baru ditambahkan ke `error-codes.ts` (beserta status HTTP-nya), lalu `pnpm contract:generate`, lalu dipetakan di `failureCodeOf` dan `failure_messages.dart` di Flutter.
+
+- Lempar `new AppError('NOT_FOUND', 'Note not found')` dari use case atau middleware; status HTTP diturunkan dari `code`. `message` bahasa Inggris untuk developer. `AppError` tidak membawa `details`.
+- `details` hanya untuk `VALIDATION_ERROR` (`ValidationError`). Validasi Zod di route ditangani otomatis oleh `defaultHook`; validasi manual di luar route memakai `new ValidationError(validationDetails(issues, input))`.
+- Kunci `details`: path digabung titik (`items.0.name`), `_root` bila tanpa path (body bukan objek, `refine` di level objek). Nilai: array `{ code, message }` dengan kode issue Zod (`invalid_type`, `too_small`, `too_big`, `invalid_format`, `custom`, …), kecuali field yang tidak dikirim (`undefined` di input mentah) memakai `{ code: 'required', message: 'Required' }`. Field yang dikirim `null` tetap `invalid_type`.
+- `HTTPException` 4xx dari Hono dipetakan ke `ErrorCode` menurut status (JSON rusak → `400 BAD_REQUEST`; 4xx lain yang tidak ada di daftar → `BAD_REQUEST`). Error lain dan 5xx → `500 INTERNAL_ERROR` dengan pesan umum; error aslinya dicatat di log.
+- Respons error di OpenAPI memakai `errorResponse('deskripsi')` agar semua route merujuk komponen `ErrorBody` → `ApiError` → `ErrorIssue`, `ErrorCode`.
+
+## Test API
+
+- Unit test di `apps/api/test/unit/`, mengikuti struktur `src/` (`src/core/http/errors.ts` → `test/unit/core/http/errors.test.ts`). Dijalankan `pnpm --filter api test`.
+- Integration test di `apps/api/test/int/<area>/` dengan akhiran `.int.test.ts`, dijalankan `pnpm --filter api test:int` (butuh `docker compose up -d --wait`). Contoh: `test/int/db/schema.int.test.ts`.
+- Global setup `test/setup/db.ts` membuat ulang database `<nama database DATABASE_URL>_test` (default `template_test`) setiap run dan menjalankan migrasi yang di-commit. Database utama hanya dipakai untuk `DROP`/`CREATE DATABASE`; datanya tidak disentuh. Bila PostgreSQL tidak bisa dihubungi, pesan error menyebut Docker.
+- Setiap file integration test memanggil `const getDb = useTestDb();` (`test/helpers/db.ts`) di level atas: membuka pool ke database test dan men-`TRUNCATE` semua tabel `public` sebelum setiap test. File berjalan berurutan (`fileParallelism: false`).
+- Pelanggaran constraint diperiksa lewat SQLSTATE dan nama constraint (`23505` unique, `23514` check, `23503` FK).
+- `test/setup/env.ts` mengisi env default test tanpa menimpa nilai dari shell.
+- `createTestApp()` memakai `db` yang belum terkoneksi dan `rejectAllTokens`, jadi unit test tidak butuh Docker. Integration test yang butuh login memberi `db: getDb().db` dan `tokenVerifier: createEmulatorTokenVerifier()`.
+- Token login dibuat lewat Auth Emulator dengan `signUp()` / `updateAccount()` dari `test/helpers/emulator-token.ts` (email acak, emulator tidak dibersihkan). Token kedaluwarsa atau untuk project lain dibuat dengan `unsignedIdToken({ exp, aud, … })`. Contoh: `test/int/users/me.int.test.ts`.
+- Test HTTP memanggil `app.request()` pada `createTestApp()`, bukan server sungguhan. Route khusus test didaftarkan di app hasil `createTestApp()` di dalam file test-nya (contoh: `test/unit/core/http/errors.test.ts`).
+- Log diperiksa dengan `captureLogger()` (`test/helpers/capture-logger.ts`): logger yang menampung setiap baris JSON di `lines`, dengan `raw()` untuk memastikan nilai sensitif tidak muncul. Berikan ke `createTestApp({ logger })`. Contoh: `test/unit/core/logger.test.ts`, `test/unit/core/auth/authenticate.test.ts`.
+- Setiap use case punya unit test dengan repository palsu di memori yang meniru perilaku implementasi Drizzle (pembatasan pemilik, urutan, cursor). Repository palsu fitur ditaruh di `test/unit/features/<fitur>/fake-<nama>-repository.ts` (bukan `*.test.ts`, jadi tidak dijalankan sendiri). Contoh: `test/unit/features/notes/fake-note-repository.ts`, `test/unit/features/notes/usecases/*.test.ts`.
+- Unit test route memeriksa pemetaan DTO dan dokumen OpenAPI (operationId, security, status, nama skema); perilaku route yang butuh login diuji di integration test. Contoh: `test/unit/features/notes/http/notes.route.test.ts`, `test/int/notes/notes.int.test.ts`.
+- Unit test yang menjalankan proses anak (`spawnSync`) memberi timeout per test lebih besar dari `timeout` proses anaknya, bukan menaikkan `testTimeout` global; start dingin `tsx` di Windows bisa lebih dari 5 detik bawaan Vitest. Contoh: `test/unit/server.test.ts`.
+- Integration test yang memeriksa keadaan server PostgreSQL (`pg_stat_activity` dan sejenisnya) membatasi ke `datname = current_database()`, karena API dev bisa berjalan bersamaan di database utama. Contoh: `test/int/jobs/boss.int.test.ts`.
+- Tidak ada retry otomatis untuk test yang gagal acak; cari dan perbaiki penyebabnya (output lengkap di `.check-logs/`).
+- Keadaan awal integration test dibuat dengan `insertUser`, `insertNote`, `insertNotes` dari `test/helpers/factories.ts`; data yang diuji lewat HTTP tetap dibuat lewat route. Integration test yang butuh `userId` login memanggil `GET /v1/me` dulu (helper `login()` di `test/int/notes/notes.int.test.ts`).
+
+## Clean Architecture API
+
+Contoh lengkap: `apps/api/src/features/notes/` (fitur CONTOH yang ditiru lalu dihapus di proyek).
+
+```
+features/<fitur>/
+├── domain/<entity>.ts                         # entity, input, interface repository; tanpa import Hono/Drizzle
+├── usecases/<aksi>-<entity>.ts                # satu use case per file
+├── infrastructure/drizzle-<entity>-repository.ts
+└── http/<fitur>.route.ts                      # skema Zod, createRoute, DTO, registerXxxRoutes
+```
+
+- Arah dependency: `http` → `usecases` → `domain` ← `infrastructure`. Use case hanya mengimpor `domain`, `AppError` (`core/http/errors.ts`), port (`core/ports`), dan tipe `Page`/`CursorPosition` (`core/http/pagination.ts`); tidak pernah Hono, Drizzle, atau firebase-admin.
+- Use case adalah fungsi pabrik `xxxNote({ notes })` yang mengembalikan fungsi, dengan tipe `export type XxxNote = ReturnType<typeof xxxNote>`. Dependency (repository, port, `now`) masuk lewat objek pertama agar test bisa memberi versi palsu. Contoh: `features/notes/usecases/get-note.ts`.
+- Entity domain memakai `Date` untuk timestamp. Konversi ke JSON (`toISOString()`, membuang field internal seperti `userId`) hanya di `http` lewat fungsi `toXxxDto`.
+- Repository dibatasi pemilik: setiap metode menerima `userId` dan memfilter `user_id` di query yang sama (bukan ambil dulu lalu cek), lalu mengembalikan `null`/`false` bila tidak ada atau milik user lain. Use case mengubahnya menjadi `AppError('NOT_FOUND', ...)` (D-07: `404`, bukan `403`).
+- `createApp()` di `src/app.ts` adalah composition root: buat repository dari `db`, rakit use case, lalu `registerXxxRoutes(app, { ...useCases })`. Route menerima use case lewat parameter, bukan membuatnya sendiri.
+- Route: path param `id` divalidasi `z.uuid()` (bukan UUID → `422 details.id`); body POST/PATCH memakai `request.body.required: true`; PATCH memakai skema dengan semua field opsional + `.refine()` minimal satu field (→ `details._root`); `DELETE` mengembalikan `c.body(null, 204)`. Skema request dan respons diberi nama `.openapi('Note')`, `'CreateNoteInput'`, `'UpdateNoteInput'`, `'NotePage'`.
+- Teks wajib yang tidak boleh kosong memakai `.trim()` sebelum `.min()`/`.max()` (`z.string().trim().min(1).max(TITLE_MAX)`): teks berisi spasi saja → `422` `too_small`, nilai yang disimpan sudah dirapikan, dan panjang dihitung setelah dirapikan. Contoh: `Title` di `features/notes/http/notes.route.ts`, dijaga `test/int/notes/notes.int.test.ts`.
+
+### Pola lanjutan API (belum ada file contoh di template)
+
+Ditemukan saat fitur proyek pertama dibangun dari template; fitur notes tidak memakainya. Proyek yang pertama memakai pola ini mencatat filenya di sini sebagai file contoh.
+
+- **Pelanggaran keunikan → `409 CONFLICT`.** Keunikan ditegakkan constraint database bernama (`<tabel>_<kolom>_unique`, misalnya unique index `(user_id, lower(name))` untuk nama unik per user tanpa membedakan huruf besar-kecil), bukan cek "ambil dulu lalu insert" yang rawan balapan. Repository menangkap SQLSTATE `23505` dengan nama constraint itu dan melempar error domain yang didefinisikan di `domain/<entity>.ts`; use case mengubahnya menjadi `AppError('CONFLICT', …)`. Repository tidak mengimpor `AppError`, dan use case tidak mengenal kode PostgreSQL. Error lain dilempar ulang apa adanya. Interface repository di `domain/` menyebut error itu di komentar metodenya.
+
+  ```ts
+  // domain/<entity>.ts
+  export class ItemNameTakenError extends Error {
+    constructor() {
+      super('Item name already exists');
+      this.name = 'ItemNameTakenError';
+    }
+  }
+
+  // infrastructure/drizzle-<entity>-repository.ts: bungkus insert dan update.
+  // Drizzle membungkus error `pg` di `cause`.
+  async function mapNameTaken<T>(query: PromiseLike<T>): Promise<T> {
+    try {
+      return await query;
+    } catch (error) {
+      const pg = (error as { cause?: unknown }).cause ?? error;
+      const { code, constraint } = pg as { code?: string; constraint?: string };
+      if (code === '23505' && constraint === 'items_user_id_name_unique') {
+        throw new ItemNameTakenError();
+      }
+      throw error;
+    }
+  }
+
+  // usecases/create-<entity>.ts
+  try {
+    return await items.create(input);
+  } catch (error) {
+    if (error instanceof ItemNameTakenError) throw new AppError('CONFLICT', 'Item name already exists');
+    throw error;
+  }
+  ```
+
+  Test: unit test use case dengan repository palsu yang melempar error domain yang sama; integration test untuk tambah dan ubah dengan nama yang sudah ada → `409`, termasuk beda huruf besar-kecil bila berlaku. Di Flutter, `CONFLICT` sampai sebagai `FailureCode.conflict` (lihat Teks kegagalan khusus fitur di field).
+- **Endpoint aksi non-CRUD** (aksi atas banyak resource sekaligus, misalnya "hapus semua yang selesai"): `POST /v1/<resource>/<aksi>` dengan aksi kebab-case, `operationId` kata kerja camelCase (`clearDoneItems`). Respons skema bernama `<Operasi>Result` dengan huruf pertama kapital (`.openapi('ClearDoneItemsResult')`, berisi misalnya `{ deletedCount }`), sehingga kelas Dart-nya bernama sama. Aksi yang tidak menemukan apa pun tetap `200` (idempoten, `deletedCount: 0`), bukan `404`. Route tanpa body dan tanpa param hanya mendokumentasikan `401`. Repository menjalankan aksi dalam satu query yang dibatasi pemilik (`DELETE … WHERE user_id = $1 AND … RETURNING id`).
+
+### Aturan bisnis: API vs client
+
+- Aturan bisnis (wajib diisi, batas panjang, keunikan, hak akses, minimal satu field) ditegakkan di API: skema Zod route, use case, dan constraint database. API adalah satu-satunya sumber kebenaran dan harus aman walau client mengirim input apa pun.
+- Client (Flutter) boleh menormalisasi input sebelum dikirim (misalnya `trim` judul atau email) dan boleh menampilkan validasi lokal yang sama dengan API untuk umpan balik cepat, tetapi **tidak boleh lebih ketat dari API**: input yang diterima API tidak boleh ditolak client. Bila aturan berubah, ubah API dulu; error validasi API (`details`) tetap ditampilkan per field.
+
+### Organisasi dan tenancy (pola, belum ada di template)
+
+D-11: template hanya mengenal "user yang login" dengan data milik user (`notes.user_id`). Proyek yang butuh organisasi, tim, atau peran memakai pola berikut. Belum ada file contohnya; tiru fitur notes dengan `user_id` diganti `organization_id`, dan catat implementasi pertamanya di sini sebagai file contoh.
+
+- Tabel `organizations` (`id`, `name`, timestamp) dan `memberships` (`organization_id` dan `user_id`, keduanya FK `ON DELETE CASCADE`; `role` sebagai `text` + CHECK, misalnya `owner`/`admin`/`member`; UNIQUE `(organization_id, user_id)`). Data milik organisasi memakai `organization_id` FK `ON DELETE CASCADE`, dengan index pagination `(organization_id, created_at DESC, id DESC)`.
+- Path bersarang `/v1/organizations/{organizationId}/<resource>`, sehingga tetap di bawah `authenticate`. Middleware keanggotaan di `/v1/organizations/:organizationId/*` membaca membership user login dan menaruhnya di context (`c.var.membership`); `organizationId` yang bukan UUID → `422 details.organizationId`.
+- Bukan anggota → `404 NOT_FOUND` (sama dengan resource milik user lain, D-07). Anggota dengan peran yang tidak cukup → `403 FORBIDDEN`. Pemeriksaan peran ada di use case (`AppError('FORBIDDEN', …)`), bukan di route, agar teruji di unit test.
+- Repository dibatasi organisasi dengan cara yang sama seperti dibatasi pemilik: setiap metode menerima `organizationId` dan memfilternya di query yang sama.
+- Integration test minimal: bukan anggota → `404`, peran kurang → `403`, anggota organisasi lain tidak melihat data. Route baru otomatis diperiksa `all-routes-require-auth.int.test.ts`.
+- Organisasi "aktif" di Flutter disimpan di state presentation (bukan di token) dan dikirim sebagai path, bukan header.
+
+## Kontrak dan client Dart
+
+D-01, D-02: route Hono adalah satu-satunya sumber kebenaran. `packages/contract/openapi.json` (OpenAPI 3.1) dan package Dart `api_client` di `packages/contract/dart/` adalah hasil generate yang di-commit; jangan diedit manual.
+
+- `pnpm contract:generate` (`scripts/contract.mjs`): `apps/api/scripts/export-openapi.ts` menulis `openapi.json` dari `createApp()` (tanpa `.env`, Docker, atau koneksi database), lalu `dart pub get`, hapus `dart/lib/src/api/`, `dart run swagger_parser`, `dart run build_runner build`, dan `dart analyze`. Jalankan setiap kali route atau skema Zod berubah, lalu commit hasilnya bersama perubahan route.
+- `pnpm contract:check`: generate ulang di salinan sementara (working tree tidak disentuh), lalu membandingkan byte per byte `openapi.json` dan semua file di `dart/lib/src/api/`. Gagal (exit 1) dengan daftar file yang berbeda, belum ada di repo, atau tidak lagi dihasilkan generator.
+- `openapi.json` diformat Biome setelah export (lewat stdin, memakai `biome.json`), sehingga `pnpm lint` bersih dan hasilnya deterministik.
+- File Dart hasil generate **tidak** diformat ulang (`dart format` tidak dijalankan pada `lib/src/api/`); `contract:check` membandingkan hasil generate apa adanya. Hasilnya deterministik selama versi generator sama, karena itu `dart/pubspec.lock` di-commit.
+- Yang ditulis tangan di package: `pubspec.yaml`, `swagger_parser.yaml`, `lib/api_client.dart` (mengekspor `src/api/export.dart`), dan `test/api_client_test.dart`. Test dijalankan dengan `dart test` di `packages/contract/dart`.
+- Nama komponen OpenAPI menjadi nama kelas Dart: setiap skema request, respons, dan objek bersarang yang penting diberi `.openapi('Nama')`. Tanpa nama, swagger_parser membuat nama sendiri (objek error tanpa nama menjadi kelas `Error` yang menutupi `dart:core`). Satu tag OpenAPI menjadi satu client (`NotesClient`, `UsersClient`, `SystemClient`), dirangkum `ApiClient`.
+- `ErrorCode` menjadi enum Dart dengan nilai `$unknown` untuk kode yang belum dikenal (`unknown_enum_value: true`); Flutter memetakan `$unknown` ke teks umum. Respons error sampai di dio sebagai `DioException` dengan `response.data` berupa `Map`, dibaca dengan `ErrorBody.fromJson`.
+- Field opsional yang `null` tidak dikirim di body request (`include_if_null: true` di `swagger_parser.yaml` → `@JsonKey(includeIfNull: false)`), karena API menolak `null` pada field `optional()` (`invalid_type`). Field wajib yang nullable (`nextCursor`, `User.email`) tetap ditulis sebagai `null`. Dijaga `packages/contract/dart/test/api_client_test.dart` dan `apps/app/test/features/notes/data/note_remote_data_source_test.dart`.
+- Waktu: `build_runner` pertama ~35–45 detik (kompilasi builder; juga berlaku untuk `contract:check` bila `dart/.dart_tool` belum ada, misalnya di CI). Setelah itu `contract:check` ~6 detik karena `.dart_tool` ikut disalin ke folder sementara.
+
+## Image produksi API
+
+`apps/api/Dockerfile` (multi-stage di atas `node:24-trixie-slim`, pnpm lewat `corepack enable`) membangun image berisi `dist/` hasil `pnpm --filter api build`, folder `drizzle/`, dan dependency produksi saja. Cara build dan menjalankan ada di README, bagian "Image produksi API".
+
+- Build selalu dari root repo: `docker build -f apps/api/Dockerfile -t profil-a/api:local .`
+- `.dockerignore` di root berbentuk allowlist (`*` lalu `!…`), jadi `.env` dan `node_modules` lokal tidak pernah ikut. File baru yang dibutuhkan build (misalnya folder di luar `apps/api/src` dan `apps/api/drizzle`) wajib ditambahkan di sana.
+- Dependency produksi baru otomatis ikut lewat `pnpm install --prod --filter api`; dependency yang hanya dipakai test atau tool masuk `devDependencies` agar tidak ikut image.
+- Migrasi selalu dijalankan sebagai perintah terpisah sebelum server, dengan image yang sama: `node dist/db/migrate.js`. Server (`node dist/server.js`) tidak menjalankan migrasi sendiri.
+- Image berjalan sebagai user `node` dengan `NODE_ENV=production`, sehingga host emulator dan adapter `fake` ditolak `loadEnv()`. `HEALTHCHECK` memanggil `/health` dengan `fetch` Node; `SIGTERM` menjalankan shutdown bertahap.
+
+## Flutter
+
+Aplikasi di `apps/app` (package `app`, platform web, Android, iOS), dibuat dengan `flutter create --empty`. Lint `flutter_lints` + `strict-casts`, `strict-inference`, `strict-raw-types`, `always_use_package_imports`, `prefer_single_quotes` (`analysis_options.yaml`); format dengan `dart format` (lebar bawaan 80). `flutter analyze` dan `flutter test` dijalankan di `apps/app`.
+
+- **iOS belum terverifikasi.** Folder `apps/app/ios` disertakan, tetapi belum pernah di-build atau dijalankan karena template dikembangkan di Windows (build iOS butuh macOS dan Xcode); yang sudah diverifikasi hanya web dan Android. Opsi verifikasi tanpa Mac: job CI terpisah di runner macOS GitHub Actions (misalnya `runs-on: macos-15`, versi Flutter sama dengan job `check`) yang menjalankan `flutter build ios --simulator --dart-define-from-file=config/dev.json` di `apps/app`. Build simulator tidak butuh signing; menit runner macOS dihitung lebih mahal daripada Linux, jadi jalankan hanya pada pull request ke `master` atau lewat `workflow_dispatch`. Proyek yang menargetkan iOS mencatat hasil verifikasi pertamanya di sini.
+
+```
+lib/
+├── main.dart                 # config → Firebase → useAuthEmulator → tunggu authStateChanges().first → configureDependencies → runApp
+├── app.dart                  # MaterialApp.router: tema, locale id, router
+└── core/
+    ├── config/app_config.dart
+    ├── di/injection.dart
+    ├── error/                # failure.dart, result.dart, failure_log.dart
+    ├── l10n/                 # app_locale.dart, failure_messages.dart
+    ├── network/              # create_dio.dart, auth_interceptor.dart, token_provider.dart, error_mapper.dart, api_call.dart
+    ├── router/app_router.dart
+    ├── theme/app_theme.dart
+    └── widgets/              # failure_view.dart, load_more_footer.dart (dipakai lebih dari satu fitur)
+```
+
+Widget yang dipakai lebih dari satu fitur ditaruh di `lib/core/widgets/`, tanpa mengimpor fitur mana pun (menerima nilai biasa seperti `Failure` dan `bool`, bukan state Cubit fitur). Fitur tidak mengimpor widget fitur lain; bila widget fitur dibutuhkan fitur kedua, pindahkan ke `core/widgets/` (beserta test-nya di `test/core/widgets/`) dalam task yang sama, bukan disalin.
+
+Arah dependency (Clean Architecture): `presentation` (widget + Cubit) → `domain` ← `data`. `domain` berisi Dart murni: tidak mengimpor Flutter, dio, firebase, atau `api_client`. State Cubit adalah sealed class Dart 3. Teks UI Bahasa Indonesia.
+
+Fitur di `lib/features/<fitur>/` (contoh lengkap: `features/auth/`):
+
+```
+features/auth/
+├── auth_dependencies.dart    # registerAuthDependencies(GetIt), dipanggil configureDependencies
+├── domain/
+│   ├── entities/             # auth_user.dart (Dart murni + equatable)
+│   ├── repositories/         # auth_repository.dart (abstract interface class)
+│   └── usecases/             # satu kelas per file, satu metode call: sign_in.dart, register.dart, sign_out.dart, watch_auth_user.dart
+├── data/                     # auth_mapper.dart (SDK/DTO → entity, exception → Failure), firebase_auth_repository.dart
+└── presentation/
+    ├── cubit/                # <nama>_cubit.dart + <nama>_state.dart (sealed)
+    ├── pages/                # satu halaman per rute
+    └── widgets/
+```
+
+### Config
+
+- D-04: nilai dibaca dari `--dart-define-from-file=config/dev.json` (`flutter run -d chrome --web-port 8081 --web-browser-flag=--incognito --dart-define-from-file=config/dev.json`; flag incognito wajib, lihat Lingkungan Flutter dan Android). Kunci: `API_BASE_URL`, `FIREBASE_PROJECT_ID` (`demo-template`), `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID` (dummy, satu nilai untuk semua platform), `USE_EMULATOR`, `AUTH_EMULATOR_HOST`, `AUTH_EMULATOR_PORT`. Tanpa `flutterfire configure` dan `google-services.json`.
+- `AppConfig.fromEnvironment()` (`core/config/app_config.dart`) membaca `String.fromEnvironment`, lalu `AppConfig.fromMap()` memvalidasi. Nilai kosong atau salah → `ConfigException` yang menyebut nama kunci. Kunci baru ditambahkan bersamaan ke `config/dev.json`, `fromEnvironment`, `fromMap`, dan test-nya.
+- Di Android (bukan web), host `localhost`/`127.0.0.1` di `API_BASE_URL` dan `AUTH_EMULATOR_HOST` diganti `10.0.2.2` oleh kode (`resolveHost`), bukan config terpisah per platform.
+- Build debug Android mengizinkan HTTP (`android:usesCleartextTraffic="true"` hanya di `android/app/src/debug/AndroidManifest.xml`) karena API lokal dan Auth Emulator memakai HTTP.
+- `useAuthEmulator` dipanggil di `main.dart` setelah `Firebase.initializeApp` dan sebelum operasi Auth apa pun. Peringatan Android `FirebaseApp failed to initialize because no default options were found` wajar.
+
+### Result dan Failure
+
+- Repository dan use case mengembalikan `Result<T>` (`core/error/result.dart`): sealed `Ok(value)` / `Err(failure)`, dibaca dengan `switch`. Exception tidak dilempar melewati batas repository.
+- `Failure` (`core/error/failure.dart`) adalah kelas Dart murni (tanpa dio atau DTO) berisi `FailureCode`, `message` (Inggris, untuk log), dan `fieldErrors` (`Map<String, List<FieldIssue>>`, dari `details` 422 dengan kunci path yang sama: `title`, `items.0.name`, `_root`).
+- `FailureCode` = setiap `ErrorCode` kontrak + `network` (gagal koneksi/timeout) + `unknown` (kode belum dikenal atau body tidak terbaca).
+- **`Failure` dicatat di batas tempat exception menjadi `Failure`**, lewat `logFailure(failure)` (`core/error/failure_log.dart`): `debugPrint` baris `Failure <code>: <message> (fields: …)` hanya di mode debug (`kDebugMode`); di mode rilis tidak mencatat apa pun. Tujuannya agar penyebab kegagalan yang tampil ke user sebagai teks umum (misalnya `unknown` → "Terjadi kesalahan") tetap terlihat di konsol `flutter run`. Batas yang ada: `apiCall` (`core/network/api_call.dart`) dan `FirebaseAuthRepository._failure` (`features/auth/data/firebase_auth_repository.dart`). Sumber data baru (SDK lain, penyimpanan lokal) yang mengubah exception menjadi `Failure` memanggil `logFailure` di tempat yang sama. Jangan memanggilnya di mapper (`failureFromDioException`, `failureFromFirebaseAuth` tetap fungsi murni), di Cubit, atau di konstruktor `Failure` (dipakai domain), agar setiap kegagalan tercatat tepat sekali. Yang dicatat hanya kode, `Failure.message`, dan nama field; tidak pernah token atau header. Test: `test/core/error/failure_log_test.dart` dan `captureDebugPrint()` (`test/core/error/debug_print_capture.dart`) di test batasnya (`test/core/network/api_call_test.dart`, `test/features/auth/data/firebase_auth_repository_test.dart`). Karena test berjalan dalam mode debug, output `flutter test` memuat baris `Failure …` dari test yang menguji kegagalan; itu wajar.
+
+### Network
+
+- Dio dibuat `createDio()` (`core/network/create_dio.dart`) dengan `baseUrl` dari config dan `AuthInterceptor`; `ApiClient` dari `api_client` memakai Dio itu.
+- `AuthInterceptor` menambahkan `Authorization: Bearer <ID token>` dari `TokenProvider` (`FirebaseTokenProvider` → `currentUser.getIdToken()`) bila user login. Respons `401` → token di-refresh sekali (`forceRefresh`) dan request diulang sekali (penanda `extra['authRetried']`); `401` kedua, gagal refresh, atau user tidak login → error diteruskan.
+- Repository memanggil `api_client` lewat `apiCall(() => client.notes.getNote(id: id), map: noteFromDto)` (`core/network/api_call.dart`): `DioException` → `Err(failureFromDioException(e))`, dicatat `logFailure`. Exception lain (bug mapper) tidak ditangkap.
+- `failureFromDioException` (`core/network/error_mapper.dart`) membaca body `ErrorBody` dan memetakan `ErrorCode` lewat `failureCodeOf` (switch tanpa `default`: kode baru di kontrak membuat `flutter analyze` gagal sampai dipetakan).
+
+### Teks UI dan l10n
+
+- Teks UI Bahasa Indonesia ditulis langsung di widget (satu bahasa, tanpa ARB). `AppLocale` (`core/l10n/app_locale.dart`) memasang locale `id` dan delegate Material/Cupertino agar teks bawaan widget juga Bahasa Indonesia.
+- D-03: teks kegagalan untuk user hanya dari `failureMessage(FailureCode)` dan `fieldIssueMessage(FieldIssue)` di `core/l10n/failure_messages.dart`, dengan `genericFailureMessage` sebagai cadangan. `Failure.message` dari server tidak pernah ditampilkan ke user; hanya dicatat di konsol saat mode debug (`logFailure`). Satu-satunya pengecualian adalah teks yang bergantung pada konteks fitur di field form, yang tetap dipilih dari `failure.code` (lihat Teks kegagalan khusus fitur di field).
+
+### DI dan router
+
+- get_it dengan registrasi manual. `configureDependencies({config, auth, container})` (`core/di/injection.dart`) mendaftarkan `AppConfig`, `FirebaseAuth`, `TokenProvider`, `Dio`, `ApiClient`, lalu memanggil `registerXxxDependencies(container)` setiap fitur. `FirebaseAuth` diberikan dari luar agar test memakai mock; test memakai `GetIt.asNewInstance()`.
+- `getIt` hanya dipanggil di composition root (`main.dart`, router, `registerXxxDependencies`); widget dan Cubit menerima dependency lewat konstruktor.
+- go_router: path di `AppRoutes`, rute di `createRouter({container, initialLocation})` (`core/router/app_router.dart`), rute tidak dikenal → `NotFoundPage`. `App` menerima `router` opsional untuk test.
+- Registrasi: repository dan use case `registerLazySingleton`; Cubit halaman `registerFactory` dan dipasang router dengan `BlocProvider(create: (_) => c<LoginCubit>(), child: const LoginPage())`; Cubit sepanjang umur app (`AuthSessionCubit`) `registerLazySingleton` dengan `dispose`.
+
+### Autentikasi Flutter
+
+- Firebase Auth email/password lewat `AuthRepository` (`features/auth/domain/repositories/auth_repository.dart`); implementasi `FirebaseAuthRepository` memakai SDK Firebase langsung sebagai data source. `FirebaseAuthException.code` → `FailureCode` di `failureFromFirebaseAuth` (`features/auth/data/auth_mapper.dart`); `invalid-credential`/`wrong-password`/`user-not-found` sama-sama `invalidCredentials` (tidak membocorkan apakah akun ada).
+- `FailureCode` memuat kode Firebase Auth (`invalidCredentials`, `emailAlreadyInUse`, `weakPassword`, `invalidEmail`, `tooManyRequests`) di samping kode API, sehingga semua teks kegagalan tetap di `failure_messages.dart`.
+- Status login: `AuthSessionCubit` (sealed `Authenticated(user)` / `Unauthenticated`), state awal dari `currentUser`; `main.dart` menunggu `authStateChanges().first` sebelum `runApp` agar sesi tersimpan (web) sudah dipulihkan. Logout lewat `AuthSessionCubit.signOut()` (`SignOutButton`); state berubah lewat stream user, bukan langsung.
+- Rute terlindungi secara default: `redirect` di `createRouter` mengarahkan semua rute selain `AppRoutes.public` (`/login`, `/register`) ke login bila belum login, dan rute publik ke beranda bila sudah login. Dievaluasi ulang setiap `AuthSessionCubit` berubah (`refreshListenable`). Rute terlindungi ditaruh di `ShellRoute` yang memasang `AuthSessionCubit` (untuk `SignOutButton`). Halaman terlindungi memasang `SignOutButton` di `AppBar.actions`.
+- Form login dan daftar: `AuthForm` + `AuthFormState` (sealed `Idle`/`Submitting`/`Failed(failure)`/`Succeeded`). Validasi lokal hanya "wajib diisi"; aturan lain dari Firebase. Perpindahan halaman setelah berhasil dilakukan router, bukan halaman.
+- Cubit yang menunggu `Future` memeriksa `isClosed` sebelum `emit` dan mengabaikan submit kedua saat `Submitting` (`features/auth/presentation/cubit/login_cubit.dart`).
+
+### Fitur berbasis API (contoh: notes)
+
+Contoh lengkap: `apps/app/lib/features/notes/` (fitur CONTOH, pasangan `apps/api/src/features/notes/`).
+
+```
+features/notes/
+├── notes_dependencies.dart           # registerNotesDependencies(GetIt)
+├── domain/
+│   ├── entities/                     # note.dart, note_page.dart
+│   ├── repositories/                 # note_repository.dart
+│   └── usecases/                     # list_notes, get_note, create_note, update_note, delete_note
+├── data/
+│   ├── note_remote_data_source.dart  # membungkus NotesClient, mengembalikan DTO, melempar DioException
+│   ├── note_mapper.dart              # DTO → entity (noteFromDto, notePageFromDto)
+│   └── api_note_repository.dart      # apiCall(() => _remote.xxx(), map: ...) → Result
+└── presentation/
+    ├── cubit/                        # notes_list_cubit (daftar + pagination), note_form_cubit (buat/ubah/hapus)
+    ├── pages/                        # notes_page.dart (/notes), note_form_page.dart (/notes/new, /notes/:id)
+    └── widgets/                      # note_tile, note_form (FailureView, LoadMoreFooter dari core/widgets)
+```
+
+- Data source satu kelas per resource di atas client hasil generate (`c<ApiClient>().notes`): menerima parameter Dart biasa, membuat DTO input (`CreateNoteInput`, `UpdateNoteInput`), dan mengembalikan DTO respons. Tidak menangkap exception.
+- Repository impl memanggil data source lewat `apiCall`/`apiCallRaw`, tanpa pemetaan error per fitur: `NOT_FOUND` → `FailureCode.notFound`, `VALIDATION_ERROR` → `FailureCode.validation` dengan `fieldErrors` dari `details` (kunci `title`, `_root`, `cursor`), semuanya lewat `failureFromDioException`.
+- File di `data/` mengimpor `api_client` dengan prefix (`import 'package:api_client/api_client.dart' as dto;`) karena nama DTO sama dengan entity (`dto.Note` vs `Note`). `domain/` tidak pernah mengimpor `api_client`.
+- Entity memakai `DateTime` UTC dari DTO apa adanya; konversi ke waktu lokal hanya di presentation. Daftar memakai entity halaman sendiri (`NotePage`: `items`, `nextCursor`, `hasMore`).
+- Parameter opsional `null` berarti "tidak dikirim": `limit` `null` = bawaan API (20), `body` `null` saat membuat = tidak dikirim (API menyimpan `''`), field `null` saat mengubah = tidak diubah.
+- Use case hanya menormalisasi input (`title.trim()`) lalu meneruskan ke repository; wajib diisi, batas panjang, dan minimal satu field ditegakkan API (lihat Aturan bisnis: API vs client).
+
+Presentation (`features/notes/presentation/`):
+
+- **Daftar dengan pagination** (`NotesListCubit`): state sealed `Loading` / `LoadFailed(failure)` / `Loaded(items, nextCursor, loadingMore, loadMoreFailure)`. `load()` memuat halaman pertama (juga untuk "Coba lagi"); `loadMore()` memakai `nextCursor` dan diabaikan bila sudah halaman terakhir atau sedang memuat. Gagal di halaman berikutnya tidak menghapus daftar: `loadMoreFailure` tampil di baris terakhir dengan tombol "Coba lagi", tanpa coba ulang otomatis. Setelah `await`, Cubit membaca `state` lagi karena daftar bisa berubah selama menunggu.
+- **Muat saat digulir:** baris terakhir `ListView.builder` (`LoadMoreFooter` di `core/widgets/load_more_footer.dart`, diberi `loadingMore` dan `failure` dari state `Loaded`) memanggil `loadMore()` setelah frame pertama ia dibangun. `ListView.builder` baru membangunnya saat digulir mendekati bawah, jadi tidak perlu `ScrollController`, dan halaman pertama yang tidak memenuhi layar langsung memuat halaman berikutnya. Jangan memanggil Cubit langsung di `build`.
+- **Gagal memuat halaman** (jaringan, `NOT_FOUND`): `FailureView` (`core/widgets/failure_view.dart`) menampilkan `failureMessage(code)` dan tombol "Coba lagi".
+- **Form** (`NoteFormCubit`): state sealed `Loading` / `LoadFailed` / `Editing(note?, status, failure)` / `Saved(note)` / `Deleted(id)`; `note` `null` = membuat baru. Error validasi API (`failure.fieldErrors['title']`) tampil sebagai `errorText` di field-nya lewat `fieldIssueMessage`; kegagalan yang tidak punya field (jaringan, `NOT_FOUND`, `_root`) tampil di atas tombol simpan. Validasi lokal hanya "wajib diisi" dan `maxLength` sama dengan API. Hapus selalu lewat dialog konfirmasi. Fitur tanpa `GET` per item memakai varian tanpa `Loading`/`LoadFailed` (lihat Pola lanjutan presentation).
+- **Navigasi form ↔ daftar:** daftar membuka form dengan `context.push<NoteFormState>(AppRoutes.note(id), extra: note)`; form menutup dirinya dengan `context.pop(NoteFormSaved/NoteFormDeleted)`, lalu daftar menerapkan hasilnya (`noteSaved`, `noteDeleted`) tanpa memuat ulang dari API. Rute ubah membaca note dari `extra`; bila kosong (URL dibuka langsung atau dimuat ulang di web), router memanggil `cubit.load(id)` sehingga note diambil lewat `GetNote`.
+- **Kembali ke daftar tanpa hasil → muat ulang halaman pertama.** Ada dua jalur, keduanya di `NotesPage` (`features/notes/presentation/pages/notes_page.dart`): (1) `push` dari daftar selesai tanpa state (tombol kembali, tombol kembali browser) → `cubit.load()`; (2) form dibuka lewat URL (`/notes/<id>`, `/notes/new`) sehingga daftar di bawahnya tidak memanggil `push` dan hasil `context.pop(state)` tidak sampai ke mana pun. Untuk jalur kedua, halaman daftar memantau `ModalRoute.isCurrentOf(context)` di `didChangeDependencies`: saat rutenya kembali paling atas dan form tidak dibuka lewat `_openForm`, daftar memanggil `cubit.load()`. Flag `_openedHere` mencegah muat ganda saat form dibuka dari daftar (jalur pertama sudah menanganinya). Dijaga `notes_flow_test.dart` › kembali dari form tanpa hasil, dan › dibuka lewat URL › `/notes/<id>`, simpan, kembali. Fitur lain dengan pola daftar ↔ form memakai pola yang sama.
+- **Rute anak:** halaman form adalah rute anak (`new`, `:id`) dari rute daftar di dalam `ShellRoute` terlindungi, sehingga membuka URL form langsung tetap menaruh daftar di bawahnya. `new` didaftarkan sebelum `:id`. `GoRouter.optionURLReflectsImperativeAPIs = true` (di `createRouter`) agar `push` ikut mengubah URL di web.
+- **Waktu:** `updatedAt.toLocal()` diformat dengan `MaterialLocalizations.formatMediumDate` (locale `id`), tanpa package `intl`.
+
+### Pola lanjutan presentation (belum ada file contoh di template)
+
+Ditemukan saat fitur proyek pertama dibangun dari template; fitur notes tidak memakainya. Proyek yang pertama memakai pola ini mencatat filenya di sini sebagai file contoh, menggantikan potongan kode di bawah.
+
+- **Daftar berpagination dengan filter** (pasangan API: `PaginationQuerySchema.extend({ status: … })`, lihat Pagination). Filter adalah enum domain sendiri (`domain/entities/`), bukan enum kontrak; `data/` memetakannya ke enum DTO dengan switch tanpa `default`, dan filter `null` = tidak dikirim (bawaan API). Di Cubit:
+  - Filter disimpan di state dan dibawa **setiap** state (`Loading(filter)`, `LoadFailed(filter, failure)`, `Loaded(filter, …)`), agar pilihan filter tetap tampil saat memuat atau gagal.
+  - `setFilter(filter)` diabaikan bila filter sama; selain itu memuat ulang halaman pertama.
+  - Hasil permintaan lama dibuang lewat penghitung generasi: setiap muat ulang halaman pertama menaikkan `_generation`; setiap `await` (halaman pertama, `loadMore`, aksi) menyimpan nilainya sebelum menunggu dan membuang hasilnya bila sudah berubah. Tanpa ini, jawaban filter lama yang datang belakangan menimpa daftar filter baru, atau halaman berikutnya filter lama tersambung ke daftar filter baru.
+  - Item yang tidak lagi cocok dengan filter setelah diubah (lewat form atau aksi di daftar) dibuang dari daftar.
+
+  ```dart
+  int _generation = 0;
+
+  Future<void> _loadFirstPage(ItemFilter filter) async {
+    final generation = ++_generation;
+    emit(ItemsLoading(filter));
+    final result = await _listItems(filter: filter);
+    if (isClosed || generation != _generation) return;
+    emit(switch (result) {
+      Ok(value: final page) => ItemsLoaded(filter, items: page.items, nextCursor: page.nextCursor),
+      Err(:final failure) => ItemsLoadFailed(filter, failure),
+    });
+  }
+  ```
+
+  Test (`blocTest`): ganti filter selagi halaman pertama filter lama belum menjawab → hanya hasil filter baru yang tampil; `loadMore` filter lama yang menjawab setelah filter diganti dibuang.
+- **Aksi di daftar** (centang, hapus massal, dan sejenisnya, tanpa membuka form): diterapkan ke daftar setelah API menjawab, tanpa memuat ulang dan tanpa optimistis. Item yang sedang diproses dinonaktifkan (misalnya `Set<String> updatingIds` di `Loaded`; aksi massal memakai flag sendiri). Kegagalan aksi **tidak** menghapus daftar dan tidak mengganti state menjadi `LoadFailed`: simpan di `Loaded.actionFailure` (dikosongkan saat aksi baru dimulai), lalu halaman menampilkannya sebagai SnackBar lewat `BlocConsumer`/`BlocListener`:
+
+  ```dart
+  listenWhen: (previous, current) =>
+      current is ItemsLoaded &&
+      current.actionFailure != null &&
+      (previous is! ItemsLoaded || previous.actionFailure != current.actionFailure),
+  listener: (context, state) {
+    final failure = (state as ItemsLoaded).actionFailure!;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(failureMessage(failure.code))));
+  },
+  ```
+
+  Aksi massal yang menghapus item (misalnya hapus yang selesai) membuang item itu dari daftar yang sudah dimuat dan mempertahankan `nextCursor`, karena cursor berbasis posisi (`created_at`, `id`) sehingga halaman berikutnya dari API sudah tanpa item itu. Aksi yang merusak (hapus) tetap lewat dialog konfirmasi.
+- **Teks kegagalan khusus fitur di field.** Bila PRD meminta teks tertentu untuk kegagalan tertentu (misalnya `CONFLICT` → "Nama ini sudah dipakai." di field nama), teksnya didefinisikan sebagai konstanta di widget form fitur (`const itemNameConflictMessage = '…';`) dan dipilih dari `failure.code`, **tidak pernah** dari `Failure.message` server (D-03). Urutan: teks khusus dari `code` → `fieldIssueMessage` dari `fieldErrors[<field>]` → kegagalan tanpa field di atas tombol simpan. Kegagalan yang sudah tampil di field tidak ditampilkan lagi di atas tombol. Teks umum tetap di `failure_messages.dart`; hanya teks yang bergantung pada konteks fitur yang ditaruh di fitur. Test: widget test memeriksa `TextField.decoration.errorText` field itu.
+
+  ```dart
+  final nameError = failure?.code == FailureCode.conflict
+      ? itemNameConflictMessage
+      : _fieldError(failure, 'name');
+  final showGeneral = failure != null && nameError == null;
+  ```
+- **Form untuk fitur tanpa `GET` per item.** Notes punya `GET /v1/notes/{id}`, jadi form-nya punya state `Loading`/`LoadFailed` dan rute ubah memanggil `cubit.load(id)` bila `extra` kosong. Fitur yang API-nya tidak punya `GET` per item (tidak dibuat hanya untuk form) memakai varian lebih sederhana:
+  - State form hanya `Editing(item?, status, failure)` / `Saved(item)` / `Deleted(id)`; tidak ada `Loading`/`LoadFailed` dan tidak ada use case `GetXxx`.
+  - Rute ubah (`/<fitur>/:id`) yang dibuka tanpa item di `extra` (URL langsung, muat ulang di web) diarahkan kembali ke daftar lewat `redirect` di `GoRoute`-nya (`state.extra is! Item` → `AppRoutes.items`). Rute buat (`/<fitur>/new`) tetap bisa dibuka lewat URL.
+  - Pola "kembali ke daftar tanpa hasil → muat ulang halaman pertama" tetap berlaku (jalur kedua hanya terjadi lewat `/<fitur>/new`).
+  - Bila form ubah perlu bisa dibuka lewat URL, tambahkan `GET` per item di API (mengubah kontrak) lalu pakai pola notes.
+
+### Test Flutter
+
+- Test di `apps/app/test/` mengikuti struktur `lib/` (`lib/core/network/auth_interceptor.dart` → `test/core/network/auth_interceptor_test.dart`). Helper test yang bukan test tanpa akhiran `_test.dart` (contoh: `test/core/network/fake_http_adapter.dart`).
+- Mock dengan `mocktail` (`class MockFirebaseAuth extends Mock implements FirebaseAuth {}`). Mock per fitur dikumpulkan di `test/features/<fitur>/mocks.dart` (`MockAuthRepository`, `MockLoginCubit extends MockCubit<AuthFormState> implements LoginCubit`).
+- Use case: satu file test per use case, repository di-mock (`test/features/auth/domain/usecases/sign_in_test.dart`). Cubit: `blocTest` (`test/features/auth/presentation/cubit/login_cubit_test.dart`). Halaman: widget test dengan Cubit mock + `whenListen` (`test/features/auth/presentation/pages/login_page_test.dart`).
+- Router: widget test dengan wiring fitur asli (`registerAuthDependencies` pada `GetIt.asNewInstance()`) dan repository diganti fake dalam memori (`test/features/auth/fake_auth_repository.dart`), lalu `App(router: createRouter(container: c))` (`test/core/router/app_router_test.dart`).
+- HTTP diuji lewat Dio sungguhan dengan `FakeHttpAdapter` (mencatat request, menjawab per request), bukan mock Dio. Contoh: `test/core/network/auth_interceptor_test.dart`, `test/core/network/error_mapper_test.dart`.
+- Fitur berbasis API: use case dengan repository di-mock (`test/features/notes/domain/usecases/*_test.dart`); repository impl dengan data source di-mock yang melempar `DioException.badResponse` berisi body error standar (`test/features/notes/data/api_note_repository_test.dart`); data source dengan `NotesClient` asli + `FakeHttpAdapter` untuk memeriksa method, path, query, dan body request (`test/features/notes/data/note_remote_data_source_test.dart`). Fixture entity dan JSON (`testNote`, `noteJson`, `noteNo(i)`) di `test/features/notes/mocks.dart`.
+- Presentation fitur berbasis API: Cubit dengan use case di-mock (`test/features/notes/presentation/cubit/*_test.dart`); halaman dengan Cubit mock (`pages/*_test.dart`). Halaman yang menutup dirinya dengan `context.pop(hasil)` dipasang di atas `GoRouter` kecil di dalam test agar hasilnya bisa diperiksa (`note_form_page_test.dart`). Error di field diperiksa lewat `TextField.decoration.errorText` field itu, bukan sekadar teks ada di layar. Halaman dengan indikator berputar tidak memakai `pumpAndSettle` (tidak pernah selesai).
+- Widget di `core/widgets/` diuji sendiri di `test/core/widgets/` dengan nilai biasa (tanpa Cubit), agar tetap teruji setelah fitur contoh dihapus (`test/core/widgets/load_more_footer_test.dart`).
+- Alur fitur lengkap lewat router, Cubit, dan use case asli dengan repository palsu yang meniru API (`test/features/notes/fake_note_repository.dart`, `test/features/notes/presentation/notes_flow_test.dart`). Test router yang membuka beranda juga mendaftarkan fitur notes dengan repository palsu itu.
+- Test `config/dev.json` membaca file aslinya, jadi kunci yang hilang terdeteksi (`test/core/config/app_config_test.dart`).
+
+## Menghapus fitur contoh notes
+
+Fitur `notes` ada untuk ditiru (NFR-06). Hapus setelah fitur pertama proyek berdiri dan sudah menggantikannya sebagai contoh, dalam satu task tersendiri:
+
+1. **API:** hapus `apps/api/src/features/notes/`, `src/db/schema/notes.ts` beserta ekspornya di `schema/index.ts`, dan wiring notes di `src/app.ts`. Buat migrasi baru dengan `pnpm --filter api db:generate --name drop_notes` (migrasi lama tidak diedit atau dihapus).
+2. **Test API:** hapus `test/unit/features/notes/` dan `test/int/notes/`, `insertNote`/`insertNotes` di `test/helpers/factories.ts`, dan `notes.created_at` di `test/int/db/schema.int.test.ts`. Data contoh `notes/...` di test port (`test/unit/core/ports/`, `test/int/ports/`) hanya string, boleh dibiarkan.
+3. **Kontrak:** `pnpm contract:generate`, lalu sesuaikan `packages/contract/dart/test/api_client_test.dart`.
+4. **Flutter:** hapus `lib/features/notes/` dan `test/features/notes/`, `registerNotesDependencies` di `core/di/injection.dart`, rute notes di `core/router/app_router.dart` (arahkan `AppRoutes.home` ke beranda fitur proyek), dan bagian notes di `test/core/di/injection_test.dart`, `test/core/router/app_router_test.dart`, `test/core/network/auth_interceptor_test.dart`, `test/core/network/error_mapper_test.dart`. `lib/core/widgets/` (`FailureView`, `LoadMoreFooter`) dan test-nya tetap ada untuk fitur proyek.
+5. **Dokumen:** ganti rujukan file contoh notes di dokumen ini dengan file fitur proyek yang setara.
+6. `git grep -i note` untuk sisa rujukan, lalu `pnpm check` hijau.
+
+"""
+
+Bahasa Indonesia yang jelas. Jangan menyebut istilah internal seperti "Profil A", "Profil B", atau "stack profile".
+JANGAN memakai tool apa pun. JANGAN membaca atau menulis file.
+Balas HANYA isi Markdown PRD, dimulai dari "# ", tanpa pembuka, penutup, atau blok kode pembungkus.
+
+Ide:
+"""Aplikasi membership untuk sebuah gym."""
+
+Jawaban klarifikasi produk:
+- masalah: Pencatatan member dan masa aktif masih manual atau berantakan
+- pengguna: Admin dan member sama-sama memakai
+- fitur_wajib: Data member dan paket membership (bulanan, tahunan, dll) | Status masa aktif dan tanggal kedaluwarsa member | Check-in kehadiran member | Pencatatan pembayaran dan perpanjangan | Jadwal dan booking kelas
+- aksi_pertama: Menambahkan member baru beserta paketnya
+
+Asumsi produk:
+- Versi pertama dibuat untuk kebutuhan operasional satu gym, jadi belum perlu pembeda khusus dibanding aplikasi membership lain; nilai utamanya adalah merapikan pengelolaan member.
+
+Catatan teknis dari tahap sebelumnya:
+- (tidak ada)
+
+Jawaban teknis:
+- platform: kebijakan platform.hp_dan_web: Ide tidak menyebut platform: HP (Android dan iOS) dan web. (rumusan default: HP (Android dan iOS) dan web)
+- integrasi: Member menampilkan kode qr di aplikasi dan halaman web admin melakukan scan
+- pembayaran: Member bisa bayar langsung di aplikasi (payment gateway)
+- realtime: kebijakan realtime.tidak_perlu: Tidak perlu realtime; data diperbarui saat dibuka atau di-refresh, validasi penting tetap di server. (rumusan default: Tidak perlu, data diperbarui saat dibuka atau di-refresh (kuota tetap dicek di server saat booking))
+
+Asumsi teknis:
+- Versi pertama dipakai untuk satu gym saja, bukan layanan untuk banyak gym.
+- Meskipun hanya satu gym, data tetap disimpan dengan penanda gym sehingga pemisahan data per organisasi bisa ditambahkan nanti tanpa merombak skema.
+- Ada dua peran: admin mengelola member, paket, pembayaran, dan jadwal kelas, sedangkan member melihat status masa aktifnya, check-in, dan booking kelas.
+- Aplikasi menyimpan data pribadi member seperti nama dan nomor HP, jadi akses dibatasi dengan login, HTTPS, dan otorisasi per akun.
+- Aplikasi selalu online. Check-in dan booking tidak bisa dilakukan tanpa koneksi internet.
+
+Risiko yang sudah terdeteksi:
+- Booking kelas berisiko overbooking bila beberapa member memesan slot terakhir bersamaan. Pengecekan kuota dan pembuatan booking harus atomik di server.
+- Status masa aktif dihitung dari tanggal kedaluwarsa, jadi zona waktu dan batas akhir hari harus konsisten supaya member tidak ditolak atau diloloskan saat check-in.
+- Check-in lewat QR bisa disalahgunakan, misalnya dengan screenshot QR milik member lain, kalau QR-nya statis dan tidak ada verifikasi dari admin.
+- Pengingat masa aktif yang hampir habis belum ada di daftar fitur. Kalau nanti ditambahkan, channel notifikasinya perlu diputuskan.
+
+Pilihan stack:
+Pakai stack yang tersedia. Aplikasi dibuat dengan Flutter untuk web, Android, dan iOS dari satu codebase, dengan backend API terpisah.
+
+DRAFT RENCANA (JSON):
+{
+  "product_name": "Aplikasi Membership Gym",
+  "mvp_features": [
+    {
+      "id": "F-01",
+      "name": "Akun dan login",
+      "description": "Admin dan member masuk ke aplikasi dengan akun masing-masing. Data user di server dibuat otomatis saat pertama kali login dan ditautkan ke data member yang sudah didaftarkan admin.",
+      "source": "fondasi",
+      "sub_features": [
+        "Login dan logout untuk admin dan member",
+        "Pembuatan data user otomatis saat request pertama",
+        "Menautkan akun login ke data member yang dibuat admin (misalnya lewat email atau nomor HP)",
+        "Halaman profil singkat"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": "F-02",
+      "name": "Pengelolaan gym dan peran",
+      "description": "Data gym tunggal beserta peran admin dan member. Semua data disimpan dengan penanda gym supaya nanti bisa dikembangkan untuk banyak gym.",
+      "source": "fondasi",
+      "sub_features": [
+        "Data profil gym (nama, alamat, zona waktu)",
+        "Peran admin dan member",
+        "Pembatasan akses: member hanya melihat datanya sendiri, admin mengelola semua data gym",
+        "Admin bisa menambahkan admin lain"
+      ],
+      "depends_on": [
+        "F-01"
+      ]
+    },
+    {
+      "id": "F-03",
+      "name": "Paket membership",
+      "description": "Admin mengelola daftar paket membership seperti bulanan, tiga bulanan, atau tahunan, lengkap dengan durasi dan harga.",
+      "source": "user",
+      "sub_features": [
+        "Tambah, ubah, dan nonaktifkan paket",
+        "Atur nama, durasi, dan harga paket",
+        "Daftar paket aktif yang bisa dipilih saat mendaftarkan member atau memperpanjang"
+      ],
+      "depends_on": [
+        "F-02"
+      ]
+    },
+    {
+      "id": "F-04",
+      "name": "Data member",
+      "description": "Admin menambahkan member baru beserta paketnya, lalu mengelola data member. Ini aksi pertama yang dilakukan admin di aplikasi.",
+      "source": "user",
+      "sub_features": [
+        "Tambah member baru beserta paket awal",
+        "Ubah data member (nama, nomor HP, email, foto)",
+        "Daftar member dengan pencarian dan filter status",
+        "Detail member: paket, riwayat pembayaran, dan riwayat check-in"
+      ],
+      "depends_on": [
+        "F-02",
+        "F-03"
+      ]
+    },
+    {
+      "id": "F-05",
+      "name": "Status masa aktif dan tanggal kedaluwarsa",
+      "description": "Status member (aktif, hampir habis, kedaluwarsa) dihitung di server dari tanggal kedaluwarsa dengan zona waktu gym, sehingga konsisten di semua layar dan saat check-in.",
+      "source": "user",
+      "sub_features": [
+        "Perhitungan status dari tanggal kedaluwarsa memakai zona waktu gym dan batas akhir hari yang jelas",
+        "Member melihat status dan tanggal kedaluwarsa di aplikasi",
+        "Admin melihat daftar member yang hampir habis dan yang sudah kedaluwarsa"
+      ],
+      "depends_on": [
+        "F-04"
+      ]
+    },
+    {
+      "id": "F-06",
+      "name": "Pencatatan pembayaran dan perpanjangan",
+      "description": "Admin mencatat pembayaran yang diterima langsung di gym, dan setiap pembayaran yang lunas memperpanjang masa aktif member sesuai paket.",
+      "source": "user",
+      "sub_features": [
+        "Catat pembayaran manual (tunai atau transfer) oleh admin",
+        "Perpanjangan masa aktif otomatis setelah pembayaran tercatat lunas",
+        "Riwayat pembayaran per member",
+        "Daftar pembayaran untuk admin dengan filter tanggal"
+      ],
+      "depends_on": [
+        "F-04",
+        "F-05"
+      ]
+    },
+    {
+      "id": "F-07",
+      "name": "Pembayaran online lewat payment gateway",
+      "description": "Member memilih paket dan membayar langsung di aplikasi. Masa aktif diperpanjang setelah server menerima konfirmasi pembayaran dari payment gateway.",
+      "source": "user",
+      "sub_features": [
+        "Member memilih paket untuk perpanjangan dan memulai pembayaran",
+        "Integrasi payment gateway di server",
+        "Penerimaan webhook yang diverifikasi dan aman dari pemrosesan ganda",
+        "Status pembayaran: menunggu, berhasil, gagal, kedaluwarsa",
+        "Perpanjangan otomatis setelah pembayaran berhasil"
+      ],
+      "depends_on": [
+        "F-06"
+      ]
+    },
+    {
+      "id": "F-08",
+      "name": "Check-in kehadiran dengan QR",
+      "description": "Member menampilkan kode QR di aplikasi, lalu admin memindainya dari halaman web. Server memeriksa status masa aktif sebelum check-in diterima.",
+      "source": "user",
+      "sub_features": [
+        "QR dinamis di aplikasi member yang berganti berkala dan berumur pendek",
+        "Halaman scan QR untuk admin di web memakai kamera",
+        "Validasi di server: QR masih berlaku dan member masih aktif",
+        "Admin melihat nama dan foto member saat scan untuk verifikasi",
+        "Riwayat check-in untuk member dan admin"
+      ],
+      "depends_on": [
+        "F-05"
+      ]
+    },
+    {
+      "id": "F-09",
+      "name": "Jadwal kelas",
+      "description": "Admin mengelola jadwal kelas lengkap dengan instruktur, waktu, dan kuota peserta. Member bisa melihat jadwal yang tersedia.",
+      "source": "user",
+      "sub_features": [
+        "Tambah, ubah, dan batalkan jadwal kelas",
+        "Atur nama kelas, instruktur, waktu, durasi, dan kuota",
+        "Jadwal berulang mingguan",
+        "Member melihat jadwal kelas beserta sisa kuota"
+      ],
+      "depends_on": [
+        "F-02"
+      ]
+    },
+    {
+      "id": "F-10",
+      "name": "Booking kelas",
+      "description": "Member yang masih aktif bisa memesan slot kelas. Pengecekan kuota dan pembuatan booking dilakukan secara atomik di server supaya tidak terjadi overbooking.",
+      "source": "user",
+      "sub_features": [
+        "Booking kelas oleh member yang statusnya aktif",
+        "Pengecekan kuota dan pembuatan booking yang atomik di server",
+        "Pembatalan booking oleh member sebelum batas waktu tertentu",
+        "Daftar booking milik member",
+        "Admin melihat daftar peserta per kelas"
+      ],
+      "depends_on": [
+        "F-05",
+        "F-09"
+      ]
+    }
+  ],
+  "non_goals": [
+    "Dukungan untuk banyak gym atau cabang dalam satu aplikasi (skema sudah disiapkan, tapi fiturnya belum dibuat)",
+    "Mode offline: check-in, booking, dan pembayaran selalu butuh koneksi internet",
+    "Pembaruan data realtime: data diperbarui saat halaman dibuka atau di-refresh",
+    "Pengelolaan instruktur atau personal trainer sebagai pengguna dengan login sendiri",
+    "Penjualan produk atau kasir (suplemen, minuman, merchandise)",
+    "Absensi dan penggajian staf",
+    "Check-in mandiri lewat perangkat atau kios tanpa admin",
+    "Refund otomatis lewat payment gateway",
+    "Dashboard ringkasan untuk admin (fitur rekomendasi yang tidak dipilih)",
+    "Daftar tunggu kelas (fitur rekomendasi yang tidak dipilih)",
+    "Cuti atau bekukan membership (fitur rekomendasi yang tidak dipilih)",
+    "Kode promo dan diskon paket (fitur rekomendasi yang tidak dipilih)"
+  ],
+  "phases": [
+    {
+      "phase": 0,
+      "name": "Fondasi",
+      "goal": "Menyiapkan monorepo, skema database dengan penanda gym, verifikasi login di server, serta peran admin dan member.",
+      "feature_ids": [
+        "F-01",
+        "F-02"
+      ]
+    },
+    {
+      "phase": 1,
+      "name": "Member dan paket",
+      "goal": "Admin bisa membuat paket, menambahkan member baru beserta paketnya, dan semua pihak bisa melihat status masa aktif yang konsisten.",
+      "feature_ids": [
+        "F-03",
+        "F-04",
+        "F-05"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Pembayaran dan perpanjangan",
+      "goal": "Pembayaran manual oleh admin dan pembayaran online oleh member sama-sama memperpanjang masa aktif dengan benar.",
+      "feature_ids": [
+        "F-06",
+        "F-07"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Check-in QR",
+      "goal": "Member bisa check-in dengan QR dinamis yang dipindai admin, dengan validasi status di server.",
+      "feature_ids": [
+        "F-08"
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Kelas dan booking",
+      "goal": "Admin mengelola jadwal kelas dan member bisa booking tanpa risiko overbooking.",
+      "feature_ids": [
+        "F-09",
+        "F-10"
+      ]
+    }
+  ],
+  "technical_decisions": [
+    "Aplikasi dibuat dengan Flutter dari satu codebase untuk web, Android, dan iOS. Halaman admin, termasuk scan QR, dipakai lewat web.",
+    "Backend berupa API terpisah dengan Hono dan TypeScript. Kontrak API ditulis sebagai OpenAPI, lalu client Dart di-generate darinya.",
+    "Kode di app maupun API disusun per fitur dengan pemisahan domain, data, dan tampilan.",
+    "Data disimpan di PostgreSQL dan diatur lewat migrasi. Semua tabel utama punya kolom gym_id walaupun versi pertama hanya untuk satu gym.",
+    "Login memakai Firebase Auth. Server memverifikasi token di setiap request, sedangkan peran dan keanggotaan disimpan di database sendiri.",
+    "Status masa aktif selalu dihitung di server dari tanggal kedaluwarsa dengan zona waktu gym. Tanggal kedaluwarsa disimpan sebagai tanggal (bukan jam) dan member dianggap aktif sampai akhir hari tersebut.",
+    "Pembuatan booking memakai transaksi database dengan penguncian baris kelas (atau update kuota bersyarat) supaya pengecekan kuota dan penyimpanan booking terjadi secara atomik.",
+    "QR check-in berisi token bertanda tangan server yang berumur pendek dan berganti berkala. Token hanya bisa dipakai sekali, dan admin melihat foto member saat scan.",
+    "Perpanjangan dari pembayaran online hanya diproses dari webhook payment gateway yang sudah diverifikasi, dengan idempotency key supaya tidak diproses dua kali.",
+    "Foto member disimpan di Cloud Storage for Firebase. Database hanya menyimpan path dan metadata.",
+    "Tidak ada fitur realtime. Data diambil ulang saat halaman dibuka atau di-refresh.",
+    "Server API berjalan sebagai container yang selalu hidup, web di-hosting statis, dan aplikasi mobile dirilis lewat store.",
+    "Testing memakai Vitest untuk API serta flutter_test, bloc_test, dan mocktail untuk app. Pengembangan lokal memakai Docker Compose dan Firebase Auth Emulator."
+  ],
+  "open_questions": [
+    "Payment gateway mana yang mau dipakai (misalnya Midtrans atau Xendit), dan metode bayar apa saja yang perlu didukung (VA, QRIS, e-wallet, kartu)?",
+    "Bagaimana member yang ditambahkan admin bisa mendapatkan akun: ditautkan lewat email, lewat nomor HP (login OTP), atau lewat undangan dari admin?",
+    "Saat perpanjangan, masa aktif baru dihitung dari tanggal kedaluwarsa lama atau dari tanggal pembayaran, terutama kalau member sudah telat memperpanjang?",
+    "Apakah ada masa tenggang setelah tanggal kedaluwarsa, sehingga member masih boleh check-in beberapa hari?",
+    "Apakah setiap kelas bisa diikuti semua paket, atau ada paket yang tidak termasuk kelas atau punya batas jumlah kelas per bulan?",
+    "Sampai kapan member boleh membatalkan booking, dan apakah ada sanksi kalau tidak datang?",
+    "Apakah booking kelas otomatis dihitung sebagai check-in, atau member tetap harus scan QR saat datang?",
+    "Seberapa sering QR berganti (misalnya setiap 30 atau 60 detik)?",
+    "Apakah satu member bisa punya lebih dari satu paket aktif sekaligus, misalnya paket gym dan paket kelas?",
+    "Apakah ada data member lama dari catatan manual atau spreadsheet yang perlu diimpor saat aplikasi mulai dipakai?"
+  ],
+  "accepted_recommendations": [
+    {
+      "id": "R-01",
+      "name": "Pengingat masa aktif hampir habis",
+      "reason": "Push notification beberapa hari sebelum kedaluwarsa bisa mendorong member memperpanjang tepat waktu, apalagi sudah ada pembayaran online."
+    },
+    {
+      "id": "R-03",
+      "name": "Pengingat jadwal kelas",
+      "reason": "Notifikasi sebelum kelas dimulai membantu mengurangi member yang sudah booking tapi tidak datang."
+    },
+    {
+      "id": "R-06",
+      "name": "Ekspor laporan member dan pembayaran",
+      "reason": "Ekspor ke spreadsheet memudahkan pembukuan dan pelaporan ke pemilik gym."
+    }
+  ]
+}

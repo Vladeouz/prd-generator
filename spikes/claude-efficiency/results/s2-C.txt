@@ -1,0 +1,84 @@
+{
+  "clarity": 1,
+  "clarity_reason": "Ide hanya menyebut 'aplikasi membership untuk gym' tanpa menjelaskan masalah, pengguna utama, aksi inti, maupun fitur yang dibutuhkan.",
+  "questions": [
+    {
+      "id": "q1",
+      "topic": "masalah",
+      "question": "Masalah utama apa di gym kamu yang paling pengin diselesaikan lewat aplikasi ini?",
+      "type": "single",
+      "options": [
+        "Pencatatan data member dan masa aktif keanggotaan masih manual",
+        "Pembayaran dan perpanjangan membership sering telat atau ribet",
+        "Sulit memantau siapa saja yang datang ke gym",
+        "Member kurang aktif dan gampang berhenti",
+        "Pendaftaran member baru memakan waktu"
+      ],
+      "recommended_default": "Pencatatan data member dan masa aktif keanggotaan masih manual",
+      "why_it_matters": "Masalah inti menentukan fokus PRD dan fitur apa yang layak masuk versi pertama."
+    },
+    {
+      "id": "q2",
+      "topic": "pengguna",
+      "question": "Siapa yang akan paling sering memakai aplikasi ini?",
+      "type": "single",
+      "options": [
+        "Staf atau admin gym yang mengelola member",
+        "Member gym",
+        "Pemilik gym yang memantau bisnis",
+        "Personal trainer"
+      ],
+      "recommended_default": "Staf atau admin gym yang mengelola member",
+      "why_it_matters": "Pengguna utama menentukan alur, bahasa, dan prioritas tampilan di PRD."
+    },
+    {
+      "id": "q3",
+      "topic": "fitur_wajib",
+      "question": "Fitur apa saja yang wajib ada di versi pertama? Pilih maksimal 3.",
+      "type": "multi",
+      "options": [
+        "Daftar dan data member",
+        "Paket membership dan masa aktif",
+        "Pencatatan pembayaran",
+        "Check-in kunjungan member",
+        "Pengingat masa berlaku membership habis",
+        "Jadwal kelas gym"
+      ],
+      "recommended_default": [
+        "Daftar dan data member",
+        "Paket membership dan masa aktif"
+      ],
+      "why_it_matters": "Daftar fitur wajib membatasi scope versi pertama agar tetap kecil dan berguna."
+    },
+    {
+      "id": "q4",
+      "topic": "aksi_pertama",
+      "question": "Hal pertama apa yang harus bisa dilakukan pengguna begitu mulai memakai aplikasi?",
+      "type": "single",
+      "options": [
+        "Mendaftarkan member baru",
+        "Melihat status keanggotaan seorang member",
+        "Memperpanjang membership",
+        "Check-in saat datang ke gym"
+      ],
+      "recommended_default": "Mendaftarkan member baru",
+      "why_it_matters": "Aksi pertama menjadi inti alur utama dan tolok ukur keberhasilan awal."
+    },
+    {
+      "id": "q5",
+      "topic": "pembeda",
+      "question": "Apa yang bikin aplikasi ini beda dari cara yang dipakai gym kamu sekarang atau aplikasi gym lain?",
+      "type": "single",
+      "options": [
+        "Lebih simpel dan cepat dipakai untuk operasional harian",
+        "Lebih murah dibanding aplikasi gym lain",
+        "Disesuaikan dengan kebutuhan gym kecil atau lokal",
+        "Lebih menarik untuk member lewat fitur motivasi dan progres"
+      ],
+      "recommended_default": "Lebih simpel dan cepat dipakai untuk operasional harian",
+      "why_it_matters": "Pembeda membantu PRD menjaga arah produk dan menentukan hal yang sengaja tidak dikerjakan."
+    }
+  ],
+  "assumptions": [],
+  "deferred_technical": []
+}
