@@ -91,7 +91,7 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `src/projects/usage.ts`, komponen ringkasan pemakaian, dialog konfirmasi tahap 6–7, test terkait
   - done when: setiap kriteria FR-10 terbukti oleh test; menjalankan ulang sebuah tahap menandai output tahap sesudahnya tidak berlaku dan menghapus dokumen yang bergantung padanya (dibuktikan integration test); `pnpm check` hijau
 
-## Fase 2 — Integrasi dan penyelesaian
+## Fase 2 — Integrasi
 
 - [x] T-021 Penyempurnaan UI/UX dan aksesibilitas
   - layer: app · depends_on: T-016 · refs: `docs/design/design.md`
@@ -103,10 +103,51 @@ Setiap task dikerjakan dalam satu sesi. Kriteria bertanda **(manual)** diverifik
   - files: `playwright.config.ts`, `test/e2e/**`, `scripts/check.mjs`
   - done when: Playwright menjalankan satu proyek dari input ide sampai export ke folder buatan, memakai runner palsu dan fixture nyata, termasuk satu tahap yang gagal validasi lalu berhasil setelah percobaan ulang; `pnpm check` menjalankan test end-to-end dan tetap di bawah 5 menit; `pnpm check` dijalankan 5 kali berturut-turut tanpa kegagalan acak
 
+## Fase 3 — Efisiensi token, streaming, dan flowchart
+
+Baseline dari uji T-012 ada di bagian 3 PRD (Pemanggilan Claude Code); targetnya NFR-06.
+
+- [ ] T-022 Spike efisiensi pemanggilan `claude -p`
+  - layer: spike · depends_on: T-017 · refs: D-09, D-10, D-12, NFR-06, bagian 3 PRD (Pemanggilan Claude Code)
+  - files: `spikes/claude-efficiency/` (sementara, dihapus di T-019), `docs/logs/T-022.md`
+  - done when: nama flag diverifikasi dari `claude --help` versi terpasang dan dicatat di log untuk: model, mematikan extended thinking, system prompt sendiri, tanpa tool, tanpa server MCP dan pengaturan user, dan `stream-json`; script Node menjalankan prompt tahap 2 dan tahap 6 dari data proyek uji T-012 dalam empat konfigurasi (A: perintah sekarang; B: A + `--model sonnet` dan thinking mati; C: B + pengurang overhead; D: C + bagian conventions terpilih), masing-masing tetap memakai folder sementara kosong dan stdin; log berisi tabel token input, token output, biaya, durasi, dan ukuran output per konfigurasi; terbukti bahwa thinking mati (token output kira-kira sebanding dengan panjang teks) dan bahwa `stream-json` mengirim potongan teks sebelum selesai serta event akhirnya masih berisi `usage` dan `total_cost_usd`; output tahap 6 konfigurasi D lolos validator tahap 6 yang ada; log berisi rekomendasi bentuk perintah final, daftar heading `docs/conventions.md` per tahap (6, review 2, 7a, 7b), batas ukuran PRD, dan apakah angka NFR-06 realistis; **(manual)** user menjalankan script (perkiraan 30–45 menit dan sekitar $3–5 kuota, sebagian besar dari konfigurasi A); tidak ada perubahan di `src/`
+
+- [ ] T-023 Runner: model, pengurang overhead, dan streaming
+  - layer: claude · depends_on: T-022 · refs: D-09, D-12, FR-02, NFR-02, bagian 3 PRD (Pemanggilan Claude Code)
+  - files: `src/claude/**`, `src/core/config/**` (env), `.env.example`, `scripts/claude-smoke.mjs` atau script smoke yang ada, `test/unit/claude/**`, `test/int/claude/**`, `test/fixtures/claude/**`, `test/helpers/fake-claude-cli.mjs`
+  - done when: runner CLI menyusun perintah sesuai rekomendasi T-022 di Windows dan non-Windows (dibuktikan unit test); `CLAUDE_MODEL` dibaca dari env dengan bawaan `sonnet` dan ada di `.env.example`; runner membaca `stream-json` baris demi baris, memanggil callback progres dengan potongan teks, dan mengambil `result`, `usage`, serta biaya dari event akhir; semua kasus error yang sudah ada (exit code bukan 0, output rusak, `is_error`, batas waktu) tetap terbukti dengan script palsu yang kini mengeluarkan format stream; runner palsu bisa mengirim potongan bertahap dari fixture; pengaman `NODE_ENV=test` tetap gagal keras; **(manual)** smoke test dengan `claude` sungguhan berhasil memakai perintah baru dan mencatat token serta durasi (perkiraan < 1 menit); `pnpm check` hijau
+
+- [ ] T-024 Progres streaming di UI
+  - layer: app · depends_on: T-023 · refs: FR-02, D-03, D-12
+  - files: `src/jobs/**`, `src/app/api/jobs/[id]/stream/**`, `src/app/projects/[id]/stage-runner.tsx`, komponen progres di `src/components/**`, `test/unit/jobs/**`, `test/int/jobs/**`, `test/e2e/**`
+  - done when: job menyimpan progres terakhir di memori (jumlah karakter, langkah ke-i dari n, cuplikan teks) dan `GET /api/jobs/{id}/stream` mengirim event `progress` lalu `done` (dibuktikan integration test dengan runner palsu bertahap); UI menampilkan progres nyata dan cuplikan teks, menggantikan bar yang hanya berdasarkan waktu; membuka ulang halaman di tengah job menampilkan progres terkini; polling `GET /api/jobs/{id}` tetap berfungsi sebagai cadangan; test end-to-end memastikan cuplikan teks tampil sebelum job selesai; `pnpm check` hijau
+
+- [ ] T-025 Konvensi terpilih per tahap dan PRD ringkas
+  - layer: app · depends_on: T-023 · refs: FR-07, FR-11, D-06, D-10, NFR-06
+  - files: `src/template/**`, `prompts/stage-6.md`, `prompts/review-2.md`, `src/stages/stage-6/**`, `src/stages/review-2/**`, `test/unit/template/**`, `test/unit/stages/**`, `test/fixtures/claude/**`
+  - done when: fungsi pemotong mengambil bagian `docs/conventions.md` per heading apa adanya sesuai daftar dari T-022 (dibuktikan unit test, termasuk sub-heading ikut terbawa); heading yang tidak ada membuat tahap gagal sebelum `claude` dipanggil dengan pesan yang menyebutnya, dan halaman pengaturan menampilkan masalah itu; prompt tahap 6 dan review 2 hanya berisi bagian terpilih, meminta PRD merujuk konvensi tanpa menyalin, dan versinya naik; validator tahap 6 menolak PRD yang menyalin paragraf atau blok kode konvensi dan memberi peringatan bila ukuran melewati batas NFR-06; fixture diperbarui dari output nyata T-022; **(manual)** dengan `claude` sungguhan, proyek uji dijalankan ulang dari tahap 6: durasi, token, dan ukuran PRD dicatat di log dan dibandingkan dengan baseline dan NFR-06 (perkiraan 2–4 menit); `pnpm check` hijau
+
+- [ ] T-026 Tahap 7a: daftar task
+  - layer: app · depends_on: T-025 · refs: FR-08, D-11, bagian 4 PRD
+  - files: `drizzle/**` (migrasi `stage7a`, `stage7b`, `scope`), `src/core/db/schema.ts`, `prompts/stage-7a.md`, `src/stages/stage-7a/**`, `src/projects/prd-digest.ts`, `test/int/db/**`, `test/unit/stages/**`, `test/fixtures/claude/**`
+  - done when: migrasi menambah `stage_runs.scope`, mengganti `stage7` di `stage_runs.stage` dengan `stage7a` dan `stage7b`, dan mengubah partial unique index ke (`project_id`, `stage`, `scope`), terbukti integration test dan idempoten; data `stage7` lama ditandai tidak berlaku tanpa error; ringkasan PRD (kode dan judul `FR-xx`, endpoint, tabel, fase dan fitur) disusun aplikasi dan terbukti unit test dengan fixture PRD; validator 7a membuktikan semua aturan FR-08 untuk 7a, termasuk menolak task setup template dan menuntut task penghapusan notes; fixture diturunkan dari `docs/reference/e2e-output/TASKS.md`; `pnpm check` hijau
+
+- [ ] T-027 Tahap 7b: detail per fase dan penyusunan TASKS.md
+  - layer: app · depends_on: T-024, T-026 · refs: FR-08, FR-02, FR-10, D-08, D-11
+  - files: `prompts/stage-7b.md`, `src/stages/stage-7b/**`, `src/stages/run-stage.ts`, `src/projects/compose-tasks.ts`, `src/stages/stage-7/**` dan `prompts/stage-7.md` (dihapus), layar tahap 7, `test/**` terkait
+  - done when: satu job tahap 7 menjalankan 7a (bila belum valid) lalu 7b per fase secara berurutan, masing-masing tercatat sebagai `stage_runs` sendiri dengan `scope` nomor fase; progres menampilkan langkah ke-i dari n; percobaan ulang berlaku per fase, dan menjalankan ulang hanya mengulang fase tanpa hasil valid (dibuktikan integration test dengan runner palsu yang gagal di fase 2); prompt 7b hanya berisi task fase itu dan bagian PRD yang dirujuknya; `docs/TASKS.md` disusun aplikasi, dengan `pnpm check` hijau di akhir setiap *done when* dan langkah persiapan manual (`.env`, Docker, Flutter web `--web-browser-flag=--incognito`) ditambahkan kode; hasil susunan lolos aturan FR-08; menjalankan ulang tahap 6 tetap membatalkan 7a dan 7b; perkiraan durasi dan token di konfirmasi FR-10 memakai angka baru; test end-to-end diperbarui; **(manual)** dengan `claude` sungguhan, proyek uji menjalankan tahap 7 sampai selesai; durasi, token, dan jumlah percobaan ulang dicatat dan dibandingkan dengan NFR-06 (perkiraan 3–5 menit); `pnpm check` hijau
+
+- [ ] T-028 Flowchart fitur
+  - layer: app · depends_on: T-021, T-026 · refs: FR-12, D-13, `docs/design/design.md`
+  - files: `package.json` (`@xyflow/react` dipin), `docs/conventions.md` (versi), `src/projects/graph.ts`, `src/app/api/projects/[id]/graph/**`, `src/components/feature-graph/**`, `src/app/projects/[id]/**`, test terkait
+  - done when: `GET /api/projects/{id}/graph` menyusun node dan edge dari data tahap 4 (hanya fitur yang diterima) dan 7a, dengan posisi yang deterministik (dibuktikan unit test); flowchart tampil di halaman proyek setelah tahap 4 dengan kontrol zoom dan "pas ke layar"; memilih node dengan klik atau keyboard membuka panel detail; warna hanya memakai token (pencarian `#[0-9a-fA-F]{3,6}` seperti T-020 tetap hanya menemukan `globals.css`); tidak ada pemanggilan `claude` tambahan; **(manual)** user membuka flowchart proyek uji di kedua tema dan di lebar 390 px, lalu mengonfirmasi graf terbaca dan bisa digeser; `pnpm check` hijau
+
+## Fase 4 — Uji nyata dan penyelesaian
+
 - [ ] T-018 Uji nyata: dari ide sampai Claude Code
-  - layer: test · depends_on: T-017 · refs: semua FR
+  - layer: test · depends_on: T-027, T-028 · refs: semua FR, NFR-06
   - files: `docs/logs/T-018.md`
-  - done when: **(manual)** user menjalankan satu ide nyata pilihannya dari tahap 1 sampai export dengan `claude` sungguhan; total durasi dan token tercatat di log; hasil ekspor diberikan ke Claude Code di proyek baru dari template, dan dua task pertama selesai tanpa keputusan konvensi di log-nya; temuan yang perlu diperbaiki dicatat sebagai usulan task
+  - done when: **(manual)** user menjalankan satu ide nyata pilihannya dari tahap 1 sampai export dengan `claude` sungguhan; total durasi dan token tercatat di log dan dibandingkan dengan NFR-06; hasil ekspor diberikan ke Claude Code di proyek baru dari template, dan dua task pertama selesai tanpa keputusan konvensi di log-nya; temuan yang perlu diperbaiki dicatat sebagai usulan task
 
 - [ ] T-019 Dokumentasi final dan pembersihan
   - layer: docs · depends_on: T-018 · refs: NFR-04
