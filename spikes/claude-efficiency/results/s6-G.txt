@@ -1,0 +1,540 @@
+# Aplikasi Membership Gym
+
+## 1. Context & Goal
+
+Pencatatan member dan masa aktif di sebuah gym masih manual dan berantakan. Aplikasi ini dipakai dua peran: **admin** (mengelola member, paket, pembayaran, jadwal kelas, dan memindai QR check-in) dan **member** (melihat status masa aktif, membayar perpanjangan, check-in dengan QR, booking kelas). Platform: Android, iOS, dan web dari satu codebase Flutter. Halaman scan QR admin hanya di web.
+
+Tujuan versi pertama: satu gym beroperasi tanpa catatan manual. Aksi pertama admin adalah menambahkan member baru beserta paketnya.
+
+Keputusan default yang dipakai di seluruh PRD:
+- Setiap member punya satu paket aktif dan semua paket boleh booking kelas. Booking tidak otomatis menjadi check-in.
+- Perpanjangan: lanjut dari tanggal kedaluwarsa bila masih aktif, dari tanggal bayar bila sudah lewat, tanpa masa tenggang (RV-07).
+- Status "hampir habis" = 7 hari, batal booking paling lambat 2 jam sebelum kelas, QR berganti tiap 30 detik. Ketiganya disimpan sebagai pengaturan gym (RV-09).
+- Payment gateway: **Midtrans (Snap)** dengan metode virtual account bank, QRIS, dan e-wallet (GoPay, ShopeePay). Dipakai lewat interface `PaymentGateway` sehingga bisa diganti (RV-08).
+
+## 2. Scope
+
+### In scope
+
+Urutan fase mengikuti dependensi fitur.
+
+- **Fase 0 Fondasi:** F-01 login, sinkron user, profil. F-02 gym tunggal, peran admin/member, admin pertama lewat CLI.
+- **Fase 1 Member dan paket:** F-03 paket. F-04 data member, undangan dan penautan akun (RV-02, RV-03), foto member, hapus akun (RV-10). F-05 status masa aktif.
+- **Fase 2 Pembayaran:** F-06 pembayaran manual dan perpanjangan. R-06 ekspor laporan (setelah F-06). F-07 pembayaran online Midtrans. R-01 pengingat masa aktif lewat push (setelah F-05 dan F-07, mencakup infrastruktur FCM dan token perangkat).
+- **Fase 3 Check-in:** F-08 QR dinamis, scan admin di web, riwayat check-in.
+- **Fase 4 Kelas:** F-09 jadwal kelas (satu kali dan berulang mingguan). F-10 booking dengan kuota atomik.
+- **Fase 5 Notifikasi kelas:** R-03 pengingat jadwal kelas (setelah F-10).
+
+### Non-goals
+
+- Banyak gym atau cabang (skema sudah memakai `gym_id`, fiturnya belum dibuat).
+- Mode offline, dan pembaruan data realtime.
+- Instruktur atau personal trainer sebagai pengguna dengan login sendiri.
+- Penjualan produk atau kasir. Absensi dan penggajian staf.
+- Check-in mandiri lewat perangkat atau kios tanpa admin.
+- Refund otomatis lewat payment gateway.
+- Dashboard ringkasan admin, daftar tunggu kelas, cuti atau bekukan membership, kode promo dan diskon.
+- Notifikasi selain push (email, WhatsApp, SMS).
+- Penghapusan permanen member oleh admin, dan penyuntingan atau penghapusan pembayaran.
+
+## 3. Tech Constraints
+
+- Monorepo pnpm: `apps/app` (Flutter web/Android/iOS), `apps/api` (Hono + TypeScript), `packages/contract` (OpenAPI + client Dart hasil generate).
+- PostgreSQL + Drizzle. Auth Firebase Auth (backend memverifikasi ID token). Push FCM. Job pg-boss di proses API (`RUN_WORKER=true` di container produksi).
+- Detail lengkap ada di `docs/conventions.md`. Bagian yang berlaku: Struktur repo, Autentikasi, Port push dan storage, Pagination, Database, Format error, Clean Architecture API, Organisasi dan tenancy, Job (pg-boss).
+
+Keputusan khusus produk ini:
+- **Tenancy:** semua route gym berada di `/v1/gyms/{gymId}/...`. Middleware membaca `gym_users` (padanan `memberships` di konvensi). User tanpa peran di gym itu mendapat `404`. Member yang memanggil route admin mendapat `403` (pemeriksaan peran di use case).
+- **Port baru** mengikuti pola port: `PaymentGateway` (adapter `none`/`fake`/`midtrans`, env `PAYMENT_ADAPTER`, `MIDTRANS_SERVER_KEY`) dan `AuthAccountDeleter` (hapus akun Firebase). `FileStorage` ditambah `getSignedUrl(path, ttlSeconds)`. `PushSender` memakai adapter `fcm` di produksi.
+- **Storage dikunci penuh dari client:** `storage.rules` menolak semua akses. Upload dan baca foto hanya lewat API dengan signed URL (RV-05).
+- **Rahasia:** `QR_SIGNING_SECRET` (HMAC token QR). Kunci APNs diunggah sekali ke konsol Firebase untuk push iOS (RV-04).
+- **Error code baru** (didaftarkan di `error-codes.ts`, lalu `pnpm contract:generate`, lalu dipetakan di Flutter): `MEMBERSHIP_INACTIVE` 409, `CLASS_FULL` 409, `ALREADY_BOOKED` 409, `SESSION_CLOSED` 409, `CANCEL_CUTOFF_PASSED` 409, `PLAN_INACTIVE` 409, `LAST_ADMIN` 409, `QR_ALREADY_USED` 409, `QR_INVALID` 422, `INVITE_INVALID` 422, `INVALID_SIGNATURE` 401, `PAYMENT_GATEWAY_ERROR` 502.
+- **Route publik** hanya `POST /webhooks/payments` (di luar `/v1`, didaftarkan di `PUBLIC_ROUTES`).
+- **Job** (nama `<area>.<aksi>`, semuanya idempoten): `classes.generate-sessions`, `payments.reconcile`, `notifications.expiry-reminders`, `notifications.class-reminders`.
+
+## 4. Data Model
+
+```mermaid
+erDiagram
+  users { uuid id PK
+    text firebase_uid UK
+    text email
+    text display_name
+    timestamptz last_seen_at }
+  gyms { uuid id PK
+    text name
+    text address
+    text timezone
+    int expiring_soon_days
+    int cancel_cutoff_minutes
+    int qr_interval_seconds }
+  gym_users { uuid id PK
+    uuid gym_id FK
+    uuid user_id FK
+    text role }
+  invitations { uuid id PK
+    uuid gym_id FK
+    text role
+    uuid member_id FK
+    text code_hash UK
+    timestamptz expires_at
+    timestamptz used_at
+    uuid used_by FK
+    uuid created_by FK }
+  plans { uuid id PK
+    uuid gym_id FK
+    text name
+    int duration_value
+    text duration_unit
+    int price_idr
+    boolean active }
+  members { uuid id PK
+    uuid gym_id FK
+    uuid user_id FK
+    text name
+    text phone
+    text email
+    text photo_path
+    text photo_content_type
+    uuid plan_id FK
+    date start_on
+    date expires_on
+    timestamptz anonymized_at }
+  payments { uuid id PK
+    uuid gym_id FK
+    uuid member_id FK
+    uuid plan_id FK
+    text plan_name
+    int plan_duration_value
+    text plan_duration_unit
+    int amount
+    text method
+    text status
+    text provider_order_id UK
+    text provider_ref
+    text payment_url
+    timestamptz expires_at
+    timestamptz paid_at
+    date renewed_to
+    uuid recorded_by FK }
+  checkins { uuid id PK
+    uuid gym_id FK
+    uuid member_id FK
+    uuid scanned_by FK
+    text qr_jti UK
+    timestamptz checked_in_at }
+  class_series { uuid id PK
+    uuid gym_id FK
+    text name
+    text instructor_name
+    int weekday
+    text start_time
+    int duration_minutes
+    int capacity
+    date starts_on
+    date ends_on
+    boolean active }
+  class_sessions { uuid id PK
+    uuid gym_id FK
+    uuid series_id FK
+    text name
+    text instructor_name
+    timestamptz starts_at
+    date local_date
+    int duration_minutes
+    int capacity
+    text status }
+  bookings { uuid id PK
+    uuid gym_id FK
+    uuid session_id FK
+    uuid member_id FK
+    text status
+    timestamptz cancelled_at }
+  device_tokens { uuid id PK
+    uuid user_id FK
+    text token UK
+    text platform
+    timestamptz last_seen_at }
+  notification_log { uuid id PK
+    text dedupe_key UK
+    uuid user_id FK
+    text kind
+    timestamptz sent_at }
+  gyms ||--o{ gym_users : has
+  users ||--o{ gym_users : has
+  gyms ||--o{ plans : has
+  gyms ||--o{ members : has
+  users ||--o| members : linked
+  plans ||--o{ members : current
+  members ||--o{ payments : has
+  members ||--o{ checkins : has
+  members ||--o{ invitations : for
+  gyms ||--o{ class_series : has
+  class_series ||--o{ class_sessions : generates
+  class_sessions ||--o{ bookings : has
+  members ||--o{ bookings : makes
+  users ||--o{ device_tokens : has
+  users ||--o{ notification_log : receives
+```
+
+Constraint penting (nama mengikuti konvensi bagian Database):
+- Semua tabel bisnis punya `gym_id` FK `ON DELETE CASCADE`. `device_tokens.user_id` dan `gym_users.user_id` `ON DELETE CASCADE`. `members.user_id` `ON DELETE SET NULL`. `payments.member_id`, `checkins.member_id`, `bookings.member_id` `ON DELETE RESTRICT` (member tidak pernah dihapus permanen).
+- UNIQUE: `gym_users (gym_id, user_id)`, `members (user_id)`, `plans (gym_id, lower(name))`, `payments (provider_order_id)`, `checkins (qr_jti)`, `class_sessions (series_id, local_date)` parsial `WHERE series_id IS NOT NULL`, `bookings (session_id, member_id)` parsial `WHERE status='booked'`, `device_tokens (token)`, `notification_log (dedupe_key)`.
+- UNIQUE parsial `payments (member_id) WHERE status='pending'`: maksimal satu pembayaran online berjalan per member.
+- CHECK: `gym_users.role` dan `invitations.role` ∈ (`admin`,`member`). `invitations`: `role='member'` wajib `member_id`, `role='admin'` wajib `member_id` null. `duration_value > 0` dan `duration_unit` ∈ (`day`,`month`,`year`) pada `plans` dan pada `payments.plan_duration_*` (NOT NULL, snapshot saat pembayaran dibuat, RV2-01). `price_idr`/`amount` > 0. `payments.status` ∈ (`pending`,`paid`,`failed`,`expired`,`needs_review`). `payments.method` ∈ (`cash`,`transfer`,`online`). `class_sessions.status` ∈ (`scheduled`,`cancelled`). `bookings.status` ∈ (`booked`,`cancelled`). `capacity` 1–200. `weekday` 1–7 (ISO, 1 = Senin). `gyms.expiring_soon_days` 1–30, `cancel_cutoff_minutes` 0–1440, `qr_interval_seconds` 15–120.
+- Index pagination `(gym_id, created_at DESC, id DESC)` untuk `members`, `payments`, `checkins`, `bookings`. Index `class_sessions (gym_id, starts_at)`.
+- `members.expires_on` dan `local_date` bertipe `date` (mode string). Member aktif sampai akhir hari `expires_on` menurut zona waktu gym.
+- Aturan tanggal: `expires_on` = tanggal dasar + durasi paket (bulan/tahun dipotong ke akhir bulan bila tanggalnya tidak ada).
+- Penanda gym tunggal: gym dibuat sekali oleh CLI; tidak ada endpoint pembuatan gym.
+
+## 5. API Contract
+
+Semua route `/v1/*` mengembalikan `401` bila token tidak valid. Path `{gymId}` yang bukan UUID mengembalikan `422`. Pada route gym, user tanpa peran mendapat `404` dan peran tidak cukup mendapat `403` (tidak diulang di tabel). Format error dan pagination mengikuti konvensi. List berhalaman memakai `{ items, nextCursor }`. Semua timestamp ISO 8601 UTC, tanggal `YYYY-MM-DD`.
+
+| Endpoint | Request | Response | Error | Akses |
+| --- | --- | --- | --- | --- |
+| GET /v1/me | - | `Me` {user, gymId, role, memberId} (semua null bila tanpa peran) | - | User login |
+| DELETE /v1/me | - | 204 | `LAST_ADMIN` | User login |
+| POST /v1/invitations/redeem | `{code}` | `Me` | `INVITE_INVALID` (salah, kedaluwarsa, atau sudah dipakai), `CONFLICT` (user sudah punya peran atau member sudah tertaut) | User login |
+| POST /v1/me/device-tokens | `{token, platform: android\|ios\|web}` | `{id}` (upsert per token) | 422 | User login |
+| DELETE /v1/me/device-tokens/{tokenId} | - | 204 | 404 | Pemilik token |
+| GET /v1/gyms/{gymId} | - | `Gym` (profil + pengaturan) | - | Admin, member |
+| PATCH /v1/gyms/{gymId} | `name, address, timezone (IANA), expiringSoonDays, cancelCutoffMinutes, qrIntervalSeconds` (min. satu) | `Gym` | 422 | Admin |
+| GET /v1/gyms/{gymId}/admins | - | `{items: [{userId, email, displayName}]}` | - | Admin |
+| DELETE /v1/gyms/{gymId}/admins/{userId} | - | 204 | `LAST_ADMIN`, 404 | Admin |
+| POST /v1/gyms/{gymId}/invitations | `{role: admin\|member, memberId?}` | `Invitation` {id, role, memberId, code (hanya di respons ini), expiresAt} | 422, `CONFLICT` (member sudah tertaut) | Admin |
+| DELETE /v1/gyms/{gymId}/invitations/{invitationId} | - | 204 (mencabut undangan belum terpakai) | 404 | Admin |
+| GET /v1/gyms/{gymId}/plans | `?active=true\|false` | `{items: Plan[]}` | - | Admin, member |
+| POST /v1/gyms/{gymId}/plans | `name, durationValue, durationUnit, priceIdr` | `Plan` 201 | 422, `CONFLICT` (nama kembar) | Admin |
+| PATCH /v1/gyms/{gymId}/plans/{planId} | semua field + `active` (min. satu) | `Plan` | 422, 404, `CONFLICT` | Admin |
+| POST /v1/gyms/{gymId}/members | `name, phone, email?, planId, startOn?, payment?: {method: cash\|transfer}` | `Member` 201 | 422, `PLAN_INACTIVE`, 404 (plan) | Admin |
+| GET /v1/gyms/{gymId}/members | `?q&status=active\|expiring_soon\|expired&limit&cursor` | `MemberPage` | 422 | Admin |
+| GET /v1/gyms/{gymId}/members/{memberId} | - | `MemberDetail` (member + paket + status) | 404 | Admin |
+| PATCH /v1/gyms/{gymId}/members/{memberId} | `name, phone, email` (min. satu) | `Member` | 422, 404 | Admin |
+| GET /v1/gyms/{gymId}/me/member | - | `Member` (dengan `status`, `expiresOn`, `daysLeft`) | 404 (belum tertaut) | Member |
+| PUT /v1/gyms/{gymId}/members/{memberId}/photo | Body biner `image/jpeg\|png\|webp`, maks 2 MB | `{photoUpdatedAt}` | 422 (tipe/ukuran), 404 | Admin |
+| GET /v1/gyms/{gymId}/members/{memberId}/photo | - | `{url, expiresAt}` (signed URL 5 menit) | 404 (termasuk bila belum ada foto) | Admin, member pemilik |
+| POST /v1/gyms/{gymId}/payments | `{memberId, planId, method: cash\|transfer}` | `Payment` 201 (status `paid`, memperpanjang) | 422, `PLAN_INACTIVE`, 404 | Admin |
+| GET /v1/gyms/{gymId}/payments | `?from&to&status&memberId&limit&cursor` | `PaymentPage` | 422 | Admin |
+| GET /v1/gyms/{gymId}/payments/{paymentId} | - | `Payment` (termasuk `paymentUrl` bila `pending`) | 404 | Admin, member pemilik |
+| GET /v1/gyms/{gymId}/members/{memberId}/payments | `?limit&cursor` | `PaymentPage` | 404 | Admin, member pemilik |
+| POST /v1/gyms/{gymId}/me/payments | `{planId}` | `Payment` 201 dengan `paymentUrl` | `PLAN_INACTIVE`, `CONFLICT` (masih ada pembayaran `pending`), `PAYMENT_GATEWAY_ERROR`, 404 | Member |
+| POST /webhooks/payments | Notifikasi Midtrans (`order_id, status_code, gross_amount, transaction_status, signature_key`) | `{ok: true}` 200 | `INVALID_SIGNATURE`, 404 (order tak dikenal) | Publik, diverifikasi tanda tangan |
+| GET /v1/gyms/{gymId}/exports/members | - | `text/csv` (UTF-8 BOM, lampiran) | - | Admin |
+| GET /v1/gyms/{gymId}/exports/payments | `?from&to` (wajib, maks 366 hari) | `text/csv` | 422 | Admin |
+| GET /v1/gyms/{gymId}/me/checkin-qr | - | `{token, expiresAt}` | 404 (belum tertaut) | Member |
+| POST /v1/gyms/{gymId}/checkins | `{token}` | `Checkin` {id, memberId, memberName, photoUrl, status, expiresOn, checkedInAt} 201 | `QR_INVALID`, `QR_ALREADY_USED`, `MEMBERSHIP_INACTIVE` | Admin |
+| GET /v1/gyms/{gymId}/checkins | `?from&to&memberId&limit&cursor` | `CheckinPage` | 422 | Admin |
+| GET /v1/gyms/{gymId}/me/checkins | `?limit&cursor` | `CheckinPage` | 404 | Member |
+| GET /v1/gyms/{gymId}/class-series | - | `{items: ClassSeries[]}` | - | Admin |
+| POST /v1/gyms/{gymId}/class-series | `name, instructorName, weekday, startTime (HH:mm), durationMinutes, capacity, startsOn, endsOn?` | `ClassSeries` 201 | 422 | Admin |
+| GET /v1/gyms/{gymId}/class-series/{seriesId} | - | `ClassSeries` | 404 | Admin |
+| PATCH /v1/gyms/{gymId}/class-series/{seriesId} | `name, instructorName, startTime, durationMinutes, capacity, endsOn, active` (min. satu) | `ClassSeries` | 422, 404, `CONFLICT` (kapasitas < jumlah booking sesi mendatang) | Admin |
+| POST /v1/gyms/{gymId}/class-sessions | `name, instructorName, startsAt, durationMinutes, capacity` | `ClassSession` 201 | 422 | Admin |
+| GET /v1/gyms/{gymId}/class-sessions | `?from&to` (wajib, maks 35 hari) | `{items: ClassSession[]}` dengan `bookedCount`, `availableSeats`, `myBookingId` (khusus member). Member hanya melihat `scheduled`. | 422 | Admin, member |
+| GET /v1/gyms/{gymId}/class-sessions/{sessionId} | - | `ClassSession` | 404 (member: sesi `cancelled`) | Admin, member |
+| PATCH /v1/gyms/{gymId}/class-sessions/{sessionId} | `name, instructorName, startsAt, durationMinutes, capacity` (min. satu) | `ClassSession` | 422 (`details.startsAt` untuk sesi seri di tanggal lokal lain atau sesi lampau), 404, `CONFLICT` (kapasitas < jumlah booking) | Admin |
+| POST /v1/gyms/{gymId}/class-sessions/{sessionId}/cancel | - | `ClassSession` (status `cancelled`) | 404, `SESSION_CLOSED` (sudah dibatalkan atau sudah lewat) | Admin |
+| GET /v1/gyms/{gymId}/class-sessions/{sessionId}/bookings | - | `{items: [{bookingId, memberId, memberName, createdAt}], capacity, bookedCount}` | 404 | Admin |
+| POST /v1/gyms/{gymId}/class-sessions/{sessionId}/bookings | - | `Booking` 201 | `MEMBERSHIP_INACTIVE`, `CLASS_FULL`, `ALREADY_BOOKED`, `SESSION_CLOSED`, 404 | Member |
+| DELETE /v1/gyms/{gymId}/bookings/{bookingId} | - | 204 | `CANCEL_CUTOFF_PASSED`, 404 | Member pemilik |
+| GET /v1/gyms/{gymId}/me/bookings | `?upcoming=true&limit&cursor` | `BookingPage` (booking + ringkasan sesi) | 404 | Member |
+
+## 6. Functional Requirements
+
+### FR-01: Login, sinkron user, dan profil
+Admin dan member login dengan Firebase Auth. User di database dibuat otomatis saat request pertama (lihat bagian Autentikasi di konvensi). User baru tidak punya peran (RV-06). Halaman profil menampilkan nama, email, peran, dan menyediakan tombol logout serta hapus akun (FR-07).
+Fitur: F-01
+Acceptance criteria:
+- [ ] Given token valid dan user belum ada When `GET /v1/me` Then baris `users` dibuat dengan email lowercase, dan respons berisi `role: null`, `gymId: null`, `memberId: null`.
+- [ ] Given dua request pertama bersamaan dengan token yang sama When keduanya selesai Then hanya ada satu baris `users`.
+- [ ] Given header tidak ada atau token kedaluwarsa When memanggil route `/v1/*` Then `401 UNAUTHENTICATED`.
+- [ ] Given user tanpa peran When login di aplikasi Then aplikasi menampilkan layar "Masukkan kode undangan" (bukan layar admin atau member).
+- [ ] Given user berperan admin atau member When login Then aplikasi membuka beranda sesuai peran (admin: daftar member dengan tombol "Tambah member"; member: kartu status masa aktif).
+Edge cases:
+- Email di token tidak pernah dipakai untuk menautkan akun ke member (RV-02).
+- Logout menghapus token perangkat yang terdaftar (FR-13) sebelum sign out.
+
+### FR-02: Gym tunggal, peran, dan admin pertama
+Satu gym dengan profil (nama, alamat, zona waktu) dan pengaturan (ambang hampir habis, batas batal booking, interval QR). Admin pertama dibuat lewat skrip CLI saat deploy: `pnpm --filter api admin:create --firebase-uid <uid> --email <email> [--gym-name ... --timezone ...]`. Skrip membuat gym bila belum ada dan menjadikan user itu admin, idempoten (RV-06). Admin lain hanya lewat undangan (FR-05). Mencabut admin atau menghapus akun admin tidak boleh membuat gym tanpa admin.
+Fitur: F-02
+Acceptance criteria:
+- [ ] Given skrip CLI dijalankan dua kali dengan argumen sama When selesai Then ada satu gym dan satu baris `gym_users` admin untuk user itu.
+- [ ] Given user baru tanpa peran When memanggil `GET /v1/gyms/{gymId}` Then `404`.
+- [ ] Given member When memanggil `PATCH /v1/gyms/{gymId}` Then `403 FORBIDDEN`.
+- [ ] Given `timezone` bukan IANA valid atau `qrIntervalSeconds` di luar 15–120 When PATCH gym Then `422` dengan `details` per field.
+- [ ] Given hanya satu admin When ia dicabut `DELETE /v1/gyms/{gymId}/admins/{userId}` Then `409 LAST_ADMIN`.
+- [ ] Given dua admin saling mencabut bersamaan When keduanya diproses Then tepat satu berhasil dan satunya `409 LAST_ADMIN`. Transaksi mengunci baris `gyms` dengan `FOR UPDATE` sebelum menghitung admin (RV2-02), dengan integration test cabut-silang bersamaan.
+Edge cases:
+- Admin mencabut dirinya sendiri diizinkan selama bukan admin terakhir.
+- Pencabutan hanya menghapus peran admin. Baris `users` tetap ada.
+
+### FR-03: Paket membership
+Admin mengelola paket (nama, durasi, harga rupiah). Paket tidak dihapus, hanya dinonaktifkan. Paket nonaktif tidak bisa dipilih untuk member baru atau perpanjangan, tetapi member yang sudah memakainya tetap berjalan.
+Fitur: F-03
+Acceptance criteria:
+- [ ] Given admin When membuat paket dengan nama, `durationValue` 1, `durationUnit` `month`, `priceIdr` 300000 Then paket tersimpan dan muncul di daftar aktif.
+- [ ] Given nama paket sudah ada (beda huruf besar-kecil) When membuat atau mengubah Then `409 CONFLICT`.
+- [ ] Given `durationValue` ≤ 0, unit di luar `day|month|year`, atau `priceIdr` ≤ 0 When disimpan Then `422` dengan `details` per field.
+- [ ] Given paket dinonaktifkan When `GET .../plans?active=true` Then paket itu tidak muncul.
+- [ ] Given member When memanggil `POST /v1/gyms/{gymId}/plans` Then `403`.
+Edge cases:
+- Mengubah durasi atau harga paket tidak mengubah pembayaran lama (snapshot di `payments`).
+- Nama dirapikan dengan `trim` sebelum divalidasi.
+
+### FR-04: Data member
+Admin menambah member beserta paket awal, mengubah data, mencari, dan memfilter status. Tanggal kedaluwarsa awal = `startOn` + durasi paket. `startOn` default hari ini (zona gym), hanya boleh hari ini sampai 30 hari ke belakang (RV2-04). Untuk member yang mulai nanti, admin menambahkannya di hari mulai. Bila `payment` disertakan, dibuat satu pembayaran `paid` (snapshot paket) tanpa perpanjangan tambahan, supaya tidak dobel dengan FR-09. Detail member menampilkan paket, riwayat pembayaran, dan riwayat check-in.
+Fitur: F-04
+Acceptance criteria:
+- [ ] Given paket 1 bulan dan `startOn` 2026-01-15 When admin membuat member Then `expiresOn` = 2026-02-15 dan status dihitung sesuai FR-08.
+- [ ] Given `startOn` besok atau lebih dari 30 hari lalu When membuat member Then `422` dengan `details.startOn`.
+- [ ] Given `payment: {method: "cash"}` When member dibuat Then ada satu `payments` `paid` dengan `renewed_to` = `expiresOn`, dan `expiresOn` member tidak berubah lagi.
+- [ ] Given `planId` nonaktif When membuat member Then `409 PLAN_INACTIVE`. Nama atau nomor HP kosong → `422`.
+- [ ] Given `?q=bud&status=expired` When daftar diminta Then hanya member berstatus `expired` yang nama atau nomor HP-nya cocok, berhalaman 20 per halaman.
+- [ ] Given member When memanggil `GET /v1/gyms/{gymId}/members` Then `403`. `GET .../me/member` mengembalikan data miliknya saja.
+Edge cases:
+- Nomor HP diterima dalam bentuk 08.../+62... dan disimpan ternormalisasi (+62...).
+- Email opsional dan tidak dipakai untuk penautan akun.
+- Member yang belum tertaut tetap muncul di daftar dengan penanda "belum punya akun".
+
+### FR-05: Undangan dan penautan akun
+Akun login ditautkan ke data member lewat kode undangan sekali pakai (RV-02, RV-03). Admin membuat undangan untuk member tertentu atau untuk admin baru. Kode 12 karakter acak (Crockford base32), disimpan sebagai hash, berlaku 48 jam. Kode hanya tampil sekali di respons pembuatan. User login lalu memasukkan kode di aplikasi.
+Fitur: F-04
+Acceptance criteria:
+- [ ] Given member belum tertaut When admin membuat undangan `role: member` Then respons memuat `code` dan `expiresAt` 48 jam ke depan, dan kode tidak bisa dibaca lagi.
+- [ ] Given kode valid dan user tanpa peran When `POST /v1/invitations/redeem` Then `members.user_id` terisi, `gym_users` role `member` dibuat, dan `GET /v1/me` mengembalikan `memberId`.
+- [ ] Given kode salah, kedaluwarsa, sudah dipakai, atau dicabut When redeem Then `422 INVITE_INVALID` tanpa membedakan penyebabnya.
+- [ ] Given dua user me-redeem kode yang sama bersamaan When selesai Then tepat satu berhasil (penandaan `used_at` dan penautan dalam satu transaksi bersyarat).
+- [ ] Given undangan `role: admin` yang valid When di-redeem Then user menjadi admin gym.
+- [ ] Given member sudah tertaut When admin membuat undangan untuknya Then `409 CONFLICT`.
+Edge cases:
+- User yang sudah punya peran me-redeem kode → `409 CONFLICT` dan kode tidak terpakai.
+- Admin dapat mencabut undangan yang belum terpakai.
+- Tampilan undangan di web admin: kode besar dengan tombol salin, plus tautan `?code=` yang mengisi kolom kode otomatis.
+
+### FR-06: Foto member
+Admin mengunggah foto member lewat API. Hanya path dan metadata disimpan di database. Foto dibaca lewat signed URL berumur 5 menit yang dibuat API setelah otorisasi (RV-05). Storage tidak bisa diakses langsung dari client.
+Fitur: F-04
+Acceptance criteria:
+- [ ] Given file JPEG ≤ 2 MB When admin `PUT .../photo` Then file disimpan di path `members/<memberId>/photo` (menimpa yang lama) dan `photo_path` terisi.
+- [ ] Given tipe selain jpeg/png/webp atau ukuran > 2 MB When upload Then `422`.
+- [ ] Given member pemilik When `GET .../photo` Then menerima `url` yang berlaku 5 menit. Member lain mendapat `403`.
+- [ ] Given member belum punya foto When `GET .../photo` Then `404`.
+- [ ] Given `storage.rules` When client mencoba membaca atau menulis langsung ke bucket Then ditolak (diuji di emulator).
+Edge cases:
+- Gagal menyimpan ke Storage tidak mengubah `photo_path`.
+- Aplikasi mengambil URL baru saat URL lama kedaluwarsa, tidak menyimpannya di cache lokal.
+
+### FR-07: Hapus akun
+Halaman profil menyediakan "Hapus akun" dengan konfirmasi (RV-10), sesuai aturan App Store dan Google Play. `DELETE /v1/me` menghapus akun login, bukan riwayat pembukuan.
+Fitur: F-04
+Acceptance criteria:
+- [ ] Given member tertaut When menghapus akun Then `users`, `gym_users`, dan `device_tokens` dihapus, booking mendatang berstatus `booked` menjadi `cancelled`, dan foto dihapus dari Storage.
+- [ ] Given penghapusan akun member When selesai Then baris `members` dianonimkan (`name` = "Member Terhapus", `phone`/`email`/`photo_path` null, `user_id` null, `anonymized_at` terisi), sedangkan `payments` dan `checkins` tetap tersimpan untuk pembukuan.
+- [ ] Given admin terakhir When menghapus akun Then `409 LAST_ADMIN`. Penghapusan dua admin terakhir bersamaan hanya meloloskan satu (kunci `gyms` `FOR UPDATE`, RV2-02).
+- [ ] Given penghapusan berhasil When transaksi database commit Then akun Firebase dihapus lewat port `AuthAccountDeleter`. Kegagalannya hanya dicatat di log dan tidak membatalkan penghapusan data.
+- [ ] Given akun terhapus When aplikasi menerima 204 Then pengguna keluar dan kembali ke layar login.
+Edge cases:
+- Member dengan pembayaran `pending` tetap boleh menghapus akun. Webhook yang datang kemudian tetap diproses ke baris member anonim.
+- Admin yang menghapus akunnya bukan admin terakhir kehilangan peran admin.
+
+### FR-08: Status masa aktif dan tanggal kedaluwarsa
+Status dihitung di server dari `expires_on` dan tanggal lokal gym saat ini: `expired` bila `expires_on` < hari ini; `expiring_soon` bila selisih 0–`expiring_soon_days` hari (default 7); selain itu `active`. Member aktif sampai akhir hari `expires_on` dan tidak ada masa tenggang.
+Fitur: F-05
+Acceptance criteria:
+- [ ] Given `expires_on` = hari ini (zona gym) When status dihitung Then `expiring_soon` (masih bisa check-in dan booking).
+- [ ] Given `expires_on` kemarin When status dihitung Then `expired`.
+- [ ] Given `expires_on` 8 hari lagi dan `expiringSoonDays` 7 When dihitung Then `active`. Dengan 7 hari lagi → `expiring_soon`.
+- [ ] Given waktu UTC 17:30 pada 31 Jan dan gym berzona Asia/Jakarta When dihitung Then tanggal lokal = 1 Feb (diuji dengan jam palsu pada batas tengah malam).
+- [ ] Given member membuka beranda When data dimuat Then tampil status, `expiresOn`, dan `daysLeft`. Admin dapat memfilter daftar berdasarkan status.
+- [ ] Given admin mengubah `expiringSoonDays` When daftar dimuat ulang Then ambang baru dipakai.
+Edge cases:
+- Semua pemeriksaan status memakai satu fungsi domain yang menerima `now` dan zona gym.
+- Status tidak disimpan di database.
+
+### FR-09: Pembayaran manual dan perpanjangan
+Admin mencatat pembayaran tunai atau transfer. Pembayaran langsung berstatus `paid` dan memperpanjang masa aktif. Fungsi `computeRenewalPeriod` membaca durasi dari snapshot di `payments` (`plan_duration_value`/`plan_duration_unit`), bukan dari `plans` (RV2-01). Basis tanggal: `expires_on` bila ≥ hari ini (lokal), selain itu hari ini. Tanggal baru = basis + durasi (RV-07). Perpanjangan juga mengganti `members.plan_id` ke paket yang dibayar.
+Fitur: F-06
+Acceptance criteria:
+- [ ] Given `expires_on` 2026-03-10, hari ini 2026-03-01, paket 1 bulan When pembayaran dicatat Then `expires_on` = 2026-04-10 dan `renewed_to` = 2026-04-10.
+- [ ] Given `expires_on` 2026-02-01 (sudah lewat), hari ini 2026-03-01, paket 1 bulan When dicatat Then `expires_on` = 2026-04-01.
+- [ ] Given paket diubah admin dari 1 bulan menjadi 3 bulan sesudah pembayaran dibuat When perpanjangan dihitung dari pembayaran itu Then memakai 1 bulan dari snapshot.
+- [ ] Given pembayaran dicatat When tersimpan Then `payments` memuat snapshot `plan_name`, `amount`, `plan_duration_*`, `recorded_by`, dan pembaruan `expires_on` terjadi di transaksi yang sama.
+- [ ] Given `planId` nonaktif When dicatat Then `409 PLAN_INACTIVE` dan masa aktif tidak berubah.
+- [ ] Given admin membuka detail member atau daftar pembayaran When difilter `from`/`to` dan `status` Then data muncul berurutan terbaru dulu. Pembayaran `needs_review` bisa difilter untuk ditindaklanjuti dengan mencatat pembayaran manual.
+Edge cases:
+- 31 Jan + 1 bulan = 28/29 Feb (dipotong akhir bulan).
+- Dua pencatatan beruntun menambah dua periode (bukan idempoten, karena tiap pembayaran adalah transaksi nyata).
+
+### FR-10: Pembayaran online oleh member
+Member memilih paket dan membayar di aplikasi lewat Midtrans Snap, dibungkus port `PaymentGateway` (adapter `fake` untuk test, `midtrans` untuk sandbox/produksi). Pembayaran dibuat `pending` dengan snapshot paket dan durasi, berlaku 60 menit. Aplikasi membuka `paymentUrl`, lalu memeriksa status dengan refresh.
+Fitur: F-07
+Acceptance criteria:
+- [ ] Given paket aktif When `POST /v1/gyms/{gymId}/me/payments` Then `payments` `pending` dibuat dengan `amount` = harga paket, snapshot durasi, `expires_at` = now + 60 menit, dan respons memuat `paymentUrl`.
+- [ ] Given sudah ada pembayaran `pending` milik member When membuat lagi Then `409 CONFLICT` (UNIQUE parsial).
+- [ ] Given gateway gagal merespons When membuat Then `502 PAYMENT_GATEWAY_ERROR`, baris menjadi `failed`, dan member bisa mencoba lagi.
+- [ ] Given paket nonaktif When membuat Then `409 PLAN_INACTIVE`.
+- [ ] Given pembayaran `pending` When member membuka riwayat Then terlihat "Menunggu pembayaran" dengan tombol "Lanjutkan bayar" (memakai `payment_url`).
+- [ ] Given member membuka `GET .../payments/{paymentId}` milik member lain Then `403`.
+Edge cases:
+- `provider_order_id` dibentuk dari id pembayaran supaya unik dan stabil.
+- Admin tidak dapat membuat pembayaran online atas nama member.
+
+### FR-11: Webhook pembayaran dan rekonsiliasi
+Webhook Midtrans memverifikasi `signature_key` (SHA-512 dari `order_id + status_code + gross_amount + server key`). Pemrosesan idempoten: baris pembayaran dikunci dalam transaksi dan perpanjangan hanya terjadi saat status berubah ke `paid`. Pembayaran bisa lunas sampai 60 menit setelah dibuat, bahkan setelah `expired`. Job `payments.reconcile` (tiap 10 menit, `*/10 * * * *`) memeriksa pembayaran `pending` ke gateway dan menandai `expired` bila lewat `expires_at`.
+Fitur: F-07
+Acceptance criteria:
+- [ ] Given webhook `settlement` dengan tanda tangan valid dan `gross_amount` sama When diterima Then status `paid`, `paid_at` terisi, `expires_on` member diperpanjang sesuai FR-09 memakai snapshot, dalam satu transaksi.
+- [ ] Given webhook yang sama dikirim dua kali atau bersamaan When diproses Then perpanjangan hanya sekali dan respons tetap `200`.
+- [ ] Given tanda tangan salah When diterima Then `401 INVALID_SIGNATURE` dan tidak ada perubahan.
+- [ ] Given `gross_amount` ≠ `payments.amount` When diterima Then status `needs_review`, tidak ada perpanjangan, dicatat di log level `warn`. Status ini dikecualikan dari rekonsiliasi dan tampil di daftar admin dengan filter `status=needs_review` (RV2-06).
+- [ ] Given pembayaran `expired` lalu webhook `settlement` dengan jumlah sesuai When diterima Then menjadi `paid` dan diperpanjang.
+- [ ] Given pembayaran `pending` melewati `expires_at` dan gateway melaporkan `expire` When `payments.reconcile` berjalan Then status `expired`. Bila gateway melaporkan `settlement`, diproses seperti webhook.
+Edge cases:
+- Pemetaan status: `settlement`/`capture` → `paid`, `pending` → `pending`, `deny`/`cancel`/`failure` → `failed`, `expire` → `expired`. Pembayaran `paid` atau `needs_review` tidak berubah lagi.
+- Kegagalan job tidak menghentikan job lain dan di-retry pada jadwal berikutnya.
+- Integration test memakai adapter `fake` dan payload sandbox Midtrans.
+
+### FR-12: Ekspor laporan member dan pembayaran
+Admin mengunduh CSV daftar member dan pembayaran untuk pembukuan.
+Fitur: R-06
+Acceptance criteria:
+- [ ] Given admin When `GET .../exports/members` Then CSV berisi nama, nomor HP, email, paket, `start_on`, `expires_on`, status (header bahasa Indonesia, UTF-8 dengan BOM).
+- [ ] Given `from` dan `to` When `GET .../exports/payments` Then CSV berisi waktu bayar (zona gym), nama member, paket, jumlah, metode, status, hanya dalam rentang itu.
+- [ ] Given rentang > 366 hari atau `from` > `to` atau tanpa parameter When diminta Then `422`.
+- [ ] Given sel diawali `=`, `+`, `-`, atau `@` When diekspor Then diawali tanda petik tunggal agar tidak dieksekusi spreadsheet.
+- [ ] Given member When memanggil endpoint ekspor Then `403`.
+Edge cases:
+- Member teranonimkan tampil dengan nama "Member Terhapus".
+- Hasil kosong tetap mengembalikan CSV berisi header.
+- Di web berkas diunduh. Di mobile dibagikan lewat share sheet.
+
+### FR-13: Pengingat masa aktif hampir habis
+Push FCM mengingatkan member agar memperpanjang. Aplikasi mendaftarkan token perangkat setelah login dan izin notifikasi (RV-04). Job `notifications.expiry-reminders` berjalan tiap jam (`0 * * * *`) dan memproses gym yang jam lokalnya 08:00. Pengingat dikirim 3 hari sebelum `expires_on` dan pada hari `expires_on`. Dedupe lewat `notification_log` dengan kunci `expiry:<memberId>:<expires_on>:<offset>`.
+Fitur: R-01
+Acceptance criteria:
+- [ ] Given member tertaut dengan token terdaftar dan `expires_on` 3 hari lagi When job berjalan pukul 08:00 lokal Then satu push terkirim dengan judul dan isi yang memuat tanggal kedaluwarsa.
+- [ ] Given job berjalan dua kali pada jam yang sama (retry atau dua instance) When selesai Then push hanya terkirim sekali.
+- [ ] Given member sudah memperpanjang sehingga `expires_on` berubah When job berjalan Then tidak ada pengingat untuk tanggal lama dan pengingat baru memakai kunci tanggal baru.
+- [ ] Given `PushSender` mengembalikan `invalid-token` When mengirim Then token itu dihapus dari `device_tokens`.
+- [ ] Given member tanpa token atau belum tertaut When job berjalan Then dilewati tanpa error.
+- [ ] Given pengiriman melempar error sementara When gagal Then baris `notification_log` dibatalkan dan job gagal supaya di-retry pg-boss.
+Edge cases:
+- Satu member dengan beberapa perangkat menerima push di semua perangkat, dan satu baris log per user dan kunci.
+- Push iOS butuh kunci APNs terpasang di Firebase. Tanpa itu kegagalan dicatat, bukan memblokir deploy.
+- Ketuk notifikasi membuka layar status dan perpanjangan.
+
+### FR-14: QR check-in dan scan admin
+Member menampilkan QR dinamis yang berganti tiap `qr_interval_seconds` (30 detik). Token ditandatangani HMAC server dan memuat `memberId`, `jti`, `exp` (interval + 15 detik). Admin memindai di web memakai kamera, melihat nama dan foto member untuk verifikasi, lalu server memvalidasi.
+Fitur: F-08
+Acceptance criteria:
+- [ ] Given member tertaut When membuka layar QR Then aplikasi mengambil token baru tiap interval dan menampilkan hitung mundur.
+- [ ] Given token valid dan member `active` atau `expiring_soon` When admin `POST .../checkins` Then `Checkin` tersimpan dan respons memuat nama, `photoUrl` (signed URL), status, dan `expiresOn`.
+- [ ] Given token kedaluwarsa, rusak, atau tanda tangan salah When dipindai Then `422 QR_INVALID`.
+- [ ] Given token yang sama dipindai dua kali (termasuk bersamaan) When diproses Then yang kedua `409 QR_ALREADY_USED` (UNIQUE `qr_jti`).
+- [ ] Given member `expired` When dipindai Then `409 MEMBERSHIP_INACTIVE` dan tidak ada check-in tercatat.
+- [ ] Given member mengakses `POST .../checkins` Then `403`.
+Edge cases:
+- Screenshot QR lama otomatis tidak berlaku setelah ±45 detik, dan admin membandingkan foto dengan orangnya.
+- Member yang dianonimkan tidak dapat menghasilkan QR.
+- Kamera ditolak di browser → halaman scan menampilkan pesan dan kolom tempel token manual untuk pengujian.
+
+### FR-15: Riwayat check-in
+Admin melihat semua check-in (filter tanggal dan member), member melihat check-in miliknya.
+Fitur: F-08
+Acceptance criteria:
+- [ ] Given admin When `GET .../checkins?from&to` Then item dalam rentang tanggal lokal gym, terbaru dulu, berhalaman.
+- [ ] Given member When `GET .../me/checkins` Then hanya check-in miliknya.
+- [ ] Given member lain When mencoba `GET .../checkins` Then `403`.
+- [ ] Given `from` > `to` When diminta Then `422`.
+Edge cases:
+- Waktu ditampilkan di UI memakai zona gym.
+- Check-in dari member yang kemudian dianonimkan tetap muncul dengan nama anonim.
+
+### FR-16: Jadwal kelas (satu kali dan berulang)
+Admin membuat kelas satu kali (`class_sessions` tanpa seri) atau seri mingguan (`class_series`). Job `classes.generate-sessions` (harian, `0 18 * * *`) dan pembuatan seri membuat sesi sampai 28 hari ke depan secara idempoten. Member melihat jadwal beserta sisa kuota.
+Fitur: F-09
+Acceptance criteria:
+- [ ] Given seri Senin 18:00 Asia/Jakarta, `startsOn` 2026-03-02 When dibuat Then sesi 28 hari ke depan dibuat dengan `starts_at` = 11:00 UTC dan `local_date` sesuai.
+- [ ] Given job berjalan berulang When selesai Then tidak ada sesi ganda untuk `(series_id, local_date)` yang sama.
+- [ ] Given sesi seri yang dibatalkan admin When job berjalan Then tidak dibuat ulang (baris `cancelled` tetap menempati kunci).
+- [ ] Given `endsOn` terlewati atau seri `active=false` When job berjalan Then tidak ada sesi baru.
+- [ ] Given `capacity` 0 atau > 200, `startTime` bukan `HH:mm`, atau `startsAt` lampau When disimpan Then `422` dengan `details` per field.
+- [ ] Given member When `GET .../class-sessions?from&to` Then hanya sesi `scheduled` dengan `bookedCount`, `availableSeats`, dan `myBookingId`.
+Edge cases:
+- `starts_at` dihitung dari `local_date` + `start_time` memakai zona gym.
+- Rentang `from`/`to` > 35 hari → `422`.
+- Kelas satu kali memakai `local_date` dari `starts_at` yang dihitung server.
+
+### FR-17: Ubah dan batalkan sesi atau seri
+Admin mengubah atau membatalkan sesi dan seri. Halaman detail sesi dan form edit bisa di-deep-link lewat `GET` per sesi dan per seri (RV2-05).
+Fitur: F-09
+Acceptance criteria:
+- [ ] Given sesi dengan `series_id` When `startsAt` baru jatuh di `local_date` yang sama (zona gym) Then diterima. Di tanggal lain → `422 details.startsAt` (RV2-03).
+- [ ] Given kelas satu kali When `startsAt` digeser ke tanggal lain Then diterima dan `local_date` dihitung ulang.
+- [ ] Given `capacity` baru < jumlah booking `booked` When disimpan Then `409 CONFLICT`.
+- [ ] Given `PATCH .../class-series/{seriesId}` mengubah nama, instruktur, durasi, kapasitas, atau jam mulai When disimpan Then diterapkan ke sesi `scheduled` mendatang dari seri itu (jam mulai menggeser `starts_at` di `local_date` yang sama). Sesi lampau tidak berubah.
+- [ ] Given `active=false` pada seri When disimpan Then sesi `scheduled` mendatang menjadi `cancelled` beserta bookingnya (`cancelled`).
+- [ ] Given `POST .../class-sessions/{sessionId}/cancel` When berhasil Then sesi `cancelled` dan semua booking `booked` menjadi `cancelled`. Sesi sudah dibatalkan atau sudah lewat → `409 SESSION_CLOSED`.
+Edge cases:
+- Halaman detail sesi di refresh atau dibuka lewat URL langsung tetap terisi (data dari endpoint per sesi).
+- Member membuka sesi `cancelled` → `404`.
+- Admin melihat peserta dan "N / kapasitas" di detail sesi.
+
+### FR-18: Booking kelas dengan kuota atomik
+Member yang masih aktif memesan slot. Pemeriksaan status, kuota, dan pembuatan booking atomik dalam satu transaksi dengan penguncian baris sesi.
+Fitur: F-10
+Acceptance criteria:
+- [ ] Given sesi `scheduled` yang belum mulai, kuota tersisa, `expires_on` ≥ `local_date` sesi When member `POST .../bookings` Then `Booking` `booked` dibuat dan `availableSeats` berkurang satu.
+- [ ] Given `expires_on` < `local_date` sesi When booking Then `409 MEMBERSHIP_INACTIVE`.
+- [ ] Given kuota 1 dan 5 member memesan bersamaan When semua diproses Then tepat satu berhasil dan empat lainnya `409 CLASS_FULL` (integration test konkuren).
+- [ ] Given member sudah punya booking `booked` di sesi itu When memesan lagi Then `409 ALREADY_BOOKED`.
+- [ ] Given sesi `cancelled` atau sudah dimulai When booking Then `409 SESSION_CLOSED`.
+- [ ] Given admin When memanggil endpoint booking member Then `403`.
+Edge cases:
+- Booking tidak otomatis menjadi check-in.
+- Setelah dibatalkan, member boleh memesan ulang selama kuota ada (UNIQUE parsial hanya untuk `booked`).
+- Member yang sedang berstatus `expiring_soon` tetap boleh booking.
+
+### FR-19: Pembatalan booking dan peserta kelas
+Member membatalkan booking paling lambat `cancel_cutoff_minutes` (default 120) sebelum kelas mulai. Admin melihat daftar peserta per sesi.
+Fitur: F-10
+Acceptance criteria:
+- [ ] Given kelas mulai 3 jam lagi When member `DELETE .../bookings/{bookingId}` Then 204, booking `cancelled`, dan kuota kembali.
+- [ ] Given kelas mulai 119 menit lagi When membatalkan Then `409 CANCEL_CUTOFF_PASSED`. Tepat 120 menit → diizinkan.
+- [ ] Given booking milik member lain When dihapus Then `404`.
+- [ ] Given admin When `GET .../class-sessions/{sessionId}/bookings` Then daftar peserta `booked` dengan `capacity` dan `bookedCount`.
+- [ ] Given member When `GET .../me/bookings?upcoming=true` Then hanya booking `booked` miliknya pada sesi mendatang, berhalaman.
+- [ ] Given booking sudah `cancelled` When dibatalkan lagi Then `404`.
+Edge cases:
+- Batas dihitung dari `starts_at` dan jam server, bukan jam perangkat.
+- Mengubah `cancelCutoffMinutes` hanya berlaku untuk pembatalan berikutnya.
+
+### FR-20: Pengingat jadwal kelas
+Push FCM 60 menit sebelum kelas ke member yang punya booking `booked`. Job `notifications.class-reminders` berjalan tiap 5 menit (`*/5 * * * *`) dan memilih sesi `scheduled` yang mulai dalam 0–60 menit. Dedupe dengan kunci `class:<bookingId>`.
+Fitur: R-03
+Acceptance criteria:
+- [ ] Given booking `booked` untuk sesi yang mulai dalam 58 menit When job berjalan Then satu push terkirim berisi nama kelas dan jam lokal.
+- [ ] Given job berjalan beberapa kali sebelum kelas When selesai Then push hanya sekali per booking.
+- [ ] Given booking dibatalkan atau sesi dibatalkan sebelum job berjalan When job berjalan Then tidak ada push.
+- [ ] Given sesi mulai dalam 90 menit When job berjalan Then belum ada push.
+- [ ] Given `invalid-token` When mengirim Then token dihapus.
+- [ ] Given member tanpa token When job berjalan Then dilewati tanpa error.
+Edge cases:
+- Booking yang dibuat kurang dari 60 menit sebelum kelas dikirimi pengingat pada job berikutnya (sekali).
+- Sesi yang jamnya digeser admin memakai `starts_at` terbaru, dengan dedupe per booking.
+
+## 7. Non-Functional Requirements
+
+- **NFR-01 Performa:** p95 respons API ≤ 500 ms untuk semua endpoint selain ekspor dan webhook, dengan 5.000 member dan 100.000 check-in. Daftar berhalaman memakai index `(gym_id, created_at DESC, id DESC)`.
+- **NFR-02 Konkurensi:** pembuatan booking, perpanjangan dari webhook, dan perubahan admin masing-masing punya integration test konkuren (minimal 5 request paralel) dengan hasil tepat satu pemenang atau perpanjangan tepat satu kali.
+- **NFR-03 Keamanan akses:** setiap query data gym difilter `gym_id`, dan data member difilter pemilik. Integration test: member A tidak bisa membaca member B (`403`/`404`), user tanpa peran mendapat `404` di semua route gym, dan `all-routes-require-auth` lolos dengan hanya `/webhooks/payments` publik.
+- **NFR-04 Data pribadi:** komunikasi HTTPS saja. Kode undangan hanya disimpan sebagai hash. Token, kode, dan kunci gateway tidak pernah masuk log. Signed URL foto berlaku maksimal 5 menit.
+- **NFR-05 Idempotensi:** webhook yang sama dikirim 10 kali menghasilkan 1 perpanjangan. Semua job terjadwal aman dijalankan ulang tanpa duplikasi (sesi, push, rekonsiliasi).
+- **NFR-06 Waktu:** semua aturan tanggal (status, perpanjangan, booking, laporan) memakai satu util yang menerima `now` dan zona gym. Dicakup unit test pada batas tengah malam, akhir bulan, dan 29 Februari.
+- **NFR-07 Keandalan gateway:** `payments.reconcile` memastikan pembayaran tidak tertahan `pending` lebih dari 70 menit. Pembayaran tidak lengkap atau tidak sesuai tampil sebagai `needs_review` di daftar admin.
+- **NFR-08 Pengujian:** unit test use case dengan repository palsu, integration test API dengan PostgreSQL dan Firebase Auth Emulator, adapter `fake` untuk gateway, push, dan storage. Seluruh `pnpm check` hijau di CI. Cakupan baris use case domain ≥ 80%.
+- **NFR-09 Kontrak:** `pnpm contract:check` lolos. Semua kode error baru ada di enum OpenAPI dan dipetakan ke teks bahasa Indonesia di Flutter.
+- **NFR-10 Operasional:** container API selalu hidup dengan `RUN_WORKER=true` pada tepat satu instance worker, shutdown graceful sesuai bagian Job. Setup sekali di awal: migrasi, `admin:create`, kunci Midtrans, kunci APNs, `QR_SIGNING_SECRET`.
+- **NFR-11 Kepatuhan store:** hapus akun dapat dicapai dalam maksimal 3 ketukan dari halaman profil dan selesai dalam ≤ 5 detik.
+- **NFR-12 Ketersediaan UI:** layar admin dapat dipakai di web (lebar ≥ 1024 px) dan layar member nyaman di ponsel (lebar 360 px). Semua teks error dari `code`, bukan pesan mentah API.

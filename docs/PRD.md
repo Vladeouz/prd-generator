@@ -112,7 +112,7 @@ Terbukti di uji sebelumnya dan wajib diikuti:
 
 Efisiensi (D-09 sampai D-12). Nama flag persis ditetapkan spike T-022 dari `claude --help` versi terpasang, lalu dicatat di `docs/conventions.md`:
 
-- Model dari env `CLAUDE_MODEL` (bawaan `sonnet`), dengan extended thinking dimatikan.
+- Model dari env `CLAUDE_MODEL` (bawaan `sonnet`) dengan `--effort low`. Extended thinking tidak bisa dimatikan di Sonnet 5.5; effort rendah menguranginya (spike T-022).
 - Overhead Claude Code dikurangi: system prompt sendiri yang pendek, tanpa tool, tanpa server MCP dan pengaturan dari folder user.
 - Output memakai format stream (`--output-format stream-json`), sehingga potongan teks diteruskan ke UI selama pemanggilan berjalan.
 
@@ -350,7 +350,7 @@ Acceptance criteria:
 - **NFR-03 Lintas platform:** semua script dan perintah README berjalan di Windows (CMD, PowerShell, Git Bash).
 - **NFR-04 Keterlacakan:** setiap dokumen bisa ditelusuri ke versi prompt, output mentah, dan commit template yang menghasilkannya.
 - **NFR-05 Waktu verifikasi:** `pnpm check` selesai di bawah 5 menit.
-- **NFR-06 Efisiensi:** untuk ide uji gym dari T-012: tahap 6 selesai ≤ 3 menit, tahap 7 (7a + 7b) ≤ 5 menit, PRD ≤ 30 KB, dan perkiraan biaya satu proyek dari tahap 2 sampai 7 ≤ 25% dari baseline T-012. Angka ini boleh disesuaikan hasil spike T-022 dengan persetujuan user.
+- **NFR-06 Efisiensi:** untuk ide uji gym dari T-012: tahap 6 selesai ≤ 4 menit, tahap 7 (7a + 7b) ≤ 5 menit, PRD ±45 KB (target di prompt; validator memberi peringatan di atas 50 KB), dan perkiraan biaya satu proyek dari tahap 2 sampai 7 ≤ 25% dari baseline T-012. Angka tahap 6 dan ukuran PRD disesuaikan dari hasil spike T-022 dengan persetujuan user.
 
 ## 8. Assumptions & Decisions
 
@@ -364,7 +364,7 @@ Acceptance criteria:
 | D-06 | Konvensi proyek dibaca dari `TEMPLATE_DIR` | Satu sumber kebenaran; generator ikut berubah saat template berubah |
 | D-07 | Test memakai runner palsu dengan fixture output nyata | Tanpa kuota, deterministik, tetapi realistis |
 | D-08 | Satu kali percobaan ulang dengan daftar error | Pola yang terbukti di uji end-to-end |
-| D-09 | Model Sonnet di semua tahap dengan extended thinking dimatikan; bisa diganti lewat env `CLAUDE_MODEL` | Uji T-012 dengan model bawaan (kelas Opus) dan thinking: tahap 6 ±9 menit, satu proyek ±$12 |
+| D-09 | Model Sonnet di semua tahap dengan `--effort low`; bisa diganti lewat env `CLAUDE_MODEL`. Extended thinking tidak bisa dimatikan di Sonnet 5.5, jadi dikurangi lewat effort | Uji T-012 dengan model bawaan (kelas Opus) dan thinking: tahap 6 ±9 menit, satu proyek ±$12. Spike T-022: Sonnet + `--effort low` mengurangi thinking ±48% tanpa penurunan kualitas PRD yang terlihat |
 | D-10 | Prompt hanya membawa bagian `docs/conventions.md` yang relevan per tahap, dan PRD merujuk konvensi tanpa menyalinnya | Seluruh file (±77 KB) ikut di tahap 6 dan 7, dan PRD membengkak ke ±95 KB. D-06 tetap berlaku: sumbernya tetap `TEMPLATE_DIR` |
 | D-11 | Tahap 7 dua langkah: daftar task (7a) lalu detail per fase (7b); `TASKS.md` dan bagian bakunya disusun aplikasi | Satu pemanggilan besar ±108k token input dan gagal validasi format berulang (4 panggilan di uji T-012) |
 | D-12 | Output Claude Code di-stream ke UI lewat SSE dari job di memori (D-03) | Progres sebelumnya hanya perkiraan waktu |
