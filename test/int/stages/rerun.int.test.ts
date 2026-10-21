@@ -43,7 +43,7 @@ const FULL = () => [
   F.stage5(),
   F.stage6(),
   F.review2(),
-  F.stage7(),
+  ...F.stage7(),
 ];
 const flowWith = (...after: ClaudeResult[]) =>
   createFlow(t.db, clock, [...FULL(), ...after], { templateDir: template.dir });
@@ -103,7 +103,11 @@ describe('menjalankan ulang sebuah tahap', () => {
       'stage4',
       'stage5',
       'stage6',
-      // Tahap 7 lama dicatat sebagai stage7b sampai T-027 memecahnya menjadi 7a + 7b per fase.
+      // Tahap 7: daftar task (7a) dan detail per fase (7b, fase 0–3).
+      'stage7a',
+      'stage7b',
+      'stage7b',
+      'stage7b',
       'stage7b',
     ]);
     expect(documentKinds()).toEqual(['prd1', 'tasks1']);
@@ -134,12 +138,20 @@ describe('menjalankan ulang sebuah tahap', () => {
     expect(projectRow(t.db)?.currentStage).toBe('stage7');
   });
 
-  it('tahap 7 dijalankan ulang: tidak ada tahap sesudahnya, TASKS versi berikutnya', async () => {
-    const flow = flowWith(F.stage7());
+  it('tahap 7 dijalankan ulang setelah lengkap: 7a dan semua fase dibuat ulang, TASKS versi berikutnya', async () => {
+    const flow = flowWith(...F.stage7());
     await projectWithTasks(flow);
     await runStage(flow, 'stage7');
-    expect(currentStages()).toHaveLength(7);
+    expect(currentStages()).toHaveLength(11);
     expect(documentKinds()).toEqual(['prd1', 'tasks1', 'tasks2']);
+    const stage7Runs = t.db
+      .select({ stage: stageRuns.stage, isCurrent: stageRuns.isCurrent })
+      .from(stageRuns)
+      .where(and(eq(stageRuns.projectId, 'p1'), eq(stageRuns.isCurrent, 0)))
+      .all();
+    // Run 7a dan 7b dari job pertama tidak berlaku lagi.
+    expect(stage7Runs.filter((r) => r.stage === 'stage7a')).toHaveLength(1);
+    expect(stage7Runs.filter((r) => r.stage === 'stage7b')).toHaveLength(4);
   });
 
   it('percobaan ulang yang gagal tidak mengubah apa pun: output dan dokumen lama tetap berlaku', async () => {
@@ -149,7 +161,7 @@ describe('menjalankan ulang sebuah tahap', () => {
     const response = await flow.jobsApi.run('p1', 'stage4');
     const job = await flow.queue.waitFor((await response.json()).id);
     expect(job?.status).toBe('failed');
-    expect(currentStages()).toHaveLength(7);
+    expect(currentStages()).toHaveLength(11);
     expect(documentKinds()).toEqual(['prd1', 'tasks1']);
     expect(projectRow(t.db)?.currentStage).toBe('export');
   });
@@ -163,7 +175,6 @@ describe('pemakaian token dan perkiraan (FR-10)', () => {
     for (const [stage, fixture] of [
       ['stage2', F.stage2()],
       ['stage6', F.stage6()],
-      ['stage7', F.stage7()],
     ] as const) {
       expect(usage[stage]).toEqual({
         inputTokens: fixture.inputTokens,
@@ -172,6 +183,17 @@ describe('pemakaian token dan perkiraan (FR-10)', () => {
         durationMs: fixture.durationMs,
       });
     }
+    // Tahap 7: 7a dan 7b keempat fase dijumlahkan, termasuk durasi run yang berlaku.
+    const stage7 = F.stage7();
+    const sum = (pick: (f: ClaudeResult) => number | null) =>
+      stage7.reduce((s, f) => s + (pick(f) ?? 0), 0);
+    expect(usage.stage7?.inputTokens).toBe(sum((f) => f.inputTokens));
+    expect(usage.stage7?.outputTokens).toBe(sum((f) => f.outputTokens));
+    expect(usage.stage7?.costUsd).toBeCloseTo(
+      sum((f) => f.costUsd),
+      6,
+    );
+    expect(usage.stage7?.durationMs).toBe(sum((f) => f.durationMs));
     const totals = usageTotals(usage);
     const all = FULL();
     expect(totals.inputTokens).toBe(all.reduce((s, f) => s + f.inputTokens, 0));
@@ -188,16 +210,25 @@ describe('pemakaian token dan perkiraan (FR-10)', () => {
       basis: 'test',
       samples: 0,
     });
-    const flow = flowWith(F.stage7());
+    expect(stageEstimate({ db: t.db }, 'stage7')).toEqual({
+      ...TEST_ESTIMATES.stage7,
+      basis: 'test',
+      samples: 0,
+    });
+    const flow = flowWith(...F.stage7());
     await projectWithTasks(flow);
     await runStage(flow, 'stage7');
-    const stage7 = F.stage7();
-    expect(stageEstimate({ db: t.db }, 'stage7')).toEqual({
-      durationMs: stage7.durationMs,
-      inputTokens: stage7.inputTokens,
-      outputTokens: stage7.outputTokens,
+    // Perkiraan satu job: rata-rata 7a + rata-rata 7b × jumlah fase (dua job: 2 run 7a, 8 run 7b).
+    const [list, detail] = [F.stage7a(), F.stage7b(0)];
+    expect(stageEstimate({ db: t.db }, 'stage7', 4)).toEqual({
+      durationMs: list.durationMs + detail.durationMs * 4,
+      inputTokens: list.inputTokens + detail.inputTokens * 4,
+      outputTokens: list.outputTokens + detail.outputTokens * 4,
       basis: 'average',
-      samples: 2,
+      samples: 10,
     });
+    expect(stageEstimate({ db: t.db }, 'stage7', 2).durationMs).toBe(
+      list.durationMs + detail.durationMs * 2,
+    );
   });
 });

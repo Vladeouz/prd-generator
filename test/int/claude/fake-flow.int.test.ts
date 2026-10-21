@@ -26,6 +26,14 @@ describe('runner palsu mode flow', () => {
     expect(new Set(used).size).toBe(Object.keys(FLOW_FIXTURES).length);
   });
 
+  it('tahap 7b: fixture dipilih dari nomor fase di prompt', () => {
+    const template = readFileSync('prompts/stage-7b.md', 'utf8');
+    for (const phase of [0, 1, 2, 3]) {
+      const prompt = template.replaceAll('{{phase}}', String(phase));
+      expect(flowFixture(prompt)?.href).toMatch(new RegExp(`stage7b-gym-fase-${phase}\\.json$`));
+    }
+  });
+
   it('mencetak envelope fixture tahap itu lewat runner CLI', async () => {
     const prompt = readFileSync('prompts/stage-5.md', 'utf8');
     const result = await runner().run(prompt);

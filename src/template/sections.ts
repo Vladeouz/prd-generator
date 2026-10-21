@@ -2,8 +2,6 @@
 // hanya berisi bagian ini, apa adanya, bukan seluruh file (±77 KB); sumbernya tetap `TEMPLATE_DIR`
 // (D-06). Heading yang tidak ada di template membuat tahap gagal sebelum `claude` dipanggil dan
 // tampil sebagai masalah di halaman pengaturan (FR-07, FR-11).
-//
-// Daftar tahap 7b ditambahkan bersama tahapnya (T-027).
 
 /** Heading persis (satu baris) per tahap; setiap heading dibawa beserta sub-heading-nya. */
 export const CONVENTION_SECTIONS = {
@@ -32,6 +30,15 @@ export const CONVENTION_SECTIONS = {
     '## Script dan perintah root',
     '## Menghapus fitur contoh notes',
   ],
+  // Detail task per fase: path, pola, dan perintah test untuk `files` dan *done when*.
+  stage7b: [
+    '## Struktur repo',
+    '## Script dan perintah root',
+    '## Clean Architecture API',
+    '## Test API',
+    '## Kontrak dan client Dart',
+    '## Flutter',
+  ],
 } as const satisfies Record<string, readonly string[]>;
 
 export type ConventionStage = keyof typeof CONVENTION_SECTIONS;
@@ -41,6 +48,7 @@ export const CONVENTION_STAGE_LABELS: Record<ConventionStage, string> = {
   stage6: 'tahap 6 (PRD)',
   review2: 'review kedua',
   stage7a: 'tahap 7a (daftar task)',
+  stage7b: 'tahap 7b (detail task)',
 };
 
 export type SectionSelection = { ok: true; text: string } | { ok: false; missing: string[] };

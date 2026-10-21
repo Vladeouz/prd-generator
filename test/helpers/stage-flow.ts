@@ -25,8 +25,15 @@ export const GYM_FIXTURES = {
   stage6: () => loadClaudeFixture('derived/stage6-gym'),
   /** Review kedua sintetis (daftar-belanja); strukturnya valid untuk PRD gym yang tanpa celah. */
   review2: () => loadClaudeFixture('synthetic/review2-daftar-belanja'),
-  /** TASKS nyata yang disesuaikan dengan FR-08. */
-  stage7: () => loadClaudeFixture('derived/stage7-gym'),
+  /** Daftar task 7a (turunan TASKS nyata). */
+  stage7a: () => loadClaudeFixture('derived/stage7a-gym'),
+  /** Detail task 7b satu fase (turunan TASKS nyata). */
+  stage7b: (phase: number) => loadClaudeFixture(`derived/stage7b-gym-fase-${phase}`),
+  /** Satu job tahap 7 lengkap: 7a lalu 7b fase 0–3, berurutan. */
+  stage7: () => [
+    loadClaudeFixture('derived/stage7a-gym'),
+    ...[0, 1, 2, 3].map((phase) => loadClaudeFixture(`derived/stage7b-gym-fase-${phase}`)),
+  ],
 };
 
 export function createFlow(

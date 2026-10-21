@@ -14,7 +14,7 @@ import { Stage3Section } from './stage3-section.tsx';
 import { Stage4Section } from './stage4-section.tsx';
 import { Stage5Section } from './stage5-section.tsx';
 import { Stage6Section } from './stage6-section.tsx';
-import { Stage7Section } from './stage7-section.tsx';
+import { Stage7Section, type Stage7Steps } from './stage7-section.tsx';
 import { projectSteps, selectedStage } from './steps.ts';
 import { UsageSummary } from './usage-summary.tsx';
 
@@ -46,13 +46,22 @@ type Props = {
   template?: TemplateStatus;
   /** Perkiraan tahap 6–7 untuk konfirmasi sebelum dijalankan (FR-10). */
   estimates?: Estimates;
+  /** Langkah tahap 7 yang sudah valid (D-11), untuk keterangan melanjutkan. */
+  stage7Steps?: Stage7Steps;
 };
 
 /**
  * Halaman proyek: tiga kolom (stepper, konten tahap, panel samping). Di layar sempit kolom menumpuk
  * berurutan: konten, stepper, panel (urutan diatur lewat `order` di grid).
  */
-export function ProjectView({ project, usage = {}, stage, template, estimates }: Props) {
+export function ProjectView({
+  project,
+  usage = {},
+  stage,
+  template,
+  estimates,
+  stage7Steps,
+}: Props) {
   const selected = selectedStage(project, stage);
   return (
     <>
@@ -112,6 +121,7 @@ export function ProjectView({ project, usage = {}, stage, template, estimates }:
             usage={usage.stage7}
             template={template}
             estimate={estimates?.stage7}
+            steps={stage7Steps}
           />
         )}
         {selected === 'export' && <ExportSection project={project} />}

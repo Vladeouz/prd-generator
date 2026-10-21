@@ -144,9 +144,9 @@ describe('validateStage7a', () => {
 });
 
 describe('prompts/stage-7a.md', () => {
-  it('versi 1 dengan ringkasan PRD (bukan PRD utuh), konvensi terpilih, dan daftar layer', () => {
+  it('versi 2 dengan ringkasan PRD (bukan PRD utuh), konvensi terpilih, dan daftar layer', () => {
     const prompt = loadPrompt('stage-7a');
-    expect(prompt.version).toBe('1');
+    expect(prompt.version).toBe('2');
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
       'digest',
       'conventions',

@@ -51,7 +51,7 @@ function meta(project: ProjectDetail, stages: ProjectStage[], kind: StepStatus) 
   if (stage === 'stage7') {
     const tasks = project.documents.tasks;
     if (tasks) return `Versi ${tasks.version}`;
-    return kind === 'current' ? 'Sekitar 5–15 menit' : undefined;
+    return kind === 'current' ? 'Sekitar 3–6 menit' : undefined;
   }
   if (stage === 'stage6') {
     const prd = project.documents.prd;

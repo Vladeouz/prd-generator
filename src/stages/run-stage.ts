@@ -180,6 +180,19 @@ export type RunStageDeps = {
   onAttempt?: (attempt: number) => void;
   /** Potongan stream dari runner (D-12), diteruskan apa adanya. */
   onProgress?: ClaudeRunOptions['onProgress'];
+  /** Langkah ke-`step` dari `totalSteps` dimulai, untuk tahap berlangkah (tahap 7: 7a lalu 7b per fase). */
+  onStep?: (step: number, totalSteps: number) => void;
+};
+
+/**
+ * Tahap yang dijalankan sebagai beberapa pemanggilan dalam satu job (tahap 7, D-11): setiap
+ * pemanggilan tetap lewat `runStage` dengan definisinya sendiri, sehingga tercatat di `stage_runs`
+ * dan dicoba ulang sendiri-sendiri.
+ */
+export type StageJob = {
+  stage: Stage;
+  notReadyReason?(context: StageContext): string | null;
+  execute(deps: RunStageDeps, projectId: string): Promise<void>;
 };
 
 export type StageRunOutcome<T> = { output: T; stageRunId: string; attempts: number };

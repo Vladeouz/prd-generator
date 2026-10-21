@@ -1,5 +1,5 @@
 // Membangun fixture TURUNAN di test/fixtures/claude/derived/ (tahap 3: keputusan T-009; tahap 6: T-012;
-// tahap 7: T-014; tahap 7a: T-026).
+// tahap 7: T-014; tahap 7a: T-026; tahap 7b: T-027).
 //
 //   node test/fixtures/claude/build-derived-fixtures.mjs
 //
@@ -268,6 +268,67 @@ function taskListGym() {
   };
 }
 
+/**
+ * Detail task tahap 7b (T-027, JSON) untuk satu fase, dari blok task TASKS gym yang sama dengan
+ * `taskListGym`: `files` dan kriteria *done when* apa adanya, dipecah per kriteria. Bagian baku yang
+ * kini ditambahkan aplikasi dibuang: `pnpm check` hijau di akhir, serta langkah persiapan `.env`,
+ * Docker, dan Flutter web; penanda **(manual)** menjadi `manual.criterion`, dan langkah sisanya
+ * menjadi `manual.steps`.
+ */
+function taskDetailGym(phase) {
+  const list = JSON.parse(JSON.stringify(taskListGym().output));
+  const blocks = tasksGym().output.split(/\n\n(?=- \[ \] T-|## )/);
+  const blockOf = new Map(
+    blocks
+      .map((block) => [block.match(/^- \[ \] (T-\d{3}) /)?.[1], block])
+      .filter(([id]) => id !== undefined),
+  );
+  // Urutan blok sama dengan urutan task 7a (id lama → id baru berurutan).
+  const oldIds = [...blockOf.keys()];
+  const tasks = list.tasks
+    .map((task, i) => ({ task, block: blockOf.get(oldIds[i]) }))
+    .filter(({ task }) => task.phase === phase)
+    .map(({ task, block }) => {
+      const lines = block.split('\n');
+      const files = (lines.find((l) => l.startsWith('  - files: ')) ?? '')
+        .replace('  - files: ', '')
+        .split(/,\s(?=`)/)
+        .map((file) => (/^`[^`]+`$/.test(file) ? file.slice(1, -1) : file));
+      const doneWhen = (lines.find((l) => l.startsWith('  - done when: ')) ?? '')
+        .replace('  - done when: ', '')
+        .replace(/;?\s*`pnpm check` hijau$/, '');
+      const manualMatch = doneWhen.match(/;?\s*\*\*\(manual\)\*\* (.+)$/);
+      const criteria = (manualMatch ? doneWhen.slice(0, manualMatch.index) : doneWhen)
+        .split('; ')
+        .filter(Boolean);
+      const steps = lines
+        .filter((l) => /^ {4}\d+\. /.test(l))
+        .map((l) => l.replace(/^ {4}\d+\. /, ''))
+        .filter((step) => !/^Persiapan: |flutter run/.test(step));
+      return {
+        id: task.id,
+        files,
+        done_when: criteria,
+        manual: manualMatch ? { criterion: manualMatch[1], steps } : null,
+      };
+    });
+  const { envelope } = tasksGym();
+  return {
+    envelope: { ...envelope, session_id: `fixture-derived-gym-stage7b-fase-${phase}` },
+    output: { tasks },
+    derived: {
+      source:
+        'derived/stage7-gym.json (test/fixtures/claude/stage7.json, docs/reference/e2e-output/TASKS.md)',
+      changes: [
+        `detail task fase ${phase} (id dari derived/stage7a-gym.json): files dan done when apa adanya, done when dipecah per "; "`,
+        '"`pnpm check` hijau" di akhir done when dibuang (ditambahkan aplikasi)',
+        'penanda **(manual)** menjadi manual.criterion; langkah persiapan (.env, Docker) dan Flutter web dibuang (ditambahkan aplikasi), langkah lain menjadi manual.steps',
+        'usage, total_cost_usd, dan duration_ms masih dari pemanggilan tahap 7 lama (TASKS utuh)',
+      ],
+    },
+  };
+}
+
 mkdirSync(target, { recursive: true });
 for (const [name, build] of [
   ['stage3-gym', gym],
@@ -275,6 +336,7 @@ for (const [name, build] of [
   ['stage6-gym', prdGym],
   ['stage7-gym', tasksGym],
   ['stage7a-gym', taskListGym],
+  ...[0, 1, 2, 3].map((phase) => [`stage7b-gym-fase-${phase}`, () => taskDetailGym(phase)]),
 ]) {
   const { envelope, output, derived } = build();
   const text = typeof output === 'string' ? output : JSON.stringify(output, null, 2);

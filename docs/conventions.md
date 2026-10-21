@@ -165,9 +165,9 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
   - daftar task JSON `{ tasks: [{ id, title, phase, feature, layer, depends_on, refs }] }`;
   - prompt berisi ringkasan PRD (`prdDigest` + `formatPrdDigest`, `src/projects/prd-digest.ts`: kode dan judul FR/NFR, endpoint tanpa `**` dan query string, tabel erDiagram, fase dan fitur tahap 4, fitur rekomendasi yang diterima), bukan PRD utuh, ditambah bagian konvensi `stage7a`;
   - `validateStage7a` memeriksa aturan FR-08 untuk daftar task. Fase harus berasal dari tahap 4, dan task tidak boleh sebelum fase fiturnya. Hanya task hapus notes yang boleh tanpa fitur dan refs;
-  - aturan bersama dengan tahap 7 lama ada di `src/stages/task-rules.ts`: `TASK_LAYERS`, `templateSetupOf`, `isNotesRemoval`, `MAX_TASKS`;
+  - aturan bersama dengan 7b dan validator TASKS.md ada di `src/stages/task-rules.ts`: `TASK_LAYERS`, `templateSetupOf`, `isNotesRemoval`, `MAX_TASKS`;
   - fixture `derived/stage7a-gym.json` dibangun `build-derived-fixtures.mjs` dari TASKS rujukan;
-  - definisi dijalankan dalam job tahap 7 mulai T-027.
+  - definisi dijalankan dalam job tahap 7 (lihat Job tahap 7).
 - **PRD ringkas** (NFR-06, prompt tahap 6 versi 2):
   - prompt meminta PRD merujuk konvensi tanpa menyalin, dengan batas ±45.000 karakter, maksimal 20 FR dan 6 acceptance criteria per FR, dan API Contract sebagai tabel dengan path lengkap;
   - `validatePrd(md, { conventions })` menolak paragraf (≥ 120 karakter, per butir untuk daftar dan tabel) atau isi blok kode (≥ 40 karakter) konvensi yang muncul utuh di PRD setelah spasi dirapatkan;
@@ -179,10 +179,25 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
   - validator memakai `validateReview` (aturan bersama tahap 5) dengan kategori `data_model`, `business_rule`, `ui_endpoint` dan id `RV2-xx`. Setiap opsi punya `changes_prd`, setiap temuan butuh opsi `true` dan `false`, dan setiap celah wajib menjadi temuan `ui_endpoint`. `StageDefinition.validate` menerima `{ db, projectId }` untuk pemeriksaan seperti ini;
   - `PUT …/decisions/review2` hanya bisa dilakukan saat proyek di `review2`. Bila ada opsi `changes_prd` yang dipilih, handler (dengan `queue`) menjalankan tahap 6 sekali. Run tahap 6 yang punya keputusan `review2` memindahkan proyek ke `stage7`, sehingga PRD tidak ditulis ulang dua kali;
   - layarnya `Review2Section` di layar PRD, memakai `DecisionForm` dengan `origin`.
-- Tahap 7 (`src/stages/stage-7/`):
-  - prompt berisi `docs/conventions.md` template (apa yang sudah disediakan, dan prosedur menghapus fitur contoh notes) dan PRD terbaru;
-  - template dibaca di `buildPrompt` seperti tahap 6;
-  - `validateTasks(md, { frIds, endpoints, nfrIds })` memeriksa terhadap PRD terbaru:
+- **Job tahap 7** (T-027, D-11, `stage7Job` di `src/stages/stage-7b/job.ts`, didaftarkan di registry sebagai `StageJob`):
+  - satu job menjalankan 7a bila belum ada daftar yang berlaku, lalu 7b per fase tahap 4 yang punya task dan belum punya detail berlaku, lalu `composeTasks`;
+  - setiap pemanggilan lewat `runStage` dengan definisinya sendiri (`stage7aDefinition`, `stage7bDefinition(phase)` dengan `scope` = nomor fase), jadi percobaan ulang (D-08) berlaku per langkah;
+  - progres: `RunStageDeps.onStep(step, totalSteps)` → `ProgressStore.startStep`, tampil "Langkah i dari n";
+  - menjalankan ulang setelah gagal hanya mengulang fase tanpa hasil valid. Menjalankan ulang setelah lengkap membuat ulang semuanya: `onSuccess` 7a baru membatalkan semua 7b. Menjalankan ulang tahap 6 membatalkan 7a dan 7b (`invalidateLaterStages`);
+  - `JobQueue` menjalankan `StageJob.execute` (tahap berlangkah) atau `runStage` (tahap lain);
+  - layar tahap 7 menampilkan `resumeNote` bila langkah yang valid belum lengkap (`stage7Progress`).
+- **Tahap 7b** (`src/stages/stage-7b/`, prompt `stage-7b.md`):
+  - konvensi `stage7b` diletakkan di AWAL prompt, sehingga awalan semua fase sama dan bisa dibaca dari cache;
+  - prompt berisi task fase itu (JSON dari 7a) dan `prdExcerpt`: blok FR dan butir NFR yang dirujuk, ditambah bagian 4 bila ada task `db`;
+  - output `{ tasks: [{ id, files, done_when, manual }] }`;
+  - `validateStage7b` memeriksa: setiap task fase tepat sekali; `files` tanpa file setup template; `done_when` tanpa `pnpm check`; `manual.steps` tanpa langkah persiapan;
+  - fixture `derived/stage7b-gym-fase-{0..3}.json`. Runner palsu mode `flow` memilih fase dari "untuk fase N" di prompt.
+- **`docs/TASKS.md` disusun aplikasi** (`composeTasks`, `src/projects/compose-tasks.ts`):
+  - format sama dengan TASKS lama;
+  - kode menambahkan "`pnpm check` hijau" di akhir setiap *done when*;
+  - untuk task manual, kode menambahkan penanda **(manual)** dan langkah bernomor: `MANUAL_PREPARATION` (`.env`, `docker compose up -d --wait`, API), ditambah `MANUAL_FLUTTER_WEB` bila layer `app` atau file `apps/app/lib`, lalu langkah dari AI;
+  - hasilnya divalidasi `validateTasks` sebelum disimpan sebagai dokumen `tasks` versi berikutnya, dan proyek pindah ke `export`.
+- Validator `docs/TASKS.md` (`src/stages/stage-7b/tasks-markdown.ts`, dulu validator output tahap 7 lama T-014). `validateTasks(md, { frIds, endpoints, nfrIds })` memeriksa terhadap PRD terbaru:
     - tanpa task setup template (`TEMPLATE_SETUP`, dikenali dari judul atau file konfigurasi);
     - tepat satu task hapus notes setelah task fitur pertama;
     - *done when* boleh multi-baris: dari baris `done when:` sampai akhir task, termasuk sub-butir dan paragraf setelah baris kosong, tanpa langkah manual bernomor (`1.`, `2.`, …). Baris kriteria terakhirnya harus diakhiri `pnpm check` hijau;
@@ -190,15 +205,14 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
     - perintah Flutter web (`flutter run -d chrome …`) hanya wajib untuk task manual dengan layer `app` atau `files` yang menyentuh `apps/app/lib` (file native seperti `apps/app/ios/` tidak dihitung);
     - setiap `flutter run -d chrome` memakai `--web-browser-flag=--incognito`;
     - lebih dari `MAX_TASKS` (60) task hanya peringatan;
-  - ukuran task (prompt versi 2): satu task setara satu sesi agent yang bermakna, misalnya satu fitur di satu layer lengkap dengan test-nya. Targetnya 20–45 task untuk MVP;
+  - ukuran task (kini di prompt 7a): satu task setara satu sesi agent yang bermakna, misalnya satu fitur di satu layer lengkap dengan test-nya. Targetnya 20–45 task untuk MVP;
   - keputusan aturan manual, ukuran task, dan *done when* multi-baris diambil user setelah verifikasi manual T-014 (lihat `docs/logs/T-014.md`);
-  - output disimpan sebagai dokumen `tasks` versi berikutnya, dan proyek pindah ke `export`.
 - `GET /api/jobs/{id}` mengembalikan job beserta `attempts` (`JobQueue.attempts`: percobaan job itu dari `stage_runs`, dikenali dari proyek, tahap, dan waktu mulai job). `StageRunner` menampilkan `attemptNote` ("Percobaan 2 dari 2. Percobaan 1 ditolak: …") selama job berjalan. `MAX_ATTEMPTS` ada di `src/stages/attempts.ts` agar bisa dipakai komponen klien.
 - Fixture **verifikasi** di `test/fixtures/claude/verification/`: output nyata dari verifikasi manual yang dipakai sebagai test regresi, disalin apa adanya dari database lokal, dengan sumbernya di field `fixture_source` (contoh: `t014-prd.md` dan `t014-stage7-attempt{1,2}.json`).
 - Pemakaian token (`src/projects/usage.ts`, FR-10):
   - `getStageUsage` menghitung token input/output dan biaya per tahap dari semua percobaan, dan durasi dari run yang berlaku. `usageTotals` menghitung total proyek;
   - tampil di `UsageCard` per tahap dan `UsageSummary` (kolom stepper). Biaya diformat `formatCost` ("$0,72") dan selalu disebut perkiraan;
-  - `stageEstimate(db, 'stage6' | 'stage7')` merata-rata semua pemanggilan sebelumnya di semua proyek, atau memakai `TEST_ESTIMATES` (angka uji end-to-end) bila belum ada;
+  - `stageEstimate(db, 'stage6' | 'stage7', phases?)` merata-rata semua pemanggilan sebelumnya di semua proyek. Tahap 7 dihitung sebagai rata-rata 7a ditambah rata-rata 7b × jumlah fase, tanpa run lama `stage7b` yang tidak punya scope. Bila belum ada pemanggilan, dipakai `TEST_ESTIMATES` (tahap 6 dari verifikasi T-025, tahap 7 dari target NFR-06). Durasi tahap 7 di pemakaian adalah jumlah run yang berlaku;
   - teks konfirmasinya dari `confirmationText` (`run-confirmation.ts`), ditampilkan `StageRunner` (prop `confirmation`) dan `DecisionForm` (`regenerateConfirmation`) sebagai panel di halaman, bukan dialog browser.
 - Menjalankan ulang tahap: `invalidateLaterStages` (`run-stage.ts`) berjalan di transaksi output yang berhasil, sebelum `onSuccess`:
   - output tahap sesudahnya `is_current = 0`;

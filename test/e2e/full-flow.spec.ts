@@ -14,13 +14,15 @@ const env = e2eEnvironment(process.env.PRD_E2E_DIR as string);
  * Menjalankan tahap lewat tombolnya (dengan konfirmasi bila ada) sampai banner job hilang.
  * `preview`: label tahap; memastikan progres nyata dan cuplikan teks stream tampil selama job masih
  * berjalan. `reload`: halaman dimuat ulang di tengah job, dan progres terkini harus tampil lagi.
+ * `steps`: jumlah langkah tahap berlangkah (tahap 7: 7a + 7b per fase); "Langkah i dari n" harus
+ * tampil selama berjalan.
  */
 async function runStage(
   page: Page,
   stage: string,
   button: string,
   confirm = false,
-  { preview, reload = false }: { preview?: string; reload?: boolean } = {},
+  { preview, reload = false, steps }: { preview?: string; reload?: boolean; steps?: number } = {},
 ) {
   const runner = page.getByTestId(`runner-${stage}`);
   await runner.getByRole('button', { name: button, exact: true }).click();
@@ -33,6 +35,11 @@ async function runStage(
       await expect(runner.getByTestId('job-preview')).not.toBeEmpty();
       await expect(runner.getByTestId('job-progress-summary')).toContainText('karakter diterima');
       await expect(runner.getByTestId('job-status')).toHaveText(`${preview} sedang berjalan`);
+      if (steps) {
+        await expect(runner.getByTestId('job-progress-summary')).toContainText(
+          new RegExp(`Langkah \\d dari ${steps}`),
+        );
+      }
     };
     await expectProgress();
     if (reload) {
@@ -125,6 +132,8 @@ test('dari input ide sampai export, dengan satu percobaan ulang', async ({ page,
   await runStage(page, 'stage7', 'Jalankan penulisan tasks', true, {
     preview: 'Penulisan TASKS',
     reload: true,
+    // Daftar task (7a) lalu detail fase 0–3 (7b), D-11.
+    steps: 5,
   });
 
   // Tahap 8: export ke folder proyek turunan template.
