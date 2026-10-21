@@ -16,7 +16,7 @@ export function createStageRegistry(options: Stage6Options = {}): StageRegistry 
     stage4: stage4Definition() as StageRegistry['stage4'],
     stage5: stage5Definition() as StageRegistry['stage5'],
     stage6: stage6Definition(options) as StageRegistry['stage6'],
-    review2: review2Definition() as StageRegistry['review2'],
+    review2: review2Definition(options) as StageRegistry['review2'],
     stage7: stage7Definition(options) as StageRegistry['stage7'],
   };
 }

@@ -4,7 +4,10 @@
 //   `### Open Questions` di output adalah error;
 // - heading harus berupa baris yang persis sama dan muncul dalam urutan PRD, dokumen dimulai dari
 //   `# <Nama Produk>`;
-// - tepat satu blok mermaid `erDiagram` (rujukan hanya memberi peringatan bila lebih dari satu).
+// - tepat satu blok mermaid `erDiagram` (rujukan hanya memberi peringatan bila lebih dari satu);
+// - PRD merujuk `docs/conventions.md` tanpa menyalinnya (D-10): paragraf atau blok kode konvensi
+//   yang muncul utuh di PRD adalah error; ukuran di atas batas NFR-06 hanya peringatan;
+// - FR boleh merujuk fitur rekomendasi `R-xx` selain fitur MVP `F-xx` (temuan spike T-022).
 import type { StageValidation } from '../run-stage.ts';
 
 export const PRD_HEADINGS = [
@@ -21,6 +24,13 @@ export const PRD_HEADINGS = [
 
 export const APPENDIX_HEADING = '## 8. Assumptions & Decisions';
 export const OPEN_QUESTIONS_HEADING = '### Open Questions';
+
+/** Batas peringatan ukuran PRD bagian 1–7 (NFR-06: target ±45 KB, peringatan di atas 50 KB). */
+export const PRD_SIZE_WARN_BYTES = 50 * 1024;
+
+/** Paragraf dan blok kode konvensi sependek ini terlalu umum untuk dianggap disalin. */
+const MIN_COPIED_PARAGRAPH = 120;
+const MIN_COPIED_CODE = 40;
 
 const ENDPOINT = /\b(GET|POST|PUT|PATCH|DELETE)\s+\/[^\s`|)]*/g;
 
@@ -47,7 +57,42 @@ export function prdInfo(md: string): PrdInfo {
   };
 }
 
-export function validatePrd(md: string): StageValidation {
+const normalize = (text: string) => text.replace(/\s+/g, ' ').trim();
+
+/**
+ * Paragraf (atau butir daftar/baris tabel) dan isi blok kode `conventions` yang muncul utuh di
+ * `md`, setelah spasi dirapatkan. Heading tidak dihitung.
+ */
+export function copiedConventions(md: string, conventions: string): string[] {
+  const units: string[] = [];
+  const blocks = conventions.replaceAll('\r\n', '\n').split(/^```.*$/m);
+  blocks.forEach((block, i) => {
+    // Indeks ganjil: isi blok kode (di antara pagar pembuka dan penutup).
+    if (i % 2 === 1) {
+      if (normalize(block).length >= MIN_COPIED_CODE) units.push(normalize(block));
+      return;
+    }
+    for (const paragraph of block.split(/\n\s*\n/)) {
+      const lines = paragraph.split('\n').filter((line) => line.trim() && !/^#{1,6} /.test(line));
+      const listLike = lines.some((line) => /^\s*([-*+]|\d+\.|\|)\s/.test(line));
+      const pieces = listLike
+        ? lines.map((line) => line.replace(/^\s*([-*+]|\d+\.)\s+/, ''))
+        : [lines.join(' ')];
+      for (const piece of pieces) {
+        if (normalize(piece).length >= MIN_COPIED_PARAGRAPH) units.push(normalize(piece));
+      }
+    }
+  });
+  const prd = normalize(md);
+  return [...new Set(units)].filter((unit) => prd.includes(unit));
+}
+
+export type ValidatePrdOptions = {
+  /** Bagian konvensi yang dikirim di prompt; bila ada, PRD tidak boleh menyalinnya. */
+  conventions?: string;
+};
+
+export function validatePrd(md: string, options: ValidatePrdOptions = {}): StageValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
   const lines = md.split('\n').map((line) => line.trimEnd());
@@ -85,10 +130,28 @@ export function validatePrd(md: string): StageValidation {
     if (!/Given/i.test(block) || !/Then/i.test(block)) {
       warnings.push(`${id} acceptance criteria tidak berpola Given/When/Then`);
     }
-    if (!/F-\d{2}/.test(block)) warnings.push(`${id} tidak merujuk fitur F-xx`);
+    if (!/\b[FR]-\d{2}\b/.test(block)) warnings.push(`${id} tidak merujuk fitur F-xx atau R-xx`);
   });
   if (!/NFR-\d{2}/.test(prdSection(md, '## 7. Non-Functional Requirements'))) {
     errors.push('tidak ada NFR-xx di Non-Functional Requirements');
+  }
+
+  if (options.conventions) {
+    const copied = copiedConventions(md, options.conventions);
+    for (const unit of copied.slice(0, 3)) {
+      errors.push(
+        `PRD menyalin isi docs/conventions.md ("${unit.slice(0, 80)}…"); rujuk bagiannya, misalnya "lihat docs/conventions.md bagian Format error", jangan disalin`,
+      );
+    }
+    if (copied.length > 3) {
+      errors.push(`dan ${copied.length - 3} bagian konvensi lain yang disalin`);
+    }
+  }
+  const bytes = new TextEncoder().encode(md).length;
+  if (bytes > PRD_SIZE_WARN_BYTES) {
+    warnings.push(
+      `PRD ${Math.round(bytes / 1024)} KB, di atas batas NFR-06 (${PRD_SIZE_WARN_BYTES / 1024} KB); ringkas FR dan API Contract bila PRD dibuat ulang`,
+    );
   }
   return { errors, warnings };
 }

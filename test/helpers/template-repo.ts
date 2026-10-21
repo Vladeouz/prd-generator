@@ -4,9 +4,60 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-/** Konvensi dengan CRLF, Unicode, dan spasi di akhir, untuk membuktikan dipakai apa adanya. */
-export const TEMPLATE_CONVENTIONS =
-  '# Konvensi Proyek\r\n\r\n- Clean Architecture per fitur ✓  \r\n- Pesan commit: `<type>: <ringkasan> (T-xxx)`\n';
+/**
+ * Bagian konvensi buatan, dengan CRLF, Unicode, spasi di akhir, sub-heading, dan heading palsu di
+ * dalam blok kode, untuk membuktikan bagian terpilih dipakai apa adanya. Baris di dalam bagian
+ * memakai CRLF; antarbagian dipisah `\n\n`, sehingga bagian terpilih = bagiannya digabung `\n\n`.
+ */
+export const TEMPLATE_SECTIONS = {
+  intro: ['# Konvensi Proyek', '', 'Rujukan untuk manusia dan agent ✓  '].join('\r\n'),
+  structure: [
+    '## Struktur repo',
+    '',
+    '```',
+    '## bukan heading (di dalam blok kode)',
+    'apps/api/',
+    '```',
+  ].join('\r\n'),
+  git: ['## Git', '', '- Pesan commit: `<type>: <ringkasan> (T-xxx)`'].join('\r\n'),
+  job: ['## Job (pg-boss)', '', 'Job terjadwal.', '', '### Shutdown', '', 'Berhenti rapi.'].join(
+    '\r\n',
+  ),
+  auth: ['## Autentikasi', '', 'Firebase Auth; backend memverifikasi ID token.'].join('\r\n'),
+  ports: ['## Port push dan storage', '', 'Port FCM dan storage.'].join('\r\n'),
+  pagination: ['## Pagination', '', 'Cursor `{ items, nextCursor }`.'].join('\r\n'),
+  database: ['## Database', '', 'PostgreSQL + Drizzle.'].join('\r\n'),
+  errors: ['## Format error', '', '`{ error: { code, message } }`.'].join('\r\n'),
+  architecture: [
+    '## Clean Architecture API',
+    '',
+    'Per fitur.',
+    '',
+    '### Aturan bisnis: API vs client',
+    '',
+    'Aturan di API.',
+  ].join('\r\n'),
+  flutter: ['## Flutter', '', 'Bloc/Cubit per fitur.'].join('\r\n'),
+};
+
+const S = TEMPLATE_SECTIONS;
+
+export const TEMPLATE_CONVENTIONS = `${Object.values(S).join('\n\n')}\n`;
+
+/** Bagian yang harus ada di prompt tahap 6 dan review kedua (`CONVENTION_SECTIONS`). */
+export const EXPECTED_SECTIONS = {
+  stage6: [
+    S.structure,
+    S.job,
+    S.auth,
+    S.ports,
+    S.pagination,
+    S.database,
+    S.errors,
+    S.architecture,
+  ].join('\n\n'),
+  review2: [S.auth, S.pagination, S.database, S.errors, S.architecture].join('\n\n'),
+};
 
 export type TemplateRepo = { dir: string; commit: string; remove(): void };
 

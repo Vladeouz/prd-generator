@@ -119,12 +119,13 @@ describe('validateReview2Output', () => {
 });
 
 describe('prompts/review-2.md', () => {
-  it('punya versi dan placeholder celah, kategori, dan PRD', () => {
+  it('punya versi dan placeholder celah, kategori, konvensi terpilih, dan PRD', () => {
     const prompt = loadPrompt('review-2');
-    expect(prompt.version).toBe('1');
+    expect(prompt.version).toBe('2');
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
       'gaps',
       'categories',
+      'conventions',
       'prd',
     ]);
   });

@@ -5,6 +5,7 @@ import type { ClaudeResult } from '../../../src/claude/types.ts';
 import type { Clock } from '../../../src/core/clock.ts';
 import { decisions, documents, stageRuns } from '../../../src/core/db/schema.ts';
 import type { Job } from '../../../src/jobs/job-queue.ts';
+import { createStageRegistry } from '../../../src/stages/registry.ts';
 import type { Review2Output } from '../../../src/stages/review-2/validate.ts';
 import { decisionHandlers } from '../../../src/stages/stage-5/decision-handlers.ts';
 import { createTestDb, type TestDb } from '../../helpers/db.ts';
@@ -17,7 +18,13 @@ import {
   putRequest,
   runStage,
 } from '../../helpers/stage-flow.ts';
-import { createTemplateRepo, type TemplateRepo } from '../../helpers/template-repo.ts';
+import {
+  createTemplateRepo,
+  EXPECTED_SECTIONS,
+  TEMPLATE_CONVENTIONS,
+  TEMPLATE_SECTIONS,
+  type TemplateRepo,
+} from '../../helpers/template-repo.ts';
 
 let t: TestDb;
 let template: TemplateRepo;
@@ -69,6 +76,26 @@ const stageRunCount = (stage: 'stage6' | 'review2') =>
     .all().length;
 
 describe('menjalankan review kedua', () => {
+  it('heading konvensi review kedua tidak ada: job gagal menyebut heading-nya tanpa memanggil claude', async () => {
+    const flow = flowWith(prdWithoutItemGet());
+    await projectWithPrd(flow);
+    // Template diubah setelah PRD ditulis: heading yang hanya dibutuhkan review kedua hilang.
+    template.remove();
+    template = createTemplateRepo(
+      TEMPLATE_CONVENTIONS.replace(TEMPLATE_SECTIONS.pagination, '## Paginasi'),
+    );
+    const stages = createStageRegistry({ templateDir: () => template.dir });
+    flow.queue.setStages(stages);
+    const response = await flow.jobsApi.run('p1', 'review2');
+    const job = await flow.queue.waitFor((await response.json()).id);
+    expect(job?.status).toBe('failed');
+    expect(job?.error).toBe(
+      'Review kedua belum bisa dijalankan: Bagian `## Pagination` tidak ada di `docs/conventions.md` template, padahal dibutuhkan review kedua. Perbarui salinan template atau sesuaikan daftar heading di `src/template/sections.ts`.',
+    );
+    expect(flow.runner.prompts).toHaveLength(5);
+    expect(stageRunCount('review2')).toBe(0);
+  });
+
   it('409 sebelum PRD ditulis', async () => {
     const flow = flowWith();
     await projectThrough(flow, 'stage5');
@@ -88,6 +115,15 @@ describe('menjalankan review kedua', () => {
       '- Rute UI /items/{id}/edit tidak punya endpoint pendukung GET /items/{id}.',
     );
     expect(prompt).toContain('data_model, business_rule, ui_endpoint');
+    // Hanya bagian konvensi review kedua, apa adanya.
+    expect(prompt).toContain(`"""\n${EXPECTED_SECTIONS.review2}\n"""`);
+    for (const unused of [
+      TEMPLATE_SECTIONS.structure,
+      TEMPLATE_SECTIONS.job,
+      TEMPLATE_SECTIONS.git,
+    ]) {
+      expect(prompt).not.toContain(unused);
+    }
     expect(prompt).toContain(`PRD:\n"""\n${prdVersions()[0]?.content}\n"""`);
     expect(prompt).not.toMatch(/\{\{\w+\}\}/);
     const run = t.db
@@ -95,7 +131,7 @@ describe('menjalankan review kedua', () => {
       .from(stageRuns)
       .where(and(eq(stageRuns.projectId, 'p1'), eq(stageRuns.stage, 'review2')))
       .get();
-    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '1', isCurrent: 1 });
+    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '2', isCurrent: 1 });
     expect(JSON.parse(run?.outputJson as string).findings[0]).toMatchObject({
       id: 'RV2-01',
       category: 'ui_endpoint',

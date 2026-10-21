@@ -1,6 +1,7 @@
 // Data halaman pengaturan dan `GET /api/settings` (FR-11).
 import { spawn } from 'node:child_process';
 import { isRealClaudeCommand } from '../claude/cli-runner.ts';
+import { sectionProblems } from './sections.ts';
 import { readTemplate } from './template.ts';
 
 export type ClaudeAvailability = { available: boolean; version: string | null };
@@ -10,7 +11,10 @@ export type Settings = {
   templateCommit: string | null;
   claudeAvailable: boolean;
   claudeVersion: string | null;
-  /** Masalah yang membuat tahap 6–7 tidak bisa dijalankan; kosong bila template valid. */
+  /**
+   * Masalah yang membuat tahap 6–7 tidak bisa dijalankan: template tidak valid, atau heading
+   * `docs/conventions.md` yang dibutuhkan suatu tahap tidak ada (D-10). Kosong bila tidak ada.
+   */
   problems: string[];
 };
 
@@ -58,6 +62,6 @@ export async function getSettings(
     templateCommit: template.ok ? template.template.commit : null,
     claudeAvailable: claude.available,
     claudeVersion: claude.version,
-    problems: template.ok ? [] : template.problems,
+    problems: template.ok ? sectionProblems(template.template.conventions) : template.problems,
   };
 }
