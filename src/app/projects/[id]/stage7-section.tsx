@@ -1,10 +1,12 @@
 import type { TemplateStatus } from '../../../components/ui/app-header.tsx';
 import { Card } from '../../../components/ui/card.tsx';
 import { EmptyState } from '../../../components/ui/states.tsx';
+import type { ProjectGraph } from '../../../projects/graph.ts';
 import type { ProjectDetail, StageUsage } from '../../../projects/projects.ts';
 import type { StageEstimate } from '../../../projects/usage.ts';
 import { formatDateTime, stageNumber } from '../format.ts';
 import { DocumentCard, ExportPanel } from './document-panels.tsx';
+import { FeatureGraphSection, hasTasks } from './feature-graph-section.tsx';
 import { bannerEstimate, confirmationText } from './run-confirmation.ts';
 import { StageLayout, UsageCard } from './stage-layout.tsx';
 import { StageRunner } from './stage-runner.tsx';
@@ -35,9 +37,10 @@ type Props = {
   template?: TemplateStatus;
   estimate?: StageEstimate;
   steps?: Stage7Steps;
+  graph?: ProjectGraph | null;
 };
 
-export function Stage7Section({ project, usage, template, estimate, steps }: Props) {
+export function Stage7Section({ project, usage, template, estimate, steps, graph }: Props) {
   const ready = stageNumber(project.currentStage) >= 7;
   const tasks = project.documents.tasks;
 
@@ -99,6 +102,12 @@ export function Stage7Section({ project, usage, template, estimate, steps }: Pro
         )
       }
     >
+      {hasTasks(graph) && (
+        <FeatureGraphSection
+          graph={graph}
+          description="Task dari daftar task di bawah fiturnya. Pilih sebuah task untuk melihat file dan done when-nya."
+        />
+      )}
       {tasks && <DocumentCard kind="tasks" content={tasks.content} version={tasks.version} />}
     </StageLayout>
   );

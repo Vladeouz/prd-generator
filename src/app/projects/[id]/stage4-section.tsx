@@ -1,10 +1,12 @@
 import { Badge } from '../../../components/ui/badge.tsx';
 import { Card } from '../../../components/ui/card.tsx';
 import { EmptyState } from '../../../components/ui/states.tsx';
+import type { ProjectGraph } from '../../../projects/graph.ts';
 import type { ProjectDetail, StageUsage } from '../../../projects/projects.ts';
 import type { MvpFeature, Stage4Output } from '../../../stages/stage-4/validate.ts';
 import { stageNumber } from '../format.ts';
 import { FeatureChoiceForm } from './feature-choice-form.tsx';
+import { FeatureGraphSection } from './feature-graph-section.tsx';
 import { NotesCard, StageLayout, UsageCard } from './stage-layout.tsx';
 import { StageRunner } from './stage-runner.tsx';
 
@@ -37,7 +39,9 @@ function FeatureItem({ feature }: { feature: MvpFeature }) {
   );
 }
 
-export function Stage4Section({ project, usage }: { project: ProjectDetail; usage?: StageUsage }) {
+type Props = { project: ProjectDetail; usage?: StageUsage; graph?: ProjectGraph | null };
+
+export function Stage4Section({ project, usage, graph }: Props) {
   const output = project.stageOutputs.stage4 as Stage4Output | undefined;
   const ready = stageNumber(project.currentStage) >= 4;
   const saved = stageNumber(project.currentStage) >= 5;
@@ -115,6 +119,11 @@ export function Stage4Section({ project, usage }: { project: ProjectDetail; usag
               </Card>
             ))}
           </section>
+
+          <FeatureGraphSection
+            graph={graph}
+            description="Proyek, fase, fitur yang ikut dikerjakan, dan sub-fiturnya. Task tampil di bawah fiturnya setelah daftar task (tahap 7) selesai."
+          />
 
           <Card as="section" className="flex flex-col gap-2">
             <h2 className="text-[15px] font-bold">Tidak dikerjakan di versi pertama</h2>

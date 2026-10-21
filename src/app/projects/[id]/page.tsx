@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getDb } from '../../../core/db/client.ts';
 import { AppError } from '../../../core/errors.ts';
+import { projectGraph } from '../../../projects/graph.ts';
 import { getProjectDetail, getStageUsage } from '../../../projects/projects.ts';
 import { stageEstimate } from '../../../projects/usage.ts';
 import { featureDraft } from '../../../stages/stage-4/features.ts';
@@ -37,6 +38,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
         usage={getStageUsage({ db }, id)}
         stage={typeof tahap === 'string' ? tahap : undefined}
         stage7Steps={stage7Steps({ db, projectId: id })}
+        graph={projectGraph({ db }, id)}
         template={await templateStatus()}
         estimates={{
           stage6: stageEstimate({ db }, 'stage6'),

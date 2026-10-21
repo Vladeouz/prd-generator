@@ -108,6 +108,25 @@ test('dari input ide sampai export, dengan satu percobaan ulang', async ({ page,
 
   // Tahap 4: struktur fitur, fitur rekomendasi tidak dicentang.
   await runStage(page, 'stage4', 'Jalankan struktur fitur');
+
+  // Flowchart fitur (FR-12): pilih node dengan klik dan dengan keyboard, tanpa task sebelum 7a.
+  const graph = page.getByTestId('graph-section');
+  const detail = graph.getByRole('region', { name: 'Detail node' });
+  await expect(graph.locator('.react-flow__node[data-id="feature-F-01"]')).toBeVisible();
+  await expect(graph.locator('.react-flow__node-task')).toHaveCount(0);
+  await expect(graph.getByTestId('node-task-count')).toHaveCount(0);
+  await graph.getByRole('button', { name: 'Pas ke layar' }).click();
+  // Fokus menggeser graf ke node itu (autoPanOnNodeFocus), lalu node diklik.
+  const featureNode = graph.locator('.react-flow__node[data-id="feature-F-04"]');
+  await featureNode.focus();
+  await featureNode.click();
+  await expect(detail.getByTestId('node-detail')).toContainText('F-04');
+  await expect(detail).toContainText('Task tampil setelah daftar task (tahap 7) selesai.');
+  await graph.locator('.react-flow__node[data-id="phase-1"]').focus();
+  await page.keyboard.press('Enter');
+  await expect(detail.getByTestId('node-detail')).toContainText(/Fase\s*1/);
+  await page.keyboard.press('Escape');
+  await expect(detail).toContainText('Pilih node dengan klik');
   await save(page, 'Simpan pilihan fitur');
 
   // Tahap 5: review kritis, rekomendasi setiap temuan.
@@ -135,6 +154,16 @@ test('dari input ide sampai export, dengan satu percobaan ulang', async ({ page,
     // Daftar task (7a) lalu detail fase 0–3 (7b), D-11.
     steps: 5,
   });
+
+  // Flowchart setelah tahap 7: task di bawah fiturnya, dengan done when dari 7b.
+  await page.goto(`/projects/${projectId}?tahap=7`);
+  await expect(
+    graph.locator('.react-flow__node[data-id="feature-F-01"]').getByTestId('node-task-count'),
+  ).toHaveText(/^\d+ task$/);
+  await graph.locator('.react-flow__node[data-id="task-T-004"]').focus();
+  await page.keyboard.press('Enter');
+  await expect(detail.getByTestId('node-detail')).toContainText('T-004');
+  await expect(detail).toContainText('Done when');
 
   // Tahap 8: export ke folder proyek turunan template.
   await page.goto(`/projects/${projectId}?tahap=8`);

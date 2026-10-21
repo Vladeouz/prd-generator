@@ -35,6 +35,7 @@ Library dipin ke versi pasti (tanpa `^` atau `~`) saat pertama dipasang, lalu di
 | `remark-gfm` | 4.0.1 | T-012 |
 | `happy-dom` (dev) | 21.0.1 | T-016 |
 | `@playwright/test` (dev) | 1.64.0 (browser: `pnpm exec playwright install chromium`) | T-017 |
+| `@xyflow/react` | 12.12.0 | T-028 |
 
 Pasang dengan `pnpm add -E <nama>` (atau `-D -E`) agar versi langsung pasti. Paket yang butuh build script saat install didaftarkan di `allowBuilds` pada `pnpm-workspace.yaml` (saat ini `esbuild`, dipakai drizzle-kit); tanpa itu pnpm 12 keluar dengan `ERR_PNPM_IGNORED_BUILDS`. Build script yang tidak dibutuhkan didaftarkan dengan nilai `false` beserta alasannya di komentar: `better-sqlite3` 13 membawa binary prebuilt yang dimuat lebih dulu, sedangkan build script-nya hanya `node-gyp rebuild` yang butuh Python dan compiler C++. Jangan biarkan nilai placeholder `set this to true or false` yang ditulis pnpm.
 
@@ -284,6 +285,14 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - Keyboard: tautan pertama setiap halaman "Lewati ke konten utama" (`layout.tsx`) menuju `<main id="konten">`; setiap halaman baru wajib punya `main#konten`. Fokus memakai `:focus-visible` global (cincin aksen 2 px); jangan memakai `outline-none`. Elemen di dalam wadah `overflow-hidden` memakai `focus-visible:-outline-offset-2` agar cincinnya tidak terpotong. Wilayah yang digulir ke samping (tabel dan blok kode di `MarkdownPreview`) diberi `tabIndex={0}`.
 - Kontras: `test/unit/components/contrast.test.ts` menghitung rasio WCAG setiap pasangan teks dan latar di `PAIRS` (`test/helpers/contrast.ts`) untuk kedua tema dari `globals.css`; latar beralfa dihitung di atas surface dan bg. Pasangan warna baru di UI ditambahkan ke `PAIRS`. `--text-faint` tidak dipakai di atas `--surface-raised` (4,44 di mode gelap).
 - Pembaca dokumen (tahap 6–7, `Prd.dc.html`): `MarkdownPreview` memberi heading `##` id berurutan (`bagian-1`, …) yang sama dengan `documentOutline` (`markdown-outline.ts`); `DocumentToc` tampil di kolom kiri mulai lebar `lg`. Bagian 8 PRD diberi keterangan "Disusun aplikasi" (`appendix-note`). `DocumentCard` dan `ExportPanel` di `document-panels.tsx`.
+- **Flowchart fitur** (FR-12, D-13, T-028):
+  - data dan posisi disusun server oleh `projectGraph`/`buildGraph` (`src/projects/graph.ts`) dari tahap 4 (`featureDraft`: fitur MVP dan rekomendasi yang diterima), 7a, dan 7b yang berlaku, tanpa pemanggilan `claude`. Halaman memanggilnya langsung; `GET /api/projects/{id}/graph` memakai fungsi yang sama (409 sebelum tahap 4);
+  - posisi deterministik: pohon kiri ke kanan, kolom per kedalaman (`COLUMN_GAP`), satu baris per daun (`ROW_GAP`), induk di tengah anak pertama dan terakhirnya. Node dicatat induk lebih dulu, sehingga urutan Tab mengikuti pohon;
+  - id node: `project`, `phase-<n>`, `phase-rekomendasi` (fitur rekomendasi yang diterima belum punya fase), `feature-<kode>`, `sub-<kode>-<i>`, `task-<id>`. Task tanpa fitur (hapus notes) di bawah fasenya;
+  - komponen di `src/components/feature-graph/`: `FeatureGraph` (klien, React Flow tidak bisa digeser node-nya atau disambung), `GraphNode` (satu node kustom untuk semua jenis), dan `NodeDetail` (komponen murni, panel detail);
+  - pilihan node lewat `onSelectionChange` React Flow, jadi klik dan keyboard (Tab ke node, Enter atau Spasi; Escape membatalkan) memakai jalur yang sama. Label pembaca layar dari `nodeAriaLabel`, teks kontrol dari `ariaLabelConfig` (Bahasa Indonesia, tombol "Pas ke layar");
+  - warna: variabel `--xy-*` dari `@xyflow/react/dist/style.css` diganti token di `globals.css`, di luar `@layer` karena CSS React Flow tidak berlapis. Cincin fokus node dan target sentuh tombol kontrol 44 px dikembalikan di sana;
+  - tampil di layar tahap 4 (setelah output tahap 4 ada) dan tahap 7 (setelah daftar task 7a ada), lewat `FeatureGraphSection`.
 - Banner job berjalan (`StageRunner`): hanya baris status yang `role="status"`; waktu berjalan yang berganti setiap detik tidak diumumkan. Bilah progres bernilai bila ada `estimateMs` (`jobProgress`, maksimal 95% sebelum selesai, tidak tentu setelah melewati perkiraan); perkiraan tahap 6–7 dari `bannerEstimate`, angka yang sama dengan konfirmasi.
 
 ## Test
