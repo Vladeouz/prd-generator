@@ -18,7 +18,7 @@ import { answers, projects } from '../core/db/schema.ts';
 import { AppError } from '../core/errors.ts';
 import type { ProjectStage } from '../projects/stage-labels.ts';
 import type { Question } from './questions.ts';
-import { currentOutput, type Stage, type Tx } from './run-stage.ts';
+import { currentOutput, type RunStage, type Stage, type Tx } from './run-stage.ts';
 import { policyRule } from './stage-3/policy.ts';
 import { stageAfterStage3 } from './stage-3/profile.ts';
 
@@ -137,7 +137,8 @@ export function saveAnswers(
   if (!config) throw new AppError('BAD_REQUEST', 'Tahap ini tidak punya pertanyaan.');
   const project = db.select().from(projects).where(eq(projects.id, projectId)).get();
   if (!project) throw new AppError('NOT_FOUND', 'Proyek tidak ditemukan.');
-  const output = currentOutput<{ questions: Question[] }>(db, projectId, stage);
+  // Tahap berpertanyaan (QUESTION_STAGES) tidak pernah stage7, jadi sama dengan tahap run-nya.
+  const output = currentOutput<{ questions: Question[] }>(db, projectId, stage as RunStage);
   if (!output) {
     throw new AppError('CONFLICT', 'Tahap ini belum punya pertanyaan. Jalankan tahapnya dulu.');
   }
@@ -203,7 +204,8 @@ export function saveAnswers(
 
 /** Jawaban tersimpan untuk pertanyaan output yang berlaku, berurutan sesuai pertanyaan. */
 export function storedAnswers(db: Db, projectId: string, stage: Stage): StoredAnswer[] {
-  const output = currentOutput<{ questions: Question[] }>(db, projectId, stage);
+  // Tahap berpertanyaan (QUESTION_STAGES) tidak pernah stage7, jadi sama dengan tahap run-nya.
+  const output = currentOutput<{ questions: Question[] }>(db, projectId, stage as RunStage);
   if (!output) return [];
   const rows = db
     .select()

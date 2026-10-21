@@ -103,7 +103,8 @@ describe('menjalankan ulang sebuah tahap', () => {
       'stage4',
       'stage5',
       'stage6',
-      'stage7',
+      // Tahap 7 lama dicatat sebagai stage7b sampai T-027 memecahnya menjadi 7a + 7b per fase.
+      'stage7b',
     ]);
     expect(documentKinds()).toEqual(['prd1', 'tasks1']);
     expect(decisionOrigins()).toEqual(['review1', 'review2']);

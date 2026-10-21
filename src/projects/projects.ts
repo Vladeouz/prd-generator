@@ -1,6 +1,6 @@
 // Domain proyek (FR-01): membuat, mendaftar, membaca detail, dan menghapus proyek.
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Clock } from '../core/clock.ts';
 import type { Db } from '../core/db/client.ts';
 import {
@@ -16,6 +16,7 @@ import {
   stageRuns,
 } from '../core/db/schema.ts';
 import { AppError } from '../core/errors.ts';
+import { type RunStage, stageOfRun } from '../stages/run-stage.ts';
 import type { CreateProjectInput } from './schema.ts';
 
 export type Project = typeof projects.$inferSelect;
@@ -39,7 +40,7 @@ export type ProjectDetail = ProjectSummary & {
   /** Job terbaru proyek ini (status apa pun), untuk menampilkan hasil atau error terakhir. */
   latestJob: typeof jobs.$inferSelect | null;
   /** Output yang berlaku per tahap (hasil parse `output_json`). */
-  stageOutputs: Partial<Record<Stage, unknown>>;
+  stageOutputs: Partial<Record<RunStage, unknown>>;
 };
 
 export type ProjectDeps = { db: Db; clock: Clock };
@@ -79,8 +80,11 @@ function completedStagesByProject(db: Db, projectIds: string[]): Map<string, Sta
         .all()
     : [];
   const result = new Map<string, Stage[]>();
-  for (const { projectId, stage } of rows) {
-    result.set(projectId, [...(result.get(projectId) ?? []), stage]);
+  for (const { projectId, stage: runStage } of rows) {
+    // stage7a dan stage7b dihitung sebagai tahap 7 (sekali).
+    const stage = stageOfRun(runStage);
+    const stages = result.get(projectId) ?? [];
+    if (!stages.includes(stage)) result.set(projectId, [...stages, stage]);
   }
   for (const stages of result.values()) {
     stages.sort((a, b) => STAGES.indexOf(a) - STAGES.indexOf(b));
@@ -167,7 +171,10 @@ export function getProjectDetail({ db }: Pick<ProjectDeps, 'db'>, id: string): P
       db
         .select({ stage: stageRuns.stage, outputJson: stageRuns.outputJson })
         .from(stageRuns)
-        .where(and(eq(stageRuns.projectId, id), eq(stageRuns.isCurrent, 1)))
+        // Output per tahap tanpa scope; detail 7b per fase dibaca terpisah.
+        .where(
+          and(eq(stageRuns.projectId, id), eq(stageRuns.isCurrent, 1), isNull(stageRuns.scope)),
+        )
         .all()
         .map(({ stage, outputJson }) => [stage, JSON.parse(outputJson ?? 'null')]),
     ),

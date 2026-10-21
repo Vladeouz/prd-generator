@@ -103,7 +103,7 @@ describe('menjalankan tahap 7', () => {
     const run = t.db
       .select()
       .from(stageRuns)
-      .where(and(eq(stageRuns.projectId, 'p1'), eq(stageRuns.stage, 'stage7')))
+      .where(and(eq(stageRuns.projectId, 'p1'), eq(stageRuns.stage, 'stage7b')))
       .get();
     expect(run).toMatchObject({ status: 'succeeded', promptVersion: '3', isCurrent: 1 });
   });

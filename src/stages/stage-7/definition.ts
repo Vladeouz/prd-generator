@@ -23,6 +23,9 @@ export function stage7Definition({
   const prompt = loadPrompt('stage-7');
   return {
     stage: 'stage7',
+    // Sementara (T-026): TASKS utuh dalam satu pemanggilan dicatat sebagai stage7b tanpa scope, sama
+    // dengan run stage7 lama hasil migrasi. Definisi ini diganti 7a + 7b per fase di T-027.
+    runStage: 'stage7b',
     promptVersion: prompt.version,
     notReadyReason: ({ db, projectId }) =>
       latestDocument(db, projectId, 'prd') && reachedStage(db, projectId, 'stage7')

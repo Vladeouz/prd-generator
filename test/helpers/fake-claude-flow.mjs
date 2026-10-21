@@ -13,6 +13,7 @@ export const FLOW_FIXTURES = {
   'Generate PRD': 'derived/stage6-gym.json',
   'Review Kedua': 'synthetic/review2-daftar-belanja.json',
   'Generate Task Plan': 'derived/stage7-gym.json',
+  'Daftar Task': 'derived/stage7a-gym.json',
 };
 
 const FIXTURE_DIR = new URL('../fixtures/claude/', import.meta.url);

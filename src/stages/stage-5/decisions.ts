@@ -15,7 +15,7 @@ import type { Db } from '../../core/db/client.ts';
 import { decisions, projects } from '../../core/db/schema.ts';
 import { AppError } from '../../core/errors.ts';
 import type { ProjectStage } from '../../projects/stage-labels.ts';
-import { currentOutput, type Stage } from '../run-stage.ts';
+import { currentOutput, type RunStage, type Stage } from '../run-stage.ts';
 import type { Stage5Output } from './validate.ts';
 
 export const saveDecisionsSchema = z.object({
@@ -85,7 +85,8 @@ export function saveReviewDecisions(
     .where(eq(projects.id, projectId))
     .get();
   if (!project) throw new AppError('NOT_FOUND', 'Proyek tidak ditemukan.');
-  const output = currentOutput<ReviewOutput>(db, projectId, review.stage);
+  // Tahap review (stage5, review2) tidak pernah stage7, jadi sama dengan tahap run-nya.
+  const output = currentOutput<ReviewOutput>(db, projectId, review.stage as RunStage);
   if (!output) throw new AppError('CONFLICT', review.notRun);
   if (review.onlyAt && project.currentStage !== review.onlyAt.stage) {
     throw new AppError('CONFLICT', review.onlyAt.message);

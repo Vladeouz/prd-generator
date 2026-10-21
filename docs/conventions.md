@@ -92,6 +92,15 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - `openDatabase(path)` menyalakan `foreign_keys` (wajib per koneksi agar cascade berjalan), WAL, dan `busy_timeout`, lalu menjalankan migrasi yang belum diterapkan. Migrasi idempoten, jadi aman dipanggil setiap kali aplikasi membuka database.
 - Setiap kolom enum dibatasi CHECK. Daftar nilainya diekspor dari `schema.ts` (`STAGES`, `JOB_STATUSES`, dll.) untuk dipakai ulang oleh Zod; jangan menulis ulang daftarnya. Aturan "satu baris aktif" memakai partial unique index (contoh: `jobs_one_active_idx` pada ekspresi `(1)` dengan `WHERE status in ('queued', 'running')`).
 - Id (`text`) dan timestamp (ISO 8601 UTC) diisi aplikasi, tanpa default di database.
+- **Pengecualian "jangan diedit tangan"**: migrasi hasil drizzle-kit boleh disunting bila perlu memindahkan data, atau bila drizzle-kit salah menulis SQL. Setiap suntingan diberi komentar `-- Disunting …` di file SQL-nya, dan `pnpm db:generate` ulang harus tetap "No schema changes". Contoh `drizzle/0002_stage7a_stage7b_scope.sql` (T-026):
+  - run `stage7` lama dipetakan ke `stage7b` yang tidak berlaku;
+  - ekspresi `ifnull` di indeks salah dikutip drizzle-kit 0.31.
+- **Tahap di `stage_runs`** (T-026, D-11):
+  - `RUN_STAGES` sama dengan `STAGES`, tetapi `stage7` dipecah menjadi `stage7a` dan `stage7b`. `scope` berisi nomor fase untuk `stage7b`, null untuk tahap lain;
+  - job, jawaban, dan tahap proyek tetap memakai `stage7`. Pemetaan: `runStagesOf(stage)` dan `stageOfRun(runStage)` di `run-stage.ts`;
+  - `StageDefinition.runStage`/`scope` menentukan baris yang dicatat `runStage`;
+  - satu run berlaku per (`project_id`, `stage`, `ifnull(scope, '')`). `ifnull` wajib karena SQLite menganggap setiap NULL berbeda di indeks unik;
+  - `currentOutput(db, projectId, runStage, scope?)`; pemakaian per tahap (`usage.ts`) menjumlahkan 7a dan 7b sebagai tahap 7.
 - drizzle-kit 0.31 di Windows salah menangani `--out` dengan path absolut dan tetap keluar dengan exit 0; pakai path relatif dan periksa pesannya.
 
 ## Route handler dan halaman
@@ -152,6 +161,13 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
   - bagian digabung dengan satu baris kosong, sesuai urutan daftar;
   - heading yang hilang menggagalkan tahap (`missingSectionsMessage`) dan tampil di halaman pengaturan (`sectionProblems` di `getSettings`);
   - tahap baru yang membawa konvensi menambahkan daftarnya di `CONVENTION_SECTIONS`, dan repo template buatan test (`TEMPLATE_SECTIONS` di `test/helpers/template-repo.ts`) wajib memuat heading-nya.
+- **Tahap 7a** (T-026, `src/stages/stage-7a/`, prompt `stage-7a.md`):
+  - daftar task JSON `{ tasks: [{ id, title, phase, feature, layer, depends_on, refs }] }`;
+  - prompt berisi ringkasan PRD (`prdDigest` + `formatPrdDigest`, `src/projects/prd-digest.ts`: kode dan judul FR/NFR, endpoint tanpa `**` dan query string, tabel erDiagram, fase dan fitur tahap 4, fitur rekomendasi yang diterima), bukan PRD utuh, ditambah bagian konvensi `stage7a`;
+  - `validateStage7a` memeriksa aturan FR-08 untuk daftar task. Fase harus berasal dari tahap 4, dan task tidak boleh sebelum fase fiturnya. Hanya task hapus notes yang boleh tanpa fitur dan refs;
+  - aturan bersama dengan tahap 7 lama ada di `src/stages/task-rules.ts`: `TASK_LAYERS`, `templateSetupOf`, `isNotesRemoval`, `MAX_TASKS`;
+  - fixture `derived/stage7a-gym.json` dibangun `build-derived-fixtures.mjs` dari TASKS rujukan;
+  - definisi dijalankan dalam job tahap 7 mulai T-027.
 - **PRD ringkas** (NFR-06, prompt tahap 6 versi 2):
   - prompt meminta PRD merujuk konvensi tanpa menyalin, dengan batas ±45.000 karakter, maksimal 20 FR dan 6 acceptance criteria per FR, dan API Contract sebagai tabel dengan path lengkap;
   - `validatePrd(md, { conventions })` menolak paragraf (≥ 120 karakter, per butir untuk daftar dan tabel) atau isi blok kode (≥ 40 karakter) konvensi yang muncul utuh di PRD setelah spasi dirapatkan;

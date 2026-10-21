@@ -24,6 +24,21 @@ export const STAGES = [
 ] as const;
 /** Tahap proyek: tahap yang bisa dijalankan, ditambah `export` setelah TASKS selesai. */
 export const PROJECT_STAGES = [...STAGES, 'export'] as const;
+/**
+ * Tahap di `stage_runs` (PRD bagian 4, D-11): sama dengan `STAGES`, kecuali `stage7` dipecah menjadi
+ * `stage7a` (daftar task) dan `stage7b` (detail task per fase, `scope` = nomor fase). Job, jawaban,
+ * dan tahap proyek tetap memakai `stage7`.
+ */
+export const RUN_STAGES = [
+  'stage2',
+  'stage3',
+  'stage4',
+  'stage5',
+  'stage6',
+  'review2',
+  'stage7a',
+  'stage7b',
+] as const;
 export const PROFILE_CHOICES = ['A', 'A_with_seo_mitigation', 'postpone'] as const;
 export const STAGE_RUN_STATUSES = ['succeeded', 'failed'] as const;
 export const ANSWER_SOURCES = ['user', 'default', 'guess'] as const;
@@ -65,7 +80,9 @@ export const stageRuns = sqliteTable(
   {
     id: text('id').primaryKey(),
     projectId: projectId(),
-    stage: text('stage', { enum: STAGES }).notNull(),
+    stage: text('stage', { enum: RUN_STAGES }).notNull(),
+    /** Nomor fase untuk `stage7b`; null untuk tahap lain. */
+    scope: text('scope'),
     attempt: integer('attempt').notNull(),
     promptVersion: text('prompt_version').notNull(),
     status: text('status', { enum: STAGE_RUN_STATUSES }).notNull(),
@@ -81,13 +98,15 @@ export const stageRuns = sqliteTable(
     finishedAt: text('finished_at'),
   },
   (t) => [
-    check('stage_runs_stage_check', oneOf(t.stage, STAGES)),
+    check('stage_runs_stage_check', oneOf(t.stage, RUN_STAGES)),
     check('stage_runs_status_check', oneOf(t.status, STAGE_RUN_STATUSES)),
     check('stage_runs_attempt_check', sql`${t.attempt} >= 1`),
     check('stage_runs_is_current_check', sql`${t.isCurrent} in (0, 1)`),
     index('stage_runs_project_stage_idx').on(t.projectId, t.stage),
+    // Satu run yang berlaku per (proyek, tahap, scope). `ifnull` karena SQLite menganggap setiap
+    // NULL berbeda di indeks unik, sehingga tanpa itu tahap tanpa scope bisa punya dua run berlaku.
     uniqueIndex('stage_runs_one_current_idx')
-      .on(t.projectId, t.stage)
+      .on(t.projectId, t.stage, sql`ifnull(${t.scope}, '')`)
       .where(sql`${t.isCurrent} = 1`),
   ],
 );

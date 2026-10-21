@@ -1,8 +1,9 @@
 // Pemakaian token (FR-10): token input, token output, perkiraan biaya, dan durasi per tahap dan total
 // per proyek, serta perkiraan untuk konfirmasi sebelum tahap 6 dan 7 dijalankan.
-import { and, eq, isNotNull } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import type { Db } from '../core/db/client.ts';
 import { type STAGES, stageRuns } from '../core/db/schema.ts';
+import { runStagesOf, stageOfRun } from '../stages/run-stage.ts';
 
 type Stage = (typeof STAGES)[number];
 
@@ -34,7 +35,9 @@ export function getStageUsage({ db }: { db: Db }, id: string): Partial<Record<St
     .all();
   const usage: Partial<Record<Stage, StageUsage>> = {};
   for (const row of rows) {
-    const total = usage[row.stage] ?? {
+    // stage7a dan stage7b (semua fase) dijumlahkan sebagai tahap 7.
+    const stage = stageOfRun(row.stage);
+    const total = usage[stage] ?? {
       inputTokens: 0,
       outputTokens: 0,
       costUsd: 0,
@@ -44,7 +47,7 @@ export function getStageUsage({ db }: { db: Db }, id: string): Partial<Record<St
     total.outputTokens += row.outputTokens ?? 0;
     total.costUsd += row.costUsd ?? 0;
     if (row.isCurrent === 1) total.durationMs = row.durationMs;
-    usage[row.stage] = total;
+    usage[stage] = total;
   }
   return usage;
 }
@@ -98,7 +101,7 @@ export function stageEstimate({ db }: { db: Db }, stage: 'stage6' | 'stage7'): S
     .from(stageRuns)
     .where(
       and(
-        eq(stageRuns.stage, stage),
+        inArray(stageRuns.stage, runStagesOf(stage)),
         isNotNull(stageRuns.durationMs),
         isNotNull(stageRuns.outputTokens),
       ),

@@ -15,6 +15,13 @@
       "when": 1791852583299,
       "tag": "0001_answers_policy_key",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792561827783,
+      "tag": "0002_stage7a_stage7b_scope",
+      "breakpoints": true
     }
   ]
 }

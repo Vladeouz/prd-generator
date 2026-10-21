@@ -17,6 +17,7 @@ import { ACTIVE_JOB_STATUSES, jobs, projects, stageRuns } from '../core/db/schem
 import { AppError } from '../core/errors.ts';
 import {
   runStage,
+  runStagesOf,
   type Stage,
   type StageDefinition,
   StageFailedError,
@@ -92,7 +93,7 @@ export class JobQueue {
       .where(
         and(
           eq(stageRuns.projectId, job.projectId),
-          eq(stageRuns.stage, job.stage),
+          inArray(stageRuns.stage, runStagesOf(job.stage)),
           gte(stageRuns.createdAt, since),
         ),
       )
