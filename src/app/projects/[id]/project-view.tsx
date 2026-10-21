@@ -3,6 +3,7 @@ import { Card } from '../../../components/ui/card.tsx';
 import { DocumentToc } from '../../../components/ui/document-toc.tsx';
 import { documentOutline } from '../../../components/ui/markdown-outline.ts';
 import { Stepper } from '../../../components/ui/stepper.tsx';
+import type { ProjectGraph } from '../../../projects/graph.ts';
 import type { ProjectDetail, Stage, StageUsage } from '../../../projects/projects.ts';
 import { STAGE_LABELS } from '../../../projects/stage-labels.ts';
 import type { StageEstimate } from '../../../projects/usage.ts';
@@ -48,6 +49,8 @@ type Props = {
   estimates?: Estimates;
   /** Langkah tahap 7 yang sudah valid (D-11), untuk keterangan melanjutkan. */
   stage7Steps?: Stage7Steps;
+  /** Flowchart fitur (FR-12), null sebelum tahap 4 selesai. */
+  graph?: ProjectGraph | null;
 };
 
 /**
@@ -61,6 +64,7 @@ export function ProjectView({
   template,
   estimates,
   stage7Steps,
+  graph,
 }: Props) {
   const selected = selectedStage(project, stage);
   return (
@@ -105,7 +109,9 @@ export function ProjectView({
         </div>
         {selected === 'stage2' && <Stage2Section project={project} usage={usage.stage2} />}
         {selected === 'stage3' && <Stage3Section project={project} usage={usage.stage3} />}
-        {selected === 'stage4' && <Stage4Section project={project} usage={usage.stage4} />}
+        {selected === 'stage4' && (
+          <Stage4Section project={project} usage={usage.stage4} graph={graph} />
+        )}
         {selected === 'stage5' && <Stage5Section project={project} usage={usage.stage5} />}
         {selected === 'stage6' && (
           <Stage6Section
@@ -122,6 +128,7 @@ export function ProjectView({
             template={template}
             estimate={estimates?.stage7}
             steps={stage7Steps}
+            graph={graph}
           />
         )}
         {selected === 'export' && <ExportSection project={project} />}
