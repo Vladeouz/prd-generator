@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { TEMPLATE_CONVENTIONS } from '../helpers/template-repo.ts';
 
 const PREFIX = 'prd-generator-e2e-';
 // Sama dengan PLACEHOLDER_MARKER di src/projects/export.ts. Tidak diimpor: kode aplikasi (class dengan
@@ -64,7 +65,8 @@ export function prepareE2eEnvironment(): E2eEnvironment {
   writeFileSync(join(env.binDir, 'claude'), `#!/bin/sh\necho "${REFUSE}" >&2\nexit 97\n`);
   chmodSync(join(env.binDir, 'claude'), 0o755);
   gitRepo(env.templateDir, {
-    'docs/conventions.md': '# Konvensi Proyek\n\n- Clean Architecture per fitur\n',
+    // Memuat semua heading yang dibutuhkan tahap 6 dan review kedua (src/template/sections.ts).
+    'docs/conventions.md': TEMPLATE_CONVENTIONS,
     'scripts/init-project.mjs': '// init\n',
   });
   gitRepo(env.targetDir, {

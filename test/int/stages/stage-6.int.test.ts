@@ -17,7 +17,9 @@ import {
 } from '../../helpers/stage-flow.ts';
 import {
   createTemplateRepo,
+  EXPECTED_SECTIONS,
   TEMPLATE_CONVENTIONS,
+  TEMPLATE_SECTIONS,
   type TemplateRepo,
 } from '../../helpers/template-repo.ts';
 
@@ -59,7 +61,7 @@ describe('menjalankan tahap 6', () => {
     );
   });
 
-  it('prompt berisi conventions.md template apa adanya dan semua keputusan; template_commit dicatat', async () => {
+  it('prompt hanya berisi bagian konvensi tahap 6 apa adanya dan semua keputusan; template_commit dicatat', async () => {
     const flow = createFlow(t.db, clock, [...through5(), F.stage6()], {
       templateDir: template.dir,
     });
@@ -67,7 +69,17 @@ describe('menjalankan tahap 6', () => {
     await runStage(flow, 'stage6');
 
     const prompt = flow.runner.prompts[4] as string;
-    expect(prompt).toContain(`"""\n${TEMPLATE_CONVENTIONS}\n"""`);
+    expect(prompt).toContain(`"""\n${EXPECTED_SECTIONS.stage6}\n"""`);
+    // Bagian yang tidak terpilih (dan judul dokumen) tidak ikut.
+    for (const unused of [
+      TEMPLATE_SECTIONS.intro,
+      TEMPLATE_SECTIONS.git,
+      TEMPLATE_SECTIONS.flutter,
+    ]) {
+      expect(prompt).not.toContain(unused);
+    }
+    expect(prompt).toContain('JANGAN menyalin paragraf, tabel, atau blok kodenya ke PRD');
+    expect(prompt).toContain('BATAS UKURAN (wajib): seluruh PRD paling banyak 45.000 karakter');
     expect(prompt).toContain('## 7. Non-Functional Requirements\n\nJANGAN menulis bagian 8');
     for (const f of stage5().findings) {
       expect(prompt).toContain(
@@ -85,7 +97,7 @@ describe('menjalankan tahap 6', () => {
       .from(stageRuns)
       .where(and(eq(stageRuns.projectId, 'p1'), eq(stageRuns.stage, 'stage6')))
       .get();
-    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '1', isCurrent: 1 });
+    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '2', isCurrent: 1 });
   });
 
   it('PRD tersimpan: bagian 1–7 dari AI, bagian 8 dari data dengan teks keputusan yang sama persis', async () => {
@@ -187,5 +199,62 @@ describe('menjalankan tahap 6', () => {
     expect(prdDocuments()).toEqual([]);
     expect(t.db.select().from(jobs).where(eq(jobs.stage, 'stage6')).all()).toHaveLength(1);
     expect(projectRow(t.db)?.templateCommit).toBeNull();
+  });
+
+  it('heading konvensi tahap 6 tidak ada: job gagal menyebut heading-nya tanpa memanggil claude', async () => {
+    template.remove();
+    template = createTemplateRepo(
+      TEMPLATE_CONVENTIONS.replace('## Format error', '## Error').replace(
+        '## Database',
+        '## Basis data',
+      ),
+    );
+    const flow = createFlow(t.db, clock, through5(), { templateDir: template.dir });
+    await projectThrough(flow, 'stage5');
+    const response = await flow.jobsApi.run('p1', 'stage6');
+    const job = await flow.queue.waitFor((await response.json()).id);
+    expect(job?.status).toBe('failed');
+    expect(job?.error).toBe(
+      'PRD belum bisa ditulis: Bagian `## Database`, `## Format error` tidak ada di `docs/conventions.md` template, padahal dibutuhkan tahap 6 (PRD). Perbarui salinan template atau sesuaikan daftar heading di `src/template/sections.ts`.',
+    );
+    expect(flow.runner.prompts).toHaveLength(4);
+    expect(prdDocuments()).toEqual([]);
+    expect(projectRow(t.db)?.templateCommit).toBeNull();
+  });
+
+  it('PRD yang menyalin paragraf konvensi ditolak, lalu percobaan ulang yang merujuknya diterima', async () => {
+    const paragraph =
+      'Setiap error API dikembalikan sebagai objek error dengan code dari enum OpenAPI, message berbahasa Indonesia untuk ditampilkan, dan details per field bila validasi gagal.';
+    template.remove();
+    template = createTemplateRepo(
+      TEMPLATE_CONVENTIONS.replace(
+        TEMPLATE_SECTIONS.errors,
+        `${TEMPLATE_SECTIONS.errors}\r\n\r\n${paragraph}`,
+      ),
+    );
+    const copying = {
+      ...F.stage6(),
+      result: F.stage6().result.replace(
+        '## 4. Data Model',
+        `Format error:\n${paragraph.replace(' dengan code', '\ndengan code')}\n\n## 4. Data Model`,
+      ),
+    };
+    const flow = createFlow(t.db, clock, [...through5(), copying, F.stage6()], {
+      templateDir: template.dir,
+    });
+    await projectThrough(flow, 'stage5');
+    await runStage(flow, 'stage6');
+
+    const runs = t.db
+      .select()
+      .from(stageRuns)
+      .where(and(eq(stageRuns.projectId, 'p1'), eq(stageRuns.stage, 'stage6')))
+      .all()
+      .sort((a, b) => a.attempt - b.attempt);
+    expect(runs.map((r) => r.status)).toEqual(['failed', 'succeeded']);
+    expect(JSON.parse(runs[0]?.errorsJson ?? '[]')).toEqual([
+      `PRD menyalin isi docs/conventions.md ("${paragraph.slice(0, 80)}…"); rujuk bagiannya, misalnya "lihat docs/conventions.md bagian Format error", jangan disalin`,
+    ]);
+    expect(prdDocuments()).toHaveLength(1);
   });
 });

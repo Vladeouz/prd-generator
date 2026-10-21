@@ -1,9 +1,15 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadClaudeFixture } from '../../../src/claude/fake-runner.ts';
 import { composePrd, type PrdAppendix } from '../../../src/projects/compose-prd.ts';
 import { extractMarkdown } from '../../../src/stages/parse.ts';
 import { loadPrompt } from '../../../src/stages/prompt.ts';
-import { prdInfo, validatePrd } from '../../../src/stages/stage-6/validate.ts';
+import {
+  copiedConventions,
+  PRD_SIZE_WARN_BYTES,
+  prdInfo,
+  validatePrd,
+} from '../../../src/stages/stage-6/validate.ts';
 
 /** PRD nyata gym tanpa bagian 8 (fixture turunan). */
 const prd = () => extractMarkdown(loadClaudeFixture('derived/stage6-gym').result);
@@ -78,6 +84,92 @@ describe('validatePrd', () => {
     expect(errorsOf(prd().replaceAll(/NFR-(\d\d)/g, 'N$1'))).toEqual([
       'tidak ada NFR-xx di Non-Functional Requirements',
     ]);
+  });
+});
+
+describe('validatePrd: konvensi, ukuran, dan rujukan fitur (T-025)', () => {
+  /** PRD nyata spike T-022 run G (sonnet, effort low, bagian konvensi, batas 45 KB). */
+  const g = () => extractMarkdown(loadClaudeFixture('verification/t022-stage6-g').result);
+  /** Bagian konvensi tahap 6 yang dikirim di prompt run G, apa adanya. */
+  const sections = readFileSync(
+    'test/fixtures/claude/verification/t022-stage6-conventions.md',
+    'utf8',
+  );
+
+  it('menerima PRD nyata T-022 tanpa error dan peringatan, termasuk pemeriksaan salinan konvensi', () => {
+    expect(validatePrd(g(), { conventions: sections })).toEqual({ errors: [], warnings: [] });
+    expect(prdInfo(g()).frIds).toHaveLength(20);
+    // Endpoint dari tabel API Contract dengan path lengkap.
+    expect(new Set(prdInfo(g()).endpoints).size).toBe(46);
+  });
+
+  it('FR boleh merujuk fitur rekomendasi R-xx; tanpa rujukan F-xx/R-xx tetap peringatan', () => {
+    const fr13 = g().split('### FR-13')[1]?.split('### FR-14')[0] ?? '';
+    expect(fr13).toMatch(/\bR-\d{2}\b/);
+    const withoutRef = g().replace(fr13, fr13.replaceAll(/\b[FR]-(\d{2})\b/g, 'fitur $1'));
+    expect(validatePrd(withoutRef).warnings).toEqual(['FR-13 tidak merujuk fitur F-xx atau R-xx']);
+  });
+
+  it('menolak paragraf atau blok kode konvensi yang disalin (spasi boleh berbeda)', () => {
+    const paragraph = sections
+      .split('\n\n')
+      .find(
+        // Paragraf satu baris (bukan heading, blok kode, atau daftar): tepat satu unit salinan.
+        (p) =>
+          !p.startsWith('#') &&
+          !p.startsWith('```') &&
+          !p.startsWith('-') &&
+          !p.includes('\n') &&
+          p.length > 200,
+      )
+      ?.trim() as string;
+    const copied = g().replace(
+      '## 5. API Contract',
+      `${paragraph.replaceAll(' ', '\n')}\n\n## 5. API Contract`,
+    );
+    const errors = validatePrd(copied, { conventions: sections }).errors;
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(
+      `PRD menyalin isi docs/conventions.md ("${paragraph.replace(/\s+/g, ' ').slice(0, 80)}…")`,
+    );
+
+    const code = sections.split('```')[1] as string;
+    const withCode = g().replace('## 5. API Contract', `\`\`\`${code}\`\`\`\n\n## 5. API Contract`);
+    expect(validatePrd(withCode, { conventions: sections }).errors).toHaveLength(1);
+    // Tanpa konvensi (misalnya validator dipanggil di luar tahap 6), tidak diperiksa.
+    expect(validatePrd(copied).errors).toEqual([]);
+  });
+
+  it('copiedConventions: kalimat pendek dan heading tidak dianggap salinan', () => {
+    const conventions = '## Format error\n\nPakai AppError.\n\n- Kode unik\n';
+    expect(
+      copiedConventions('## Format error\n\nPakai AppError.\n\n- Kode unik', conventions),
+    ).toEqual([]);
+  });
+
+  it('PRD di atas 50 KB: peringatan, bukan error', () => {
+    const big = g().replace(
+      '## 7. Non-Functional Requirements',
+      `${'Catatan panjang. '.repeat(500)}\n\n## 7. Non-Functional Requirements`,
+    );
+    const result = validatePrd(big);
+    expect(PRD_SIZE_WARN_BYTES).toBe(51_200);
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([
+      expect.stringMatching(/^PRD 5\d KB, di atas batas NFR-06 \(50 KB\)/),
+    ]);
+  });
+});
+
+describe('prompt tahap 6 (T-025)', () => {
+  it('versi naik, bagian konvensi terpilih dengan larangan menyalin, dan batas ukuran opsi b', () => {
+    const prompt = loadPrompt('stage-6');
+    expect(prompt.version).toBe('2');
+    expect(prompt.body).toContain('KONVENSI PROYEK (bagian terpilih dari docs/conventions.md');
+    expect(prompt.body).toContain('JANGAN menyalin paragraf, tabel, atau blok kodenya ke PRD');
+    expect(prompt.body).toContain('seluruh PRD paling banyak 45.000 karakter');
+    expect(prompt.body).toContain('path lengkap');
+    expect(prompt.body).not.toContain('apa adanya):\n"""');
   });
 });
 
@@ -171,7 +263,7 @@ describe('composePrd', () => {
 describe('prompts/stage-6.md', () => {
   it('punya versi, placeholder, dan hanya meminta bagian 1–7', () => {
     const prompt = loadPrompt('stage-6');
-    expect(prompt.version).toBe('1');
+    expect(prompt.version).toBe('2');
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
       'decisions',
       'conventions',

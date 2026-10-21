@@ -1,7 +1,10 @@
 // Tahap 6: PRD bagian 1–7 oleh AI, bagian 8 oleh aplikasi (FR-07, D-05, D-06).
-// - Prompt berisi `docs/conventions.md` dari `TEMPLATE_DIR` apa adanya; commit template dicatat di
-//   `projects.template_commit` saat prompt dibuat (NFR-04).
-// - Template yang tidak valid menggagalkan job sebelum `claude` dipanggil (FR-11).
+// - Prompt berisi bagian `docs/conventions.md` tahap 6 dari `TEMPLATE_DIR` apa adanya (D-10,
+//   `CONVENTION_SECTIONS.stage6`); commit template dicatat di `projects.template_commit` saat prompt
+//   dibuat (NFR-04).
+// - Template yang tidak valid atau heading yang hilang menggagalkan job sebelum `claude` dipanggil
+//   (FR-07, FR-11).
+// - Validator menolak PRD yang menyalin bagian konvensi yang dikirim di prompt.
 // - Output yang valid disusun dengan bagian 8 (`composePrd`) dan disimpan sebagai dokumen `prd`
 //   versi berikutnya. Proyek lalu pindah ke review kedua, atau ke TASKS bila PRD ini ditulis ulang
 //   setelah keputusan review kedua.
@@ -9,10 +12,10 @@ import { randomUUID } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import { decisions, documents, projects } from '../../core/db/schema.ts';
 import { composePrd, prdAppendix } from '../../projects/compose-prd.ts';
-import { readTemplate } from '../../template/template.ts';
+import { readStageConventions } from '../conventions.ts';
 import { extractMarkdown } from '../parse.ts';
 import { loadPrompt, renderPrompt } from '../prompt.ts';
-import { type StageDefinition, StageFailedError } from '../run-stage.ts';
+import type { StageDefinition } from '../run-stage.ts';
 import { formatProductContext, productContext } from '../stage-2/context.ts';
 import { formatTechnicalContext, technicalContext } from '../stage-3/context.ts';
 import { featureDraft } from '../stage-4/features.ts';
@@ -36,6 +39,9 @@ export function stage6Definition({
   templateDir = () => process.env.TEMPLATE_DIR,
 }: Stage6Options = {}): StageDefinition<string> {
   const prompt = loadPrompt('stage-6');
+  // Bagian konvensi prompt terakhir, untuk validator. Aman karena hanya satu job berjalan dalam satu
+  // waktu, dan buildPrompt selalu dipanggil sebelum validate dalam job yang sama.
+  let sections: string | undefined;
   return {
     stage: 'stage6',
     promptVersion: prompt.version,
@@ -44,18 +50,18 @@ export function stage6Definition({
         ? null
         : 'Simpan keputusan review kritis dulu sebelum menulis PRD.',
     buildPrompt: async ({ db, projectId }) => {
-      const template = await readTemplate(templateDir());
-      if (!template.ok) {
-        throw new StageFailedError(
-          `Repo template belum valid, jadi PRD belum bisa ditulis: ${template.problems.join(' ')} Perbaiki di halaman Pengaturan.`,
-        );
-      }
+      const conventions = await readStageConventions(
+        templateDir(),
+        'stage6',
+        'PRD belum bisa ditulis',
+      );
+      sections = conventions.sections;
       db.update(projects)
-        .set({ templateCommit: template.template.commit })
+        .set({ templateCommit: conventions.commit })
         .where(eq(projects.id, projectId))
         .run();
       return renderPrompt(prompt, {
-        conventions: template.template.conventions,
+        conventions: conventions.sections,
         decisions: formatDecisions(prdAppendix(db, projectId).decisions),
         context: `${formatProductContext(productContext(db, projectId))}
 
@@ -64,7 +70,7 @@ ${formatTechnicalContext(technicalContext(db, projectId))}`,
       });
     },
     parse: (result) => extractMarkdown(result),
-    validate: validatePrd,
+    validate: (output) => validatePrd(output, { conventions: sections }),
     onSuccess: ({ tx, projectId, output, now }) => {
       const latest = tx
         .select({ version: documents.version })

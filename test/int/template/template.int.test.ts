@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { checkClaude, getSettings } from '../../../src/template/settings.ts';
 import { readTemplate } from '../../../src/template/template.ts';
+import { TEMPLATE_CONVENTIONS, TEMPLATE_SECTIONS } from '../../helpers/template-repo.ts';
 
 // Isi konvensi dengan CRLF, Unicode, dan spasi di akhir untuk membuktikan dibaca apa adanya.
 const CONVENTIONS = '# Konvensi Proyek\r\n\r\n- Teks UI dalam Bahasa Indonesia ✓  \r\n- é\n';
@@ -18,10 +19,10 @@ const git = (...args: string[]) =>
   }).trim();
 
 /** Folder template buatan: repo Git dengan kedua file penanda, sudah di-commit. */
-function makeTemplate() {
+function makeTemplate(conventions = CONVENTIONS) {
   mkdirSync(join(dir, 'docs'));
   mkdirSync(join(dir, 'scripts'));
-  writeFileSync(join(dir, 'docs', 'conventions.md'), CONVENTIONS);
+  writeFileSync(join(dir, 'docs', 'conventions.md'), conventions);
   writeFileSync(join(dir, 'scripts', 'init-project.mjs'), '// init\n');
   git('init', '-q');
   git('config', 'core.autocrlf', 'false');
@@ -100,8 +101,8 @@ describe('readTemplate', () => {
 });
 
 describe('getSettings', () => {
-  it('template valid: commit terisi, tanpa masalah', async () => {
-    makeTemplate();
+  it('template valid dengan semua heading tahap: commit terisi, tanpa masalah', async () => {
+    makeTemplate(TEMPLATE_CONVENTIONS);
     const settings = await getSettings({
       templateDir: dir,
       checkClaude: () => checkClaude(FAKE_CLAUDE),
@@ -113,6 +114,20 @@ describe('getSettings', () => {
       claudeVersion: '9.9.9 (Claude Code palsu)',
       problems: [],
     });
+  });
+
+  it('heading konvensi yang dibutuhkan tidak ada: masalah menyebut heading dan tahapnya', async () => {
+    makeTemplate(TEMPLATE_CONVENTIONS.replace(TEMPLATE_SECTIONS.pagination, '## Paginasi'));
+    const settings = await getSettings({
+      templateDir: dir,
+      checkClaude: () => checkClaude(FAKE_CLAUDE),
+    });
+    expect(settings.templateCommit).toBe(git('rev-parse', 'HEAD'));
+    expect(settings.problems).toHaveLength(2);
+    expect(settings.problems[0]).toMatch(
+      /^Bagian `## Pagination` tidak ada di `docs\/conventions\.md` template, padahal dibutuhkan tahap 6 \(PRD\)\./,
+    );
+    expect(settings.problems[1]).toMatch(/^Bagian `## Pagination` .* dibutuhkan review kedua\./);
   });
 
   it('template tidak valid dan claude tidak ada: masalah dilaporkan', async () => {
