@@ -55,6 +55,10 @@ export default defineConfig({
         process.platform === 'win32' ? `"${process.execPath}" "${FAKE_CLI}"` : FAKE_CLI,
       FAKE_CLAUDE_MODE: 'flow',
       FAKE_CLAUDE_DELAY_MS: '300',
+      // Teks dikirim bertahap (stream) agar progres dan cuplikan teks terlihat sebelum job selesai
+      // (T-024): tahap 6 ±23 potongan × 150 ms.
+      FAKE_CLAUDE_CHUNK_SIZE: '2000',
+      FAKE_CLAUDE_CHUNK_DELAY_MS: '150',
       // Tahap 3 pertama dijawab output nyata tanpa `default_policy_key` (ditolak validator), lalu
       // percobaan ulang memakai fixture turunan yang valid (FR-02).
       FAKE_CLAUDE_INVALID_ONCE: 'Klarifikasi Teknis',

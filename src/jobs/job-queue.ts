@@ -5,7 +5,9 @@
 // - job tidak terikat ke request: `start` langsung kembali, eksekusi berjalan di latar belakang;
 // - saat server start, job yang masih `queued`/`running` ditandai `interrupted`
 //   (`markInterrupted`, dipanggil sekali per proses lewat src/instrumentation.ts), karena proses
-//   anaknya selalu ikut mati bersama server di Windows.
+//   anaknya selalu ikut mati bersama server di Windows;
+// - progres terakhir job yang berjalan (potongan stream runner) disimpan di `ProgressStore` di
+//   memori (D-12) dan dihapus saat job selesai, setelah statusnya tertulis di database.
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, gte, inArray } from 'drizzle-orm';
 import type { ClaudeRunner } from '../claude/types.ts';
@@ -19,6 +21,7 @@ import {
   type StageDefinition,
   StageFailedError,
 } from '../stages/run-stage.ts';
+import { type ProgressStore, sharedProgressStore } from './progress.ts';
 
 export type Job = typeof jobs.$inferSelect;
 
@@ -32,6 +35,8 @@ export type JobQueueDeps = {
   runner: ClaudeRunner;
   clock: Clock;
   stages: StageRegistry;
+  /** Bawaan: store bersama di globalThis. Test memberi store sendiri. */
+  progress?: ProgressStore;
 };
 
 export const CONFLICT_MESSAGE =
@@ -44,9 +49,11 @@ const sqliteCode = (error: unknown) => (error as { code?: string }).code ?? '';
 export class JobQueue {
   private deps: JobQueueDeps;
   private readonly running = new Map<string, Promise<void>>();
+  readonly progress: ProgressStore;
 
   constructor(deps: JobQueueDeps) {
     this.deps = deps;
+    this.progress = deps.progress ?? sharedProgressStore();
   }
 
   /** Mengganti definisi tahap untuk job berikutnya; job yang sedang berjalan tidak terpengaruh. */
@@ -172,7 +179,15 @@ export class JobQueue {
 
     try {
       db.update(jobs).set({ status: 'running', startedAt: clock() }).where(eq(jobs.id, id)).run();
-      await runStage(this.deps, definition, projectId);
+      await runStage(
+        {
+          ...this.deps,
+          onAttempt: (attempt) => this.progress.startAttempt(id, attempt),
+          onProgress: (item) => this.progress.report(id, item),
+        },
+        definition,
+        projectId,
+      );
       finish('succeeded');
     } catch (error) {
       const message =
@@ -185,6 +200,8 @@ export class JobQueue {
         // Database tidak bisa diperbarui (misalnya sudah ditutup); job akan ditandai
         // `interrupted` saat server start berikutnya.
       }
+    } finally {
+      this.progress.finish(id);
     }
   }
 }

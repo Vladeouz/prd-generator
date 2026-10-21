@@ -111,7 +111,20 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - Tahap didefinisikan sebagai `StageDefinition` (`src/stages/run-stage.ts`): `stage`, `promptVersion`, `buildPrompt`, `parse`, `validate`, lalu didaftarkan di `stageRegistry` (`src/jobs/instance.ts`). `runStage` menangani percobaan ulang sekali dengan daftar error (D-08) dan pencatatan `stage_runs`; definisi tahap tidak menulis `stage_runs` sendiri.
 - Kegagalan runner (`ClaudeRunError`) tidak dicoba ulang: job `failed` dengan pesan runner, dicatat sebagai `stage_runs` gagal tanpa output, dan output tahap yang berlaku sebelumnya tetap berlaku. Hanya kegagalan parse dan validasi yang dicoba ulang.
 - Kelas error yang melintasi graf modul (`AppError`, `ClaudeRunError`, `StageFailedError`) dikenali lewat penanda `Symbol.for` dan `static [Symbol.hasInstance]` (`brandedInstanceCheck` di `src/core/errors.ts`). Next.js membundel `instrumentation.ts`, yang membuat antrean job, terpisah dari route, sehingga `instanceof` biasa gagal dan 409 berubah menjadi 500 (ditemukan di T-008). Kelas error baru yang bisa dilempar dari antrean mengikuti pola ini. Test: `test/unit/core/errors.test.ts` (salinan modul lewat `import('…?salinan-lain')`).
-- Contoh test: `test/int/jobs/job-queue.int.test.ts` (runner palsu, fixture nyata, `GatedRunner` untuk menahan job tetap berjalan).
+- **Progres job** (D-12, T-024):
+  - `runStage` meneruskan `onAttempt` dan `onProgress` (potongan stream runner) ke `ProgressStore` (`src/jobs/progress.ts`);
+  - isinya `chars`, `preview` (400 karakter terakhir), `thinkingTokens`, `attempt`, serta `step`/`totalSteps` untuk tahap berlangkah;
+  - store disimpan di `globalThis` (`sharedProgressStore()`), bukan di instance `JobQueue`, karena antrean bisa diganti `currentQueue` dan route bisa memuat salinan modul lain;
+  - progres hanya di memori. Saat job selesai, `finish` dipanggil setelah status job tertulis di database: progres dihapus dan pendengar menerima `done`.
+- **`GET /api/jobs/{id}/stream`** (`jobEventStream`, `src/jobs/event-stream.ts`):
+  - SSE dengan event `progress` (dibatasi `PROGRESS_THROTTLE_MS` = 300 ms, selalu keadaan terbaru) lalu satu `done` berisi `Job` + `attempts`;
+  - progres terkini langsung dikirim saat tersambung, dan job yang sudah selesai langsung mendapat `done`;
+  - berlangganan dulu, baru memeriksa status di database;
+  - route memakai `dynamic = 'force-dynamic'` dan berhenti berlangganan saat `request.signal` dibatalkan.
+- **UI** (`StageRunner`): progres nyata dari `EventSource`, ditampilkan `JobProgressView` (`src/components/job-progress.tsx`). Polling `GET /api/jobs/{id}` tetap berjalan sebagai cadangan untuk status dan percobaan ulang. Tidak ada lagi bilah progres yang dihitung dari waktu.
+- Contoh test:
+  - `test/int/jobs/job-queue.int.test.ts`: runner palsu, fixture nyata, `GatedRunner` untuk menahan job tetap berjalan;
+  - `test/int/jobs/job-stream.int.test.ts`: SSE dengan `FakeClaudeRunner` bertahap, dan runner yang berhenti di tengah untuk kasus tersambung ulang.
 
 ## Template dan pengaturan
 

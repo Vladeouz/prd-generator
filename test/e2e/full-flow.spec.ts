@@ -10,12 +10,36 @@ import { e2eEnvironment } from './environment.ts';
 
 const env = e2eEnvironment(process.env.PRD_E2E_DIR as string);
 
-/** Menjalankan tahap lewat tombolnya (dengan konfirmasi bila ada) sampai banner job hilang. */
-async function runStage(page: Page, stage: string, button: string, confirm = false) {
+/**
+ * Menjalankan tahap lewat tombolnya (dengan konfirmasi bila ada) sampai banner job hilang.
+ * `preview`: label tahap; memastikan progres nyata dan cuplikan teks stream tampil selama job masih
+ * berjalan. `reload`: halaman dimuat ulang di tengah job, dan progres terkini harus tampil lagi.
+ */
+async function runStage(
+  page: Page,
+  stage: string,
+  button: string,
+  confirm = false,
+  { preview, reload = false }: { preview?: string; reload?: boolean } = {},
+) {
   const runner = page.getByTestId(`runner-${stage}`);
   await runner.getByRole('button', { name: button, exact: true }).click();
   if (confirm) await runner.getByRole('button', { name: 'Ya, jalankan' }).click();
   await expect(runner.getByTestId('job-banner')).toBeVisible();
+  if (preview) {
+    // Cuplikan ada di dalam banner, jadi terlihatnya cuplikan berarti job belum selesai.
+    const expectProgress = async () => {
+      await expect(runner.getByTestId('job-preview')).toBeVisible();
+      await expect(runner.getByTestId('job-preview')).not.toBeEmpty();
+      await expect(runner.getByTestId('job-progress-summary')).toContainText('karakter diterima');
+      await expect(runner.getByTestId('job-status')).toHaveText(`${preview} sedang berjalan`);
+    };
+    await expectProgress();
+    if (reload) {
+      await page.reload();
+      await expectProgress();
+    }
+  }
   await expect(runner.getByTestId('job-banner')).toBeHidden({ timeout: 30_000 });
   await expect(runner.getByTestId('job-error')).toHaveCount(0);
 }
@@ -84,7 +108,7 @@ test('dari input ide sampai export, dengan satu percobaan ulang', async ({ page,
   await save(page, 'Simpan keputusan');
 
   // Tahap 6: PRD (dengan konfirmasi), lalu review kedua.
-  await runStage(page, 'stage6', 'Jalankan penulisan prd', true);
+  await runStage(page, 'stage6', 'Jalankan penulisan prd', true, { preview: 'Penulisan PRD' });
   await runStage(page, 'review2', 'Jalankan review kedua');
   // Rekomendasi fixture review kedua memuat satu perbaikan PRD: PRD ditulis ulang tepat sekali.
   await save(page, 'Simpan keputusan');
@@ -98,7 +122,10 @@ test('dari input ide sampai export, dengan satu percobaan ulang', async ({ page,
     ['prd', 1],
     ['prd', 2],
   ]);
-  await runStage(page, 'stage7', 'Jalankan penulisan tasks', true);
+  await runStage(page, 'stage7', 'Jalankan penulisan tasks', true, {
+    preview: 'Penulisan TASKS',
+    reload: true,
+  });
 
   // Tahap 8: export ke folder proyek turunan template.
   await page.goto(`/projects/${projectId}?tahap=8`);

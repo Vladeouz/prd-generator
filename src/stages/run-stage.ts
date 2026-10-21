@@ -8,7 +8,12 @@
 //   tidak menyimpan output apa pun.
 import { randomUUID } from 'node:crypto';
 import { and, eq, inArray } from 'drizzle-orm';
-import { type ClaudeResult, ClaudeRunError, type ClaudeRunner } from '../claude/types.ts';
+import {
+  type ClaudeResult,
+  ClaudeRunError,
+  type ClaudeRunner,
+  type ClaudeRunOptions,
+} from '../claude/types.ts';
 import type { Clock } from '../core/clock.ts';
 import type { Db } from '../core/db/client.ts';
 import { DOCUMENT_KINDS, decisions, documents, STAGES, stageRuns } from '../core/db/schema.ts';
@@ -133,7 +138,15 @@ export class StageFailedError extends Error {
   }
 }
 
-export type RunStageDeps = { db: Db; runner: ClaudeRunner; clock: Clock };
+export type RunStageDeps = {
+  db: Db;
+  runner: ClaudeRunner;
+  clock: Clock;
+  /** Dipanggil di awal setiap percobaan (D-08), sebelum runner dipanggil. */
+  onAttempt?: (attempt: number) => void;
+  /** Potongan stream dari runner (D-12), diteruskan apa adanya. */
+  onProgress?: ClaudeRunOptions['onProgress'];
+};
 
 export type StageRunOutcome<T> = { output: T; stageRunId: string; attempts: number };
 
@@ -172,7 +185,8 @@ export async function runStage<T>(
 
     let result: ClaudeResult;
     try {
-      result = await runner.run(currentPrompt);
+      deps.onAttempt?.(attempt);
+      result = await runner.run(currentPrompt, { onProgress: deps.onProgress });
     } catch (error) {
       if (!(error instanceof ClaudeRunError)) throw error;
       db.insert(stageRuns)
