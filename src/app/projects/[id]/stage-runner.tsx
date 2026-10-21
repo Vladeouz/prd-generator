@@ -1,12 +1,15 @@
 'use client';
-// Tombol jalankan tahap + status job (FR-02): status dan waktu berjalan tampil lewat polling
-// `GET /api/jobs/{id}`; halaman tetap bisa dipakai dan ditinggalkan selama job berjalan.
+// Tombol jalankan tahap + status job (FR-02): progres nyata (karakter, langkah, cuplikan teks) dari
+// `GET /api/jobs/{id}/stream` (SSE, D-12), dengan polling `GET /api/jobs/{id}` sebagai cadangan
+// untuk status dan percobaan ulang. Halaman tetap bisa dipakai dan ditinggalkan selama job berjalan;
+// membuka ulang halaman langsung menampilkan progres terkini.
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { JobProgressView } from '../../../components/job-progress.tsx';
 import { Button } from '../../../components/ui/button.tsx';
 import { ConfirmPanel } from '../../../components/ui/confirm-panel.tsx';
-import { ProgressBar } from '../../../components/ui/progress-bar.tsx';
 import type { Job, JobAttempt } from '../../../jobs/job-queue.ts';
+import type { JobProgress } from '../../../jobs/progress.ts';
 import { MAX_ATTEMPTS } from '../../../stages/attempts.ts';
 
 const POLL_MS = 2000;
@@ -16,15 +19,6 @@ const POLL_FAILURES_SHOWN = 2;
 export function formatElapsed(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-}
-
-/**
- * Progres terhadap perkiraan durasi: 0–0,95 selama masih di bawah perkiraan (tidak pernah 100%
- * sebelum selesai), lalu `null` (progres tidak tentu) setelah melewatinya atau tanpa perkiraan.
- */
-export function jobProgress(elapsedMs: number, estimateMs: number | undefined): number | null {
-  if (!estimateMs || elapsedMs > estimateMs) return null;
-  return Math.min(0.95, Math.max(0, elapsedMs / estimateMs));
 }
 
 const isActive = (job: Job | null): job is Job =>
@@ -72,7 +66,7 @@ type Props = {
   hasOutput: boolean;
   /** Contoh: "sekitar 20 detik". */
   estimate?: string;
-  /** Perkiraan durasi dalam ms untuk bilah progres; tanpa nilai, progres tidak tentu. */
+  /** Perkiraan durasi dalam ms; setelah terlewati, banner menyebut job masih berjalan. */
   estimateMs?: number;
   /** Perkiraan token di banner, contoh "±33 rb token". */
   estimateTokens?: string;
@@ -100,10 +94,12 @@ export function StageRunner({
   const [attempts, setAttempts] = useState<JobAttempt[]>([]);
   const [starting, setStarting] = useState(false);
   const [pollFailures, setPollFailures] = useState(0);
+  const [progress, setProgress] = useState<JobProgress | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const running = isActive(job);
   const polled = jobToPoll(job, activeJob);
   const polledId = polled?.id;
+  const streamedId = running ? job.id : undefined;
 
   useEffect(() => {
     setJob((current) => trackedJob(current, activeJob, stage));
@@ -137,6 +133,27 @@ export function StageRunner({
       clearInterval(poll);
     };
   }, [polledId, router]);
+
+  // Progres nyata lewat SSE untuk job tahap ini. EventSource tersambung ulang sendiri bila koneksi
+  // putus; status akhir tetap terdeteksi oleh polling di atas bila stream gagal.
+  useEffect(() => {
+    if (!streamedId || typeof EventSource === 'undefined') return;
+    setProgress(null);
+    const source = new EventSource(`/api/jobs/${streamedId}/stream`);
+    source.addEventListener('progress', (event) => {
+      try {
+        setProgress(JSON.parse((event as MessageEvent<string>).data) as JobProgress);
+      } catch {}
+    });
+    source.addEventListener('done', () => {
+      source.close();
+      setProgress(null);
+      setAttempts([]);
+      setJob(null);
+      router.refresh();
+    });
+    return () => source.close();
+  }, [streamedId, router]);
 
   async function start() {
     setConfirming(false);
@@ -182,6 +199,7 @@ export function StageRunner({
           estimate={estimate}
           estimateMs={estimateMs}
           estimateTokens={estimateTokens}
+          progress={progress}
           note={attemptNote(attempts)}
           disconnected={pollFailures >= POLL_FAILURES_SHOWN}
         />
@@ -241,13 +259,15 @@ type BannerProps = {
   estimate?: string;
   estimateMs?: number;
   estimateTokens?: string;
+  progress: JobProgress | null;
   note: string | null;
   disconnected: boolean;
 };
 
 /**
- * Banner job berjalan (mockup Prd.dc.html): status, waktu berjalan, perkiraan, dan bilah progres.
- * Hanya baris status yang diumumkan pembaca layar; waktu yang berganti setiap detik tidak.
+ * Banner job berjalan (mockup Prd.dc.html): status, waktu berjalan, perkiraan, progres nyata, dan
+ * cuplikan teks. Hanya baris status yang diumumkan pembaca layar; waktu dan progres yang berganti
+ * terus tidak.
  */
 function RunningBanner({
   job,
@@ -256,11 +276,11 @@ function RunningBanner({
   estimate,
   estimateMs,
   estimateTokens,
+  progress,
   note,
   disconnected,
 }: BannerProps) {
-  const progress = jobProgress(elapsedMs, estimateMs);
-  const over = estimateMs !== undefined && progress === null;
+  const over = estimateMs !== undefined && elapsedMs > estimateMs;
   const plan = [estimate, estimateTokens].filter(Boolean).join(' dan ');
   return (
     <section
@@ -281,14 +301,7 @@ function RunningBanner({
           {note}
         </p>
       )}
-      <ProgressBar
-        label={
-          progress === null
-            ? `Progres ${label.toLowerCase()}`
-            : `Sekitar ${Math.round(progress * 100)} persen dari perkiraan waktu`
-        }
-        value={progress ?? undefined}
-      />
+      <JobProgressView label={label} progress={progress} />
       {disconnected && (
         <p className="text-sm text-high" role="status" data-testid="poll-disconnected">
           Koneksi ke server terputus. Mencoba lagi…

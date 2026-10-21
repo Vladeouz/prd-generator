@@ -10,7 +10,7 @@ import {
   bannerEstimate,
   confirmationText,
 } from '../../../src/app/projects/[id]/run-confirmation.ts';
-import { jobProgress, StageRunner } from '../../../src/app/projects/[id]/stage-runner.tsx';
+import { StageRunner } from '../../../src/app/projects/[id]/stage-runner.tsx';
 import { HomeView } from '../../../src/app/projects/home-view.tsx';
 import { SettingsView } from '../../../src/app/settings/settings-view.tsx';
 import { loadClaudeFixture } from '../../../src/claude/fake-runner.ts';
@@ -146,14 +146,6 @@ describe('layar PRD (Prd.dc.html)', () => {
 });
 
 describe('banner job berjalan', () => {
-  it('progres mengikuti perkiraan, tidak pernah 100% sebelum selesai, lalu tidak tentu', () => {
-    expect(jobProgress(0, 100_000)).toBe(0);
-    expect(jobProgress(50_000, 100_000)).toBe(0.5);
-    expect(jobProgress(99_000, 100_000)).toBe(0.95);
-    expect(jobProgress(120_000, 100_000)).toBeNull();
-    expect(jobProgress(10_000, undefined)).toBeNull();
-  });
-
   it('perkiraan banner sama dengan konfirmasi', () => {
     const estimate = { ...TEST_ESTIMATES.stage6, basis: 'test' as const, samples: 0 };
     expect(bannerEstimate(estimate)).toEqual({
@@ -165,7 +157,7 @@ describe('banner job berjalan', () => {
     expect(bannerEstimate(undefined)).toEqual({});
   });
 
-  it('menampilkan status, waktu berjalan, perkiraan token, dan bilah progres bernilai', () => {
+  it('menampilkan status, waktu berjalan, perkiraan token, dan progres nyata (bukan dari waktu)', () => {
     const started = new Date(Date.now() - 60_000).toISOString();
     const html = renderToStaticMarkup(
       <StageRunner
@@ -194,8 +186,11 @@ describe('banner job berjalan', () => {
       'role="status" data-testid="job-status">Penulisan TASKS sedang berjalan<',
     );
     expect(html).toContain('perkiraan sekitar 3 menit dan ±19 rb token output');
-    expect(html).toMatch(/role="progressbar" aria-label="Sekitar 3\d persen dari perkiraan waktu"/);
-    expect(html).toMatch(/aria-valuenow="3\d"/);
+    // Sebelum event progres pertama datang: belum ada progres, bilah tidak tentu.
+    expect(html).toContain('Menunggu Claude Code mulai menjawab…');
+    expect(html).toContain('role="progressbar" aria-label="Progres penulisan tasks"');
+    expect(html).not.toContain('aria-valuenow');
+    expect(html).not.toContain('persen dari perkiraan waktu');
   });
 });
 
