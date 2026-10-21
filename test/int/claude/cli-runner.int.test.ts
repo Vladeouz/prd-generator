@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { afterEach, describe, expect, it } from 'vitest';
-import { CLAUDE_ARGS, CliClaudeRunner } from '../../../src/claude/cli-runner.ts';
+import { CliClaudeRunner, claudeArgs } from '../../../src/claude/cli-runner.ts';
+import type { ClaudeProgress } from '../../../src/claude/types.ts';
 import { ClaudeRunError } from '../../../src/claude/types.ts';
 
 const FAKE_CLI = resolve('test/helpers/fake-claude-cli.mjs');
@@ -17,11 +18,17 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-function runner(mode: string, extra: Record<string, string> = {}, timeoutMs?: number) {
+function runner(
+  mode: string,
+  extra: Record<string, string> = {},
+  timeoutMs?: number,
+  model?: string,
+) {
   return new CliClaudeRunner({
     command: COMMAND,
     env: { FAKE_CLAUDE_MODE: mode, ...extra },
     timeoutMs,
+    model,
   });
 }
 
@@ -53,7 +60,9 @@ describe('CliClaudeRunner dengan perintah palsu', () => {
     const result = await runner('ok').run(prompt);
     const received = JSON.parse(result.result) as Received;
 
-    expect(received.argv).toEqual([...CLAUDE_ARGS]);
+    // Di Windows, ini juga membuktikan tanda kutip string cmd.exe: `--tools ""` sampai sebagai
+    // argumen kosong dan system prompt berspasi sebagai satu argumen.
+    expect(received.argv).toEqual(claudeArgs('sonnet'));
     expect(received.stdin).toBe(prompt);
     expect(received.argv.join(' ')).not.toContain('Halo');
     expect(dirname(received.cwd)).toBe(tmpdir());
@@ -67,6 +76,42 @@ describe('CliClaudeRunner dengan perintah palsu', () => {
     expect(result).toMatchObject({ inputTokens: 1103, outputTokens: 42, costUsd: 0.0123 });
     expect(result.durationMs).toBeGreaterThan(0);
     expect(JSON.parse(result.rawEnvelope).session_id).toBe('fake');
+  });
+
+  it('model dari opsi sampai ke argumen', async () => {
+    const result = await runner('ok', {}, undefined, 'claude-opus-5-5').run('x');
+    expect((JSON.parse(result.result) as Received).argv).toEqual(claudeArgs('claude-opus-5-5'));
+  });
+
+  it('stream: potongan teks diteruskan bertahap sebelum selesai, hasil dari event result', async () => {
+    const fixture = resolve('test/fixtures/claude/stage2.json');
+    const expected = JSON.parse(readFileSync(fixture, 'utf8')) as { result: string };
+    const progress: { at: number; item: ClaudeProgress }[] = [];
+    const started = performance.now();
+    const result = await runner('fixture', {
+      FAKE_CLAUDE_FIXTURE: fixture,
+      FAKE_CLAUDE_CHUNK_SIZE: '500',
+      FAKE_CLAUDE_CHUNK_DELAY_MS: '50',
+    }).run('x', { onProgress: (item) => progress.push({ at: performance.now() - started, item }) });
+
+    const texts = progress.flatMap(({ item }) => (item.kind === 'text' ? [item] : []));
+    expect(texts.length).toBe(Math.ceil(expected.result.length / 500));
+    expect(texts.map((t) => t.text).join('')).toBe(expected.result);
+    expect(texts.at(-1)?.chars).toBe(expected.result.length);
+    expect(progress[0]?.item).toEqual({ kind: 'thinking', estimatedTokens: 50 });
+    // Potongan pertama datang jauh sebelum pemanggilan selesai.
+    expect(progress.find(({ item }) => item.kind === 'text')?.at).toBeLessThan(
+      result.durationMs - 100,
+    );
+    expect(result.result).toBe(expected.result);
+    expect(result).toMatchObject({ inputTokens: 2 + 8112 + 16023, outputTokens: 1521 });
+    expect(result.costUsd).toBeCloseTo(0.0985, 4);
+  });
+
+  it('stream tanpa event result → INVALID_ENVELOPE', async () => {
+    const error = await failure(runner('no-result').run('x'));
+    expect(error.code).toBe('INVALID_ENVELOPE');
+    expect(error.message).toContain('tidak berisi event result');
   });
 
   it('prompt besar (±300 KB) terkirim utuh', async () => {

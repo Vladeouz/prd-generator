@@ -1,10 +1,17 @@
 // Runner palsu untuk test dan end-to-end (D-07): tidak pernah menjalankan proses. Respons diambil
 // berurutan dari antrean; fixture di test/fixtures/claude/ adalah envelope nyata yang dibaca lewat
-// parser yang sama dengan runner CLI.
+// parser yang sama dengan runner CLI. Bila `onProgress` diberikan, `result` dikirim dulu sebagai
+// potongan teks bertahap, seperti stream runner CLI.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { parseEnvelope } from './envelope.ts';
-import { type ClaudeResult, ClaudeRunError, type ClaudeRunner } from './types.ts';
+import {
+  type ClaudeResult,
+  ClaudeRunError,
+  type ClaudeRunner,
+  type ClaudeRunOptions,
+} from './types.ts';
 
 export const CLAUDE_FIXTURES_DIR = join(process.cwd(), 'test', 'fixtures', 'claude');
 
@@ -20,16 +27,27 @@ export type FakeResponse =
   | ClaudeRunError
   | ((prompt: string) => ClaudeResult | ClaudeRunError);
 
+export type FakeRunnerOptions = {
+  /** Ukuran potongan teks untuk `onProgress` (bawaan 2000 karakter). */
+  chunkSize?: number;
+  /** Jeda sebelum setiap potongan (bawaan 0). */
+  chunkDelayMs?: number;
+};
+
 export class FakeClaudeRunner implements ClaudeRunner {
   /** Prompt yang diterima, berurutan. */
   readonly prompts: string[] = [];
   private readonly queue: FakeResponse[];
+  private readonly chunkSize: number;
+  private readonly chunkDelayMs: number;
 
-  constructor(responses: FakeResponse[]) {
+  constructor(responses: FakeResponse[], options: FakeRunnerOptions = {}) {
     this.queue = [...responses];
+    this.chunkSize = options.chunkSize ?? 2000;
+    this.chunkDelayMs = options.chunkDelayMs ?? 0;
   }
 
-  async run(prompt: string): Promise<ClaudeResult> {
+  async run(prompt: string, options: ClaudeRunOptions = {}): Promise<ClaudeResult> {
     this.prompts.push(prompt);
     const next = this.queue.shift();
     if (next === undefined) {
@@ -39,6 +57,16 @@ export class FakeClaudeRunner implements ClaudeRunner {
     }
     const response = typeof next === 'function' ? next(prompt) : next;
     if (response instanceof ClaudeRunError) throw response;
+    if (options.onProgress) {
+      for (let at = 0; at < response.result.length; at += this.chunkSize) {
+        if (this.chunkDelayMs > 0) await sleep(this.chunkDelayMs);
+        const text = response.result.slice(at, at + this.chunkSize);
+        // Sama dengan runner CLI: error di callback progres diabaikan.
+        try {
+          options.onProgress({ kind: 'text', text, chars: at + text.length });
+        } catch {}
+      }
+    }
     return response;
   }
 }

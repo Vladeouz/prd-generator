@@ -1,5 +1,10 @@
-// Runner yang memanggil Claude Code sungguhan (PRD bagian 3, Pemanggilan Claude Code):
-// - `claude -p --output-format json --max-turns 1`, prompt lewat stdin, tidak pernah lewat argumen;
+// Runner yang memanggil Claude Code sungguhan (PRD bagian 3, Pemanggilan Claude Code; bentuk perintah
+// dari spike T-022, lihat docs/logs/T-022.md):
+// - `claude -p --output-format stream-json …` (`claudeArgs`), prompt lewat stdin, tidak pernah lewat
+//   argumen; stdout dibaca baris demi baris (`StreamReader`) dan potongan teks diteruskan ke
+//   `onProgress`;
+// - model dari `CLAUDE_MODEL` (bawaan `sonnet`) dengan `--effort low` (D-09), tanpa tool, server MCP,
+//   pengaturan user, skill, dan sesi tersimpan, dengan system prompt pendek sendiri;
 // - Windows: satu string dengan `shell: true` (menghindari DEP0190); platform lain: array argumen;
 // - dijalankan di folder sementara kosong yang dihapus setelahnya;
 // - batas waktu bawaan 15 menit.
@@ -7,7 +12,8 @@ import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
-import { parseEnvelope } from './envelope.ts';
+import { DEFAULT_CLAUDE_MODEL, isValidClaudeModel } from '../core/config/claude.ts';
+import { StreamReader } from './stream.ts';
 import {
   type ClaudeResult,
   ClaudeRunError,
@@ -16,8 +22,41 @@ import {
 } from './types.ts';
 
 export const CLAUDE_COMMAND = 'claude';
-export const CLAUDE_ARGS = ['-p', '--output-format', 'json', '--max-turns', '1'] as const;
 export const DEFAULT_TIMEOUT_MS = 15 * 60_000;
+
+/**
+ * System prompt pengganti bawaan Claude Code (yang membawa ±25k token instruksi dan daftar tool).
+ * Tanpa tanda kutip atau karakter khusus cmd.exe, karena di Windows ikut string perintah.
+ */
+export const CLAUDE_SYSTEM_PROMPT =
+  'Kamu adalah generator dokumen non-interaktif. Ikuti instruksi di pesan user persis. ' +
+  'Jangan memakai tool. Balas hanya dengan output yang diminta.';
+
+/** Argumen `claude` (spike T-022). Prompt tidak pernah ada di sini. */
+export function claudeArgs(model: string): string[] {
+  return [
+    '-p',
+    '--output-format',
+    'stream-json',
+    '--verbose',
+    '--include-partial-messages',
+    '--max-turns',
+    '1',
+    '--model',
+    model,
+    '--effort',
+    'low',
+    '--system-prompt',
+    CLAUDE_SYSTEM_PROMPT,
+    '--tools',
+    '',
+    '--strict-mcp-config',
+    '--setting-sources',
+    'project',
+    '--disable-slash-commands',
+    '--no-session-persistence',
+  ];
+}
 
 export type SpawnSpec = {
   file: string;
@@ -25,11 +64,24 @@ export type SpawnSpec = {
   shell: boolean;
 };
 
+/** Argumen untuk string perintah cmd.exe: kosong atau berspasi diberi tanda kutip. */
+function quoteForCmd(arg: string): string {
+  if (/["%!^&|<>\r\n]/.test(arg)) {
+    throw new Error(`Argumen tidak aman untuk string perintah Windows: ${arg}`);
+  }
+  return arg === '' || /\s/.test(arg) ? `"${arg}"` : arg;
+}
+
 /** Bentuk pemanggilan per platform (PRD bagian 3). */
-export function spawnSpec(command: string, platform: NodeJS.Platform): SpawnSpec {
+export function spawnSpec(
+  command: string,
+  platform: NodeJS.Platform,
+  model: string = DEFAULT_CLAUDE_MODEL,
+): SpawnSpec {
+  const args = claudeArgs(model);
   return platform === 'win32'
-    ? { file: `${command} ${CLAUDE_ARGS.join(' ')}`, args: [], shell: true }
-    : { file: command, args: [...CLAUDE_ARGS], shell: false };
+    ? { file: [command, ...args.map(quoteForCmd)].join(' '), args: [], shell: true }
+    : { file: command, args, shell: false };
 }
 
 /** True bila perintah menunjuk `claude` sungguhan (`claude`, `claude.cmd`, path ke sana, dst.). */
@@ -42,6 +94,8 @@ export function isRealClaudeCommand(command: string): boolean {
 export type CliRunnerOptions = {
   /** Program yang dipanggil; bawaan `claude`. Test memakai script Node palsu. */
   command?: string;
+  /** `--model`; bawaan `sonnet`. Aplikasi mengisinya dari `CLAUDE_MODEL` (`claudeModel()`). */
+  model?: string;
   timeoutMs?: number;
   platform?: NodeJS.Platform;
   /** Variabel lingkungan tambahan untuk proses anak. */
@@ -69,6 +123,7 @@ const excerpt = (text: string, max = 300) => {
 
 export class CliClaudeRunner implements ClaudeRunner {
   private readonly command: string;
+  private readonly model: string;
   private readonly timeoutMs: number;
   private readonly platform: NodeJS.Platform;
   private readonly env: Record<string, string>;
@@ -76,6 +131,7 @@ export class CliClaudeRunner implements ClaudeRunner {
 
   constructor(options: CliRunnerOptions = {}) {
     this.command = options.command ?? CLAUDE_COMMAND;
+    this.model = options.model ?? DEFAULT_CLAUDE_MODEL;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.platform = options.platform ?? process.platform;
     this.env = options.env ?? {};
@@ -91,16 +147,28 @@ export class CliClaudeRunner implements ClaudeRunner {
           'Test harus memakai FakeClaudeRunner atau script palsu.',
       );
     }
+    if (!isValidClaudeModel(this.model)) {
+      throw new ClaudeRunError(
+        'INVALID_CONFIG',
+        `CLAUDE_MODEL tidak valid: "${this.model}". Isi dengan alias (misalnya sonnet) atau nama model lengkap, tanpa spasi.`,
+      );
+    }
     const cwd = mkdtempSync(join(tmpdir(), 'prd-generator-claude-'));
     try {
-      return await this.runIn(cwd, prompt, options.timeoutMs ?? this.timeoutMs);
+      return await this.runIn(cwd, prompt, options.timeoutMs ?? this.timeoutMs, options.onProgress);
     } finally {
       rmSync(cwd, { recursive: true, force: true });
     }
   }
 
-  private runIn(cwd: string, prompt: string, timeoutMs: number): Promise<ClaudeResult> {
-    const spec = spawnSpec(this.command, this.platform);
+  private runIn(
+    cwd: string,
+    prompt: string,
+    timeoutMs: number,
+    onProgress: ClaudeRunOptions['onProgress'],
+  ): Promise<ClaudeResult> {
+    const spec = spawnSpec(this.command, this.platform, this.model);
+    const stream = new StreamReader(onProgress);
     const started = performance.now();
     const elapsed = () => Math.round(performance.now() - started);
 
@@ -129,6 +197,7 @@ export class CliClaudeRunner implements ClaudeRunner {
       let stderr = '';
       child.stdout?.setEncoding('utf8').on('data', (chunk: string) => {
         stdout += chunk;
+        stream.push(chunk);
       });
       child.stderr?.setEncoding('utf8').on('data', (chunk: string) => {
         stderr += chunk;
@@ -172,7 +241,7 @@ export class CliClaudeRunner implements ClaudeRunner {
             return;
           }
           try {
-            resolve(parseEnvelope(stdout, durationMs));
+            resolve(stream.finish(stdout, durationMs));
           } catch (error) {
             reject(error);
           }

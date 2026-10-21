@@ -99,6 +99,16 @@ describe('envelopeResult', () => {
     expect(envelopeResult(JSON.stringify({ is_error: true, result: long }))).toBe(long);
   });
 
+  it('membaca result dari event result terakhir di stream', () => {
+    const stdout = [
+      JSON.stringify({ type: 'system', subtype: 'init' }),
+      JSON.stringify({ type: 'stream_event', event: { type: 'content_block_delta' } }),
+      JSON.stringify({ type: 'result', is_error: true, result: 'Please run /login' }),
+      '',
+    ].join('\n');
+    expect(envelopeResult(stdout)).toBe('Please run /login');
+  });
+
   it('null bila stdout bukan JSON atau tidak punya result berupa teks', () => {
     expect(envelopeResult('ini bukan JSON')).toBeNull();
     expect(envelopeResult('')).toBeNull();

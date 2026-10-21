@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { FakeClaudeRunner, loadClaudeFixture } from '../../../src/claude/fake-runner.ts';
+import type { ClaudeProgress } from '../../../src/claude/types.ts';
 import { ClaudeRunError } from '../../../src/claude/types.ts';
 
 const reference = (file: string) => readFileSync(`docs/reference/e2e-output/${file}`, 'utf8');
@@ -43,6 +44,23 @@ describe('FakeClaudeRunner', () => {
     expect(await runner.run('satu')).toBe(first);
     expect((await runner.run('dua')).result).toBe('gema: dua');
     expect(runner.prompts).toEqual(['satu', 'dua']);
+  });
+
+  it('dengan onProgress: result dikirim sebagai potongan bertahap sebelum selesai', async () => {
+    const fixture = loadClaudeFixture('stage2');
+    const runner = new FakeClaudeRunner([fixture], { chunkSize: 1000, chunkDelayMs: 5 });
+    const progress: ClaudeProgress[] = [];
+    const result = await runner.run('x', { onProgress: (p) => progress.push(p) });
+
+    expect(result).toBe(fixture);
+    expect(progress).toHaveLength(Math.ceil(fixture.result.length / 1000));
+    expect(progress.map((p) => (p.kind === 'text' ? p.text : '')).join('')).toBe(fixture.result);
+    expect(progress.at(-1)).toMatchObject({ kind: 'text', chars: fixture.result.length });
+  });
+
+  it('tanpa onProgress: langsung mengembalikan hasil', async () => {
+    const fixture = loadClaudeFixture('stage2');
+    expect(await new FakeClaudeRunner([fixture], { chunkDelayMs: 10_000 }).run('x')).toBe(fixture);
   });
 
   it('melempar ClaudeRunError dari antrean', async () => {

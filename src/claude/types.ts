@@ -14,13 +14,23 @@ export type ClaudeResult = {
   /** `total_cost_usd` dari envelope: perkiraan, bukan tagihan (pemakaian langganan). */
   costUsd: number | null;
   durationMs: number;
-  /** stdout mentah (envelope JSON), untuk keterlacakan. */
+  /** Event `result` mentah (envelope JSON), untuk keterlacakan. */
   rawEnvelope: string;
 };
+
+/**
+ * Progres selama pemanggilan (D-12): potongan teks jawaban beserta jumlah karakter sejauh ini, atau
+ * perkiraan token thinking sebelum teks pertama keluar.
+ */
+export type ClaudeProgress =
+  | { kind: 'text'; text: string; chars: number }
+  | { kind: 'thinking'; estimatedTokens: number };
 
 export type ClaudeRunOptions = {
   /** Batas waktu pemanggilan ini; bawaan runner bila kosong. */
   timeoutMs?: number;
+  /** Dipanggil untuk setiap potongan stream; error di dalamnya diabaikan. */
+  onProgress?: (progress: ClaudeProgress) => void;
 };
 
 export interface ClaudeRunner {
@@ -33,7 +43,8 @@ export type ClaudeErrorCode =
   | 'IS_ERROR'
   | 'TIMEOUT'
   | 'SPAWN_FAILED'
-  | 'FORBIDDEN_IN_TEST';
+  | 'FORBIDDEN_IN_TEST'
+  | 'INVALID_CONFIG';
 
 export type ClaudeErrorDetails = {
   exitCode?: number | null;

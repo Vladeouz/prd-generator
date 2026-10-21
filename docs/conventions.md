@@ -180,12 +180,33 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 ## Claude Code
 
 - Aplikasi hanya bergantung pada port `ClaudeRunner` (`src/claude/types.ts`). Implementasinya `CliClaudeRunner` (`cli-runner.ts`, perintah sungguhan sesuai PRD bagian 3) dan `FakeClaudeRunner` (`fake-runner.ts`, antrean respons, tidak pernah menjalankan proses).
-- Kegagalan selalu `ClaudeRunError` dengan `code` (`EXIT_CODE`, `INVALID_ENVELOPE`, `IS_ERROR`, `TIMEOUT`, `SPAWN_FAILED`, `FORBIDDEN_IN_TEST`) dan `message` berbahasa Indonesia yang menyebut penyebabnya, siap ditampilkan sebagai error job (FR-02).
+- **Bentuk perintah** (spike T-022, `claudeArgs` di `cli-runner.ts`; flag diverifikasi dari `claude --help` 2.1.302):
+
+  ```
+  claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1
+    --model <CLAUDE_MODEL> --effort low --system-prompt "<CLAUDE_SYSTEM_PROMPT>" --tools ""
+    --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence
+  ```
+
+  - `CLAUDE_MODEL` (opsional, `.env`, bawaan `sonnet`, `claudeModel()` di `src/core/config/claude.ts`). Nilainya divalidasi sebelum dipakai: alias atau nama lengkap tanpa spasi atau karakter shell. Bila tidak valid, `INVALID_CONFIG`.
+  - Extended thinking tidak bisa dimatikan di Sonnet 5.5. `--effort low` menguranginya (D-09).
+  - Tidak dipakai, karena tidak berpengaruh: `MAX_THINKING_TOKENS=0`, `alwaysThinkingEnabled: false`, dan `--safe-mode`.
+  - Tidak dipakai, karena tidak cocok: `--bare`, yang auth-nya hanya API key, bukan langganan.
+  - `--include-partial-messages` wajib. Tanpa flag itu, dengan `--max-turns 1` teks baru datang sekaligus di akhir.
+  - Di Windows, argumen kosong (`--tools ""`) dan berspasi diberi tanda kutip di string perintah. Argumen dengan `"`, `%`, `!`, `^`, `&`, `|`, `<`, `>`, atau baris baru ditolak, jadi `CLAUDE_SYSTEM_PROMPT` tidak boleh memuatnya.
+- **Stream** dibaca baris demi baris oleh `StreamReader` (`src/claude/stream.ts`):
+  - `stream_event` `content_block_delta`/`text_delta` menjadi `onProgress({ kind: 'text', text, chars })`;
+  - `system`/`thinking_tokens` (tidak terdokumentasi) menjadi `onProgress({ kind: 'thinking', estimatedTokens })`;
+  - event `result` terakhir dibaca `parseEnvelope`, karena bentuknya sama dengan envelope `--output-format json`. Tanpa event `result`, terjadi `INVALID_ENVELOPE`;
+  - baris lain diabaikan, dan error di callback progres diabaikan;
+  - `onProgress` adalah opsi `ClaudeRunOptions`; `FakeClaudeRunner` mengirim `result` sebagai potongan bertahap (`chunkSize`, `chunkDelayMs`) bila callback diberikan.
+- Kegagalan selalu `ClaudeRunError` dengan `code` (`EXIT_CODE`, `INVALID_ENVELOPE`, `IS_ERROR`, `TIMEOUT`, `SPAWN_FAILED`, `FORBIDDEN_IN_TEST`, `INVALID_CONFIG`) dan `message` berbahasa Indonesia yang menyebut penyebabnya, siap ditampilkan sebagai error job (FR-02).
 - Token input dicatat termasuk cache (`input_tokens` + `cache_creation_input_tokens` + `cache_read_input_tokens`), karena `input_tokens` saja hampir selalu 1–3. `costUsd` adalah `total_cost_usd` dari envelope, perkiraan, bukan tagihan.
 - Di Windows, proses dihentikan dengan `taskkill /PID <pid> /T /F`. `child.kill()` hanya mematikan `cmd.exe` dan membiarkan `claude` berjalan (spike T-002). Jangan memakai `detached: true`.
 - `CLAUDE_COMMAND` (opsional, `.env`) mengganti perintah `claude` di aplikasi. Untuk menguji UI tanpa kuota: `CLAUDE_COMMAND=node <path absolut>/test/helpers/fake-claude-cli.mjs`, `FAKE_CLAUDE_MODE=fixture`, `FAKE_CLAUDE_FIXTURE=<path envelope>`, dan opsional `FAKE_CLAUDE_DELAY_MS` untuk meniru durasi.
 - `FAKE_CLAUDE_MODE=flow` menjalankan satu proyek dari tahap 2 sampai 7 tanpa kuota: fixture dipilih dari nama tahap di baris pertama prompt (`Kamu adalah tahap "…"`), dengan pemetaan `FLOW_FIXTURES` di `test/helpers/fake-claude-flow.mjs` (sama dengan `GYM_FIXTURES`). `FAKE_CLAUDE_INVALID_ONCE=<nama tahap>` dengan `FAKE_CLAUDE_INVALID_FIXTURE` dan `FAKE_CLAUDE_STATE_DIR` menjawab pemanggilan pertama tahap itu dengan fixture yang ditolak validator, untuk menguji percobaan ulang; `FAKE_CLAUDE_RETRY_DELAY_MS` memperlambat percobaan ulangnya agar keterangannya terlihat di layar (lihat `flowResponse`). Prompt baru atau nama tahap yang berubah wajib ditambahkan ke pemetaan itu; `test/int/claude/fake-flow.int.test.ts` gagal bila ada prompt yang tidak dikenali.
 - NFR-02: `CliClaudeRunner` menolak perintah `claude` sungguhan (`claude`, `claude.cmd`, path ke sana) saat `NODE_ENV=test`. Integration test memakai `test/helpers/fake-claude-cli.mjs` sebagai perintah (perilaku diatur `FAKE_CLAUDE_MODE`).
+- Script palsu mengeluarkan format stream yang sama dengan Claude Code: `init`, satu `thinking_tokens`, potongan `text_delta` dari `result` envelope (fixture atau buatan), lalu event `result`. Ukuran dan jeda potongan diatur lewat `FAKE_CLAUDE_CHUNK_SIZE` (bawaan 2000) dan `FAKE_CLAUDE_CHUNK_DELAY_MS` (bawaan 0). Mode `no-result` mengeluarkan stream tanpa event `result`.
 - Fixture `test/fixtures/claude/<tahap>.json` adalah envelope lengkap, dibaca lewat `loadClaudeFixture()` dan parser yang sama dengan output sungguhan. Fixture dari uji nyata dibangun ulang dengan `node test/fixtures/claude/build-fixtures.mjs` (sumber: `docs/reference/e2e-output/`); file JSON-nya dikecualikan dari Biome.
 - **Fixture turunan** di `test/fixtures/claude/derived/`: salinan output nyata yang diubah karena kontrak tahapnya berubah setelah uji nyata (misalnya `default_policy_key` di tahap 3). Dibangun dengan `node test/fixtures/claude/build-derived-fixtures.mjs`; setiap perubahan dicatat di field `fixture_derived` envelope-nya. Fixture asli tetap apa adanya dan dipakai sebagai contoh yang harus ditolak validator.
 
