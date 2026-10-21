@@ -1,6 +1,7 @@
-// Verifikasi manual T-004: satu pemanggilan `claude` sungguhan dengan prompt kecil lewat
-// CliClaudeRunner, lalu menampilkan hasil, token, perkiraan biaya, dan durasi. Memakai kuota
-// langganan; tidak pernah dijalankan oleh test.
+// Verifikasi manual T-004 dan T-023: satu pemanggilan `claude` sungguhan dengan prompt kecil lewat
+// CliClaudeRunner (bentuk perintah stream dari spike T-022), lalu menampilkan hasil, jumlah potongan
+// stream, token, perkiraan biaya, dan durasi. Model dari `CLAUDE_MODEL` (env atau `.env`, bawaan
+// sonnet). Memakai kuota langganan; tidak pernah dijalankan oleh test.
 //
 //   pnpm claude:smoke
 //   pnpm claude:smoke --command "node <path absolut>/test/helpers/fake-claude-cli.mjs"
@@ -8,6 +9,8 @@
 //     sementara)
 //
 // Dijalankan langsung oleh Node 24 (type stripping), jadi import relatif memakai `.ts`.
+import { existsSync } from 'node:fs';
+import { claudeModel } from '../core/config/claude.ts';
 import { CliClaudeRunner } from './cli-runner.ts';
 import { envelopeResult } from './envelope.ts';
 import { ClaudeRunError } from './types.ts';
@@ -18,12 +21,26 @@ JANGAN memakai tool apa pun. JANGAN membaca atau menulis file.`;
 
 const commandIndex = process.argv.indexOf('--command');
 const command = commandIndex === -1 ? undefined : process.argv[commandIndex + 1];
+// CLAUDE_MODEL dari .env, sama dengan aplikasi; variabel lingkungan proses tetap menang.
+if (existsSync('.env')) process.loadEnvFile('.env');
+const model = claudeModel();
 
-console.log(`Perintah: ${command ?? 'claude'} (prompt lewat stdin, ${PROMPT.length} karakter)`);
+console.log(
+  `Perintah: ${command ?? 'claude'}, model ${model} (prompt lewat stdin, ${PROMPT.length} karakter)`,
+);
 console.log('Menunggu Claude Code...\n');
 
 try {
-  const result = await new CliClaudeRunner({ command, timeoutMs: 3 * 60_000 }).run(PROMPT);
+  let chunks = 0;
+  let firstChunkMs: number | null = null;
+  const started = performance.now();
+  const result = await new CliClaudeRunner({ command, model, timeoutMs: 3 * 60_000 }).run(PROMPT, {
+    onProgress: (progress) => {
+      if (progress.kind !== 'text') return;
+      chunks++;
+      firstChunkMs ??= performance.now() - started;
+    },
+  });
   let ok = false;
   try {
     ok = JSON.parse(result.result).ok === true;
@@ -33,6 +50,9 @@ try {
   console.log(`token output: ${result.outputTokens}`);
   console.log(`biaya (USD) : ${result.costUsd ?? '-'} (perkiraan dari envelope)`);
   console.log(`durasi      : ${(result.durationMs / 1000).toFixed(1)} dtk`);
+  console.log(
+    `stream      : ${chunks} potongan teks, pertama di ${firstChunkMs === null ? '-' : `${(firstChunkMs / 1000).toFixed(1)} dtk`}`,
+  );
   console.log(
     ok
       ? '\nBERHASIL: Claude Code menjawab JSON yang diminta.'

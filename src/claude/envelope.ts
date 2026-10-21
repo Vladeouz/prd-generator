@@ -1,4 +1,5 @@
-// Membaca envelope `claude -p --output-format json`. Dipakai runner CLI dan runner palsu, sehingga
+// Membaca envelope `claude -p --output-format json`, yang bentuknya sama dengan event `result` di
+// akhir `--output-format stream-json` (stream.ts). Dipakai runner CLI dan runner palsu, sehingga
 // fixture melewati jalur parsing yang sama dengan output sungguhan.
 import { z } from 'zod';
 import { type ClaudeResult, ClaudeRunError } from './types.ts';
@@ -23,18 +24,29 @@ const excerpt = (text: string, max = 300) => {
   return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
 };
 
-/**
- * Isi `result` dari stdout yang berupa envelope, tanpa memeriksa bagian lain; `null` bila stdout
- * bukan JSON atau tidak punya `result` berupa teks. Dipakai untuk menampilkan pesan error utuh
- * (misalnya di `pnpm claude:smoke`), karena pesan `ClaudeRunError` hanya memuat cuplikannya.
- */
-export function envelopeResult(stdout: string): string | null {
+function resultOf(text: string): string | null {
   try {
-    const json: unknown = JSON.parse(stdout);
+    const json: unknown = JSON.parse(text);
     if (typeof json === 'object' && json !== null && 'result' in json) {
       return typeof json.result === 'string' ? json.result : null;
     }
   } catch {}
+  return null;
+}
+
+/**
+ * Isi `result` dari stdout berupa envelope atau stream (event `result` terakhir), tanpa memeriksa
+ * bagian lain; `null` bila tidak ada `result` berupa teks. Dipakai untuk menampilkan pesan error
+ * utuh (misalnya di `pnpm claude:smoke`), karena pesan `ClaudeRunError` hanya memuat cuplikannya.
+ */
+export function envelopeResult(stdout: string): string | null {
+  const whole = resultOf(stdout);
+  if (whole !== null) return whole;
+  const lines = stdout.split('\n').filter((line) => line.trim());
+  for (const line of lines.reverse()) {
+    const result = resultOf(line);
+    if (result !== null) return result;
+  }
   return null;
 }
 
