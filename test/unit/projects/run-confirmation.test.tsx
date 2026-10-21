@@ -69,7 +69,17 @@ const runner = (confirmation?: string) => (
 describe('konfirmasi tahap 6–7 (FR-10)', () => {
   it('teks menyebut perkiraan durasi dan token, dan dasar perkiraannya', () => {
     expect(CONFIRM).toBe(
-      'Penulisan PRD memakai kuota langganan Claude: sekitar 4 menit, ±33 rb token input dan ±30 rb token output per percobaan (angka uji, karena belum ada pemanggilan sebelumnya). Bila output ditolak validator, dicoba ulang sekali sehingga bisa dua kali lipat. Lanjutkan?',
+      'Penulisan PRD memakai kuota langganan Claude: sekitar 4 menit, ±25 rb token input dan ±36 rb token output per percobaan (angka awal, karena belum ada pemanggilan sebelumnya). Bila output ditolak validator, dicoba ulang sekali sehingga bisa dua kali lipat. Lanjutkan?',
+    );
+    // Tahap 7 (D-11): perkiraan satu job berisi daftar task dan detail semua fase.
+    expect(
+      confirmationText(
+        'Penulisan TASKS',
+        { ...TEST_ESTIMATES.stage7, basis: 'test', samples: 0 },
+        'tahap 7',
+      ),
+    ).toBe(
+      'Penulisan TASKS memakai kuota langganan Claude: sekitar 5 menit, ±70 rb token input dan ±30 rb token output untuk daftar task dan detail semua fase (angka awal, karena belum ada pemanggilan sebelumnya). Langkah yang ditolak validator dicoba ulang sekali, jadi bisa lebih lama. Lanjutkan?',
     );
     expect(
       confirmationText('Penulisan TASKS', {

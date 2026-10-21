@@ -6,7 +6,7 @@ import { stage3Definition } from './stage-3/definition.ts';
 import { stage4Definition } from './stage-4/definition.ts';
 import { stage5Definition } from './stage-5/definition.ts';
 import { type Stage6Options, stage6Definition } from './stage-6/definition.ts';
-import { stage7Definition } from './stage-7/definition.ts';
+import { stage7Job } from './stage-7b/job.ts';
 
 /** `templateDir`: sumber `TEMPLATE_DIR` (bawaan: env), diganti di test dengan folder buatan. */
 export function createStageRegistry(options: Stage6Options = {}): StageRegistry {
@@ -17,6 +17,7 @@ export function createStageRegistry(options: Stage6Options = {}): StageRegistry 
     stage5: stage5Definition() as StageRegistry['stage5'],
     stage6: stage6Definition(options) as StageRegistry['stage6'],
     review2: review2Definition(options) as StageRegistry['review2'],
-    stage7: stage7Definition(options) as StageRegistry['stage7'],
+    // Tahap 7: 7a lalu 7b per fase dalam satu job (D-11).
+    stage7: stage7Job(options),
   };
 }

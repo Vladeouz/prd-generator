@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { ProjectView } from '../../../src/app/projects/[id]/project-view.tsx';
-import { Stage7Section } from '../../../src/app/projects/[id]/stage7-section.tsx';
+import { resumeNote, Stage7Section } from '../../../src/app/projects/[id]/stage7-section.tsx';
 import { projectSteps } from '../../../src/app/projects/[id]/steps.ts';
 import { loadClaudeFixture } from '../../../src/claude/fake-runner.ts';
 import type { TemplateStatus } from '../../../src/components/ui/app-header.tsx';
@@ -64,7 +64,24 @@ describe('Stage7Section', () => {
   it('siap: tombol jalankan dengan perkiraan durasi (FR-02)', () => {
     const html = render(project());
     expect(html).toContain('Jalankan penulisan tasks');
-    expect(html).toContain('Perkiraan sekitar 5–15 menit');
+    expect(html).toContain('Perkiraan sekitar 3–6 menit');
+    expect(html).not.toContain('data-testid="stage7-resume"');
+  });
+
+  it('job sebelumnya berhenti di tengah: keterangan bahwa menjalankan lagi melanjutkan fase yang belum', () => {
+    const html = renderToStaticMarkup(
+      <Stage7Section
+        project={project()}
+        template={valid}
+        steps={{ list: true, phasesDone: 2, phasesTotal: 4 }}
+      />,
+    );
+    expect(html).toContain(
+      'Daftar task dan detail 2 dari 4 fase sudah tersimpan. Menjalankan lagi hanya melanjutkan fase yang belum selesai.',
+    );
+    expect(resumeNote({ list: false, phasesDone: 0, phasesTotal: 4 })).toBeNull();
+    expect(resumeNote({ list: true, phasesDone: 4, phasesTotal: 4 })).toBeNull();
+    expect(resumeNote(undefined)).toBeNull();
   });
 
   it('TASKS tersimpan: pratinjau Markdown, versi, dan versi PRD sumbernya', () => {

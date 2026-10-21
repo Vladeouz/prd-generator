@@ -72,4 +72,14 @@ describe('attemptNote', () => {
       'Percobaan 2 dari 2. Percobaan 1 ditolak: T-029 done when tidak diakhiri `pnpm check` hijau; T-035 x (+1 lainnya). Claude sedang memperbaikinya.',
     );
   });
+
+  it('tahap berlangkah: setelah langkah yang dicoba ulang berhasil, keterangan hilang', () => {
+    const failed = { attempt: 1, status: 'failed' as const, errors: ['T-020 tanpa files'] };
+    const succeeded = { attempt: 2, status: 'succeeded' as const, errors: [] };
+    expect(attemptNote([failed, succeeded])).toBeNull();
+    // Langkah berikutnya (fase lain) ditolak di percobaan pertamanya.
+    expect(attemptNote([failed, succeeded, { ...failed, errors: ['T-030 tanpa files'] }])).toBe(
+      'Percobaan 2 dari 2. Percobaan 1 ditolak: T-030 tanpa files. Claude sedang memperbaikinya.',
+    );
+  });
 });

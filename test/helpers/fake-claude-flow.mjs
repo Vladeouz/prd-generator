@@ -12,22 +12,28 @@ export const FLOW_FIXTURES = {
   'Review Kritis': 'stage5.json',
   'Generate PRD': 'derived/stage6-gym.json',
   'Review Kedua': 'synthetic/review2-daftar-belanja.json',
-  'Generate Task Plan': 'derived/stage7-gym.json',
   'Daftar Task': 'derived/stage7a-gym.json',
+  // Tahap 7b per fase: `{fase}` diganti nomor fase dari prompt ("untuk fase 2").
+  'Detail Task': 'derived/stage7b-gym-fase-{fase}.json',
 };
 
 const FIXTURE_DIR = new URL('../fixtures/claude/', import.meta.url);
 
 const stageName = (prompt) => /Kamu adalah tahap "([^"]+)"/.exec(prompt)?.[1];
 
-/** Path fixture untuk prompt itu, atau null bila nama tahapnya tidak dikenal. */
+/**
+ * Path fixture untuk prompt itu, atau null bila nama tahapnya tidak dikenal. Prompt yang belum diisi
+ * (template di prompts/, tanpa nomor fase) memakai fase 0.
+ */
 export function flowFixture(prompt) {
   const name = stageName(prompt);
   const file =
     name === undefined
       ? undefined
       : FLOW_FIXTURES[/** @type {keyof typeof FLOW_FIXTURES} */ (name)];
-  return file ? new URL(file, FIXTURE_DIR) : null;
+  if (!file) return null;
+  const phase = /Kamu adalah tahap "[^"]+"[^\n]*?untuk fase (\d+)/.exec(prompt)?.[1] ?? '0';
+  return new URL(file.replace('{fase}', phase), FIXTURE_DIR);
 }
 
 /**

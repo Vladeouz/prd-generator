@@ -72,7 +72,7 @@ describe('Review2Section', () => {
       'data-testid="regenerate-note">1 perbaikan dipilih: PRD ditulis ulang sekali',
     );
     expect(html).toMatch(
-      /Berikutnya: <span[^>]*>TASKS, sekitar 5–15 menit<\/span><\/span><button type="submit"[^>]*>Simpan keputusan/,
+      /Berikutnya: <span[^>]*>TASKS, sekitar 3–6 menit<\/span><\/span><button type="submit"[^>]*>Simpan keputusan/,
     );
   });
 

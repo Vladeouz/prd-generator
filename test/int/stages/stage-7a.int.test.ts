@@ -98,7 +98,7 @@ describe('tahap 7a: daftar task', () => {
     expect(prompt).not.toMatch(/\{\{\w+\}\}/);
 
     expect(runs7a()).toMatchObject([
-      { attempt: 1, status: 'succeeded', scope: null, promptVersion: '1', isCurrent: 1 },
+      { attempt: 1, status: 'succeeded', scope: null, promptVersion: '2', isCurrent: 1 },
     ]);
     const output = currentOutput<Stage7aOutput>(t.db, 'p1', 'stage7a');
     expect(output?.tasks).toHaveLength(42);

@@ -2,9 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadClaudeFixture } from '../../../src/claude/fake-runner.ts';
 import { extractMarkdown } from '../../../src/stages/parse.ts';
-import { loadPrompt } from '../../../src/stages/prompt.ts';
 import { prdInfo } from '../../../src/stages/stage-6/validate.ts';
-import { nfrIds, parseTasks, validateTasks } from '../../../src/stages/stage-7/validate.ts';
+import { nfrIds, parseTasks, validateTasks } from '../../../src/stages/stage-7b/tasks-markdown.ts';
 
 const prdMd = loadClaudeFixture('derived/stage6-gym').result;
 const PRD = { ...prdInfo(prdMd), nfrIds: nfrIds(prdMd) };
@@ -221,24 +220,5 @@ describe('regresi verifikasi manual T-014 (output nyata)', () => {
     expect(parseTasks(attempt(2)).find((t) => t.id === 'T-029')?.doneWhen).toMatch(
       /^migrasi sudah di-commit dengan semua constraint PRD:\n[\s\S]+`pnpm check` hijau$/,
     );
-  });
-});
-
-describe('prompts/stage-7.md', () => {
-  it('punya versi, placeholder, dan aturan FR-08', () => {
-    const prompt = loadPrompt('stage-7');
-    expect(prompt.version).toBe('3');
-    expect(prompt.body).toContain('Target 20 sampai 45 task untuk MVP.');
-    expect(prompt.body).toContain('Satu task setara SATU sesi agent yang bermakna');
-    expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
-      'layers',
-      'conventions',
-      'prd',
-    ]);
-    expect(prompt.body).toContain('JANGAN membuat task untuk ini');
-    expect(prompt.body).toContain('Tepat SATU task "Hapus fitur contoh notes"');
-    expect(prompt.body).toContain('SETIAP "done when" diakhiri dengan `pnpm check` hijau.');
-    expect(prompt.body).toContain('--web-browser-flag=--incognito');
-    expect(prompt.body).toContain('layer app atau file di `apps/app/lib`');
   });
 });

@@ -1,5 +1,7 @@
-// Kontrak output tahap 7 (FR-08), diturunkan dari `parseTasks` dan `validateTasks` di
-// docs/reference/e2e-gym.mjs. Aturan tambahan FR-08:
+// Kontrak `docs/TASKS.md` (FR-08), diturunkan dari `parseTasks` dan `validateTasks` di
+// docs/reference/e2e-gym.mjs. Sejak T-027 dokumen ini disusun aplikasi (`composeTasks`) dari output
+// tahap 7a dan 7b, dan validator ini memeriksa hasil susunannya; sebelumnya ia memvalidasi output
+// tahap 7 lama (TASKS utuh dari AI, T-014). Aturan tambahan FR-08:
 // - tidak ada task setup yang sudah disediakan template (monorepo, Biome, Docker Compose, emulator,
 //   pipeline kontrak);
 // - tepat satu task penghapusan fitur contoh notes, setelah task fitur pertama;

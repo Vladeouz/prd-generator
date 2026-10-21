@@ -1,5 +1,5 @@
-// Aturan task yang dipakai tahap 7a (daftar task) dan tahap 7 lama (FR-08), dipindah dari
-// stage-7/validate.ts agar tetap ada setelah tahap 7 lama dihapus di T-027.
+// Aturan task yang dipakai tahap 7a (daftar task), 7b, dan validator TASKS.md (FR-08), dipindah dari
+// stage-7/validate.ts (tahap 7 lama, dihapus di T-027).
 
 export const TASK_LAYERS = ['infra', 'db', 'api', 'contract', 'app', 'test', 'docs'] as const;
 

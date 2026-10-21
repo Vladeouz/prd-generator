@@ -51,6 +51,11 @@ export class ProgressStore {
     });
   }
 
+  /** Langkah baru dimulai (tahap 7: 7a lalu 7b per fase): teks dihitung dari nol. */
+  startStep(jobId: string, step: number, totalSteps: number) {
+    this.startAttempt(jobId, 1, { step, totalSteps });
+  }
+
   /** Menerapkan satu potongan dari runner (`onProgress`). */
   report(jobId: string, item: ClaudeProgress) {
     const current = this.get(jobId) ?? { chars: 0, preview: '', attempt: 1 };

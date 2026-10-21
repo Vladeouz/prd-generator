@@ -10,7 +10,7 @@
 //   memori (D-12) dan dihapus saat job selesai, setelah statusnya tertulis di database.
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, gte, inArray } from 'drizzle-orm';
-import type { ClaudeRunner } from '../claude/types.ts';
+import type { ClaudeProgress, ClaudeRunner } from '../claude/types.ts';
 import type { Clock } from '../core/clock.ts';
 import type { Db } from '../core/db/client.ts';
 import { ACTIVE_JOB_STATUSES, jobs, projects, stageRuns } from '../core/db/schema.ts';
@@ -21,6 +21,7 @@ import {
   type Stage,
   type StageDefinition,
   StageFailedError,
+  type StageJob,
 } from '../stages/run-stage.ts';
 import { type ProgressStore, sharedProgressStore } from './progress.ts';
 
@@ -29,7 +30,7 @@ export type Job = typeof jobs.$inferSelect;
 /** Percobaan sebuah job (FR-02, D-08): untuk menampilkan percobaan ulang beserta alasannya. */
 export type JobAttempt = { attempt: number; status: 'succeeded' | 'failed'; errors: string[] };
 
-export type StageRegistry = Partial<Record<Stage, StageDefinition>>;
+export type StageRegistry = Partial<Record<Stage, StageDefinition | StageJob>>;
 
 export type JobQueueDeps = {
   db: Db;
@@ -173,22 +174,22 @@ export class JobQueue {
     return this.getJob(id);
   }
 
-  private async execute(id: string, projectId: string, definition: StageDefinition) {
+  private async execute(id: string, projectId: string, definition: StageDefinition | StageJob) {
     const { db, clock } = this.deps;
     const finish = (status: 'succeeded' | 'failed', error: string | null = null) =>
       db.update(jobs).set({ status, error, finishedAt: clock() }).where(eq(jobs.id, id)).run();
 
     try {
       db.update(jobs).set({ status: 'running', startedAt: clock() }).where(eq(jobs.id, id)).run();
-      await runStage(
-        {
-          ...this.deps,
-          onAttempt: (attempt) => this.progress.startAttempt(id, attempt),
-          onProgress: (item) => this.progress.report(id, item),
-        },
-        definition,
-        projectId,
-      );
+      const deps = {
+        ...this.deps,
+        onAttempt: (attempt: number) => this.progress.startAttempt(id, attempt),
+        onProgress: (item: ClaudeProgress) => this.progress.report(id, item),
+        onStep: (step: number, totalSteps: number) => this.progress.startStep(id, step, totalSteps),
+      };
+      // Tahap berlangkah (tahap 7) menjalankan beberapa pemanggilan sendiri; tahap lain satu runStage.
+      if ('execute' in definition) await definition.execute(deps, projectId);
+      else await runStage(deps, definition, projectId);
       finish('succeeded');
     } catch (error) {
       const message =

@@ -150,8 +150,8 @@ describe('banner job berjalan', () => {
     const estimate = { ...TEST_ESTIMATES.stage6, basis: 'test' as const, samples: 0 };
     expect(bannerEstimate(estimate)).toEqual({
       estimate: 'sekitar 4 menit',
-      estimateMs: 267_620,
-      estimateTokens: '±30 rb token output',
+      estimateMs: 235_111,
+      estimateTokens: '±36 rb token output',
     });
     expect(confirmationText('Penulisan PRD', estimate)).toContain('sekitar 4 menit');
     expect(bannerEstimate(undefined)).toEqual({});

@@ -49,7 +49,17 @@ export const TEMPLATE_SECTIONS = {
     '',
     'Aturan di API.',
   ].join('\r\n'),
-  flutter: ['## Flutter', '', 'Bloc/Cubit per fitur.'].join('\r\n'),
+  testApi: ['## Test API', '', '`pnpm --filter api test`.'].join('\r\n'),
+  contract: ['## Kontrak dan client Dart', '', '`pnpm contract:generate`.'].join('\r\n'),
+  flutter: [
+    '## Flutter',
+    '',
+    'Bloc/Cubit per fitur.',
+    '',
+    '### Test Flutter',
+    '',
+    '`flutter test`.',
+  ].join('\r\n'),
   notes: ['## Menghapus fitur contoh notes', '', '1. Hapus `features/notes/`.'].join('\r\n'),
 };
 
@@ -71,6 +81,7 @@ export const EXPECTED_SECTIONS = {
   ].join('\n\n'),
   review2: [S.auth, S.pagination, S.database, S.errors, S.architecture].join('\n\n'),
   stage7a: [S.structure, S.tasks, S.scripts, S.notes].join('\n\n'),
+  stage7b: [S.structure, S.scripts, S.architecture, S.testApi, S.contract, S.flutter].join('\n\n'),
 };
 
 export type TemplateRepo = { dir: string; commit: string; remove(): void };

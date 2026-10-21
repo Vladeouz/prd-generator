@@ -44,15 +44,16 @@ export function jobToPoll(job: Job | null, activeJob: Job | null): Job | null {
 
 /**
  * Keterangan selama job berjalan setelah percobaan sebelumnya ditolak (usulan 3 log T-014), agar
- * percobaan ulang tidak tampak seperti job yang macet. Null bila belum ada percobaan yang gagal.
+ * percobaan ulang tidak tampak seperti job yang macet. Null bila belum ada percobaan yang gagal,
+ * atau bila percobaan terakhir berhasil: di tahap berlangkah (tahap 7, D-11) percobaan ulang berlaku
+ * per langkah, jadi langkah berikutnya mulai dari percobaan 1 lagi.
  */
 export function attemptNote(attempts: JobAttempt[], max = MAX_ATTEMPTS): string | null {
-  const failed = attempts.filter((a) => a.status === 'failed');
-  const last = failed.at(-1);
-  if (!last) return null;
+  const last = attempts.at(-1);
+  if (last?.status !== 'failed') return null;
   const shown = last.errors.slice(0, 2).join('; ');
   const more = last.errors.length > 2 ? ` (+${last.errors.length - 2} lainnya)` : '';
-  return `Percobaan ${Math.min(failed.length + 1, max)} dari ${max}. Percobaan ${last.attempt} ditolak: ${shown}${more}. Claude sedang memperbaikinya.`;
+  return `Percobaan ${Math.min(last.attempt + 1, max)} dari ${max}. Percobaan ${last.attempt} ditolak: ${shown}${more}. Claude sedang memperbaikinya.`;
 }
 
 type Props = {
