@@ -7,7 +7,7 @@
 // - kegagalan runner (exit code, batas waktu, envelope rusak, is_error) tidak dicoba ulang dan
 //   tidak menyimpan output apa pun.
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import {
   type ClaudeResult,
   ClaudeRunError,
@@ -16,11 +16,30 @@ import {
 } from '../claude/types.ts';
 import type { Clock } from '../core/clock.ts';
 import type { Db } from '../core/db/client.ts';
-import { DOCUMENT_KINDS, decisions, documents, STAGES, stageRuns } from '../core/db/schema.ts';
+import {
+  DOCUMENT_KINDS,
+  decisions,
+  documents,
+  type RUN_STAGES,
+  STAGES,
+  stageRuns,
+} from '../core/db/schema.ts';
 import { brandedInstanceCheck } from '../core/errors.ts';
 import { MAX_ATTEMPTS } from './attempts.ts';
 
 export type Stage = (typeof STAGES)[number];
+/** Tahap di `stage_runs`: `stage7` dipecah menjadi `stage7a` dan `stage7b` (D-11). */
+export type RunStage = (typeof RUN_STAGES)[number];
+
+/** Tahap `stage_runs` milik tahap job: `stage7` → `stage7a` dan `stage7b`, lainnya sama. */
+export function runStagesOf(stage: Stage): RunStage[] {
+  return stage === 'stage7' ? ['stage7a', 'stage7b'] : [stage];
+}
+
+/** Tahap job pemilik run: kebalikan `runStagesOf`. */
+export function stageOfRun(stage: RunStage): Stage {
+  return stage === 'stage7a' || stage === 'stage7b' ? 'stage7' : stage;
+}
 
 export type StageContext = { db: Db; projectId: string };
 
@@ -30,7 +49,12 @@ export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 export type StageValidation = { errors: string[]; warnings?: string[] };
 
 export type StageDefinition<T = unknown> = {
+  /** Tahap job (kunci registry dan `jobs.stage`). */
   stage: Stage;
+  /** Tahap yang dicatat di `stage_runs`; bawaan sama dengan `stage` (wajib diisi untuk `stage7`). */
+  runStage?: RunStage;
+  /** `stage_runs.scope`: nomor fase untuk `stage7b`; bawaan null. */
+  scope?: string | null;
   /** `version` dari front matter prompt di prompts/. */
   promptVersion: string;
   /**
@@ -50,8 +74,17 @@ export type StageDefinition<T = unknown> = {
 
 export { MAX_ATTEMPTS } from './attempts.ts';
 
-/** Output tahap yang sedang berlaku (`is_current = 1`), atau null bila belum ada. */
-export function currentOutput<T>(db: Db, projectId: string, stage: Stage): T | null {
+/** Kondisi `stage_runs.scope`: sama dengan `scope`, atau NULL bila `scope` null. */
+const scopeIs = (scope: string | null) =>
+  scope === null ? isNull(stageRuns.scope) : eq(stageRuns.scope, scope);
+
+/** Output tahap (dan scope) yang sedang berlaku (`is_current = 1`), atau null bila belum ada. */
+export function currentOutput<T>(
+  db: Db,
+  projectId: string,
+  stage: RunStage,
+  scope: string | null = null,
+): T | null {
   const run = db
     .select({ outputJson: stageRuns.outputJson })
     .from(stageRuns)
@@ -59,6 +92,7 @@ export function currentOutput<T>(db: Db, projectId: string, stage: Stage): T | n
       and(
         eq(stageRuns.projectId, projectId),
         eq(stageRuns.stage, stage),
+        scopeIs(scope),
         eq(stageRuns.isCurrent, 1),
       ),
     )
@@ -89,7 +123,7 @@ export function invalidateLaterStages(tx: Tx, projectId: string, stage: Stage) {
     .where(
       and(
         eq(stageRuns.projectId, projectId),
-        inArray(stageRuns.stage, later),
+        inArray(stageRuns.stage, later.flatMap(runStagesOf)),
         eq(stageRuns.isCurrent, 1),
       ),
     )
@@ -167,6 +201,11 @@ export async function runStage<T>(
   projectId: string,
 ): Promise<StageRunOutcome<T>> {
   const { db, runner, clock } = deps;
+  if (definition.stage === 'stage7' && !definition.runStage) {
+    throw new Error('Definisi tahap 7 wajib mengisi runStage (stage7a atau stage7b).');
+  }
+  const runStage = definition.runStage ?? (definition.stage as RunStage);
+  const scope = definition.scope ?? null;
   // `await` hanya untuk prompt async: prompt sinkron tetap dikirim ke runner pada tick yang sama.
   const built = definition.buildPrompt({ db, projectId });
   const prompt = typeof built === 'string' ? built : await built;
@@ -177,7 +216,8 @@ export async function runStage<T>(
     const createdAt = clock();
     const base = {
       projectId,
-      stage: definition.stage,
+      stage: runStage,
+      scope,
       attempt,
       promptVersion: definition.promptVersion,
       createdAt,
@@ -221,7 +261,8 @@ export async function runStage<T>(
           .where(
             and(
               eq(stageRuns.projectId, projectId),
-              eq(stageRuns.stage, definition.stage),
+              eq(stageRuns.stage, runStage),
+              scopeIs(scope),
               eq(stageRuns.isCurrent, 1),
             ),
           )

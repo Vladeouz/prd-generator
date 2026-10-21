@@ -23,8 +23,9 @@
 //   auth, `GET /v1/me`, dan pipeline kontrak sudah ada di template.
 import type { StageValidation } from '../run-stage.ts';
 import { type PrdInfo, prdSection } from '../stage-6/validate.ts';
+import { isNotesRemoval, MAX_TASKS, TASK_LAYERS, templateSetupOf } from '../task-rules.ts';
 
-export const TASK_LAYERS = ['infra', 'db', 'api', 'contract', 'app', 'test', 'docs'] as const;
+export { MAX_TASKS, TASK_LAYERS } from '../task-rules.ts';
 
 export type ParsedTask = {
   id: string;
@@ -105,25 +106,8 @@ function doneWhenOf(meta: string[]): string | null {
   return criteria.length ? criteria.join('\n') : null;
 }
 
-/** Setup yang sudah ada di template: dikenali dari judul task atau file konfigurasinya. */
-const TEMPLATE_SETUP: { name: string; title: RegExp; files: RegExp }[] = [
-  { name: 'monorepo', title: /monorepo/i, files: /pnpm-workspace\.yaml/ },
-  { name: 'Biome', title: /\bbiome\b/i, files: /biome\.json/ },
-  { name: 'Docker Compose', title: /docker[ -]compose/i, files: /docker-compose\.ya?ml/ },
-  { name: 'emulator', title: /emulator/i, files: /firebase\.json|docker\/firebase-emulator/ },
-  {
-    name: 'pipeline kontrak',
-    title: /pipeline kontrak|generate client dart/i,
-    files: /openapi-generator|export-openapi|scripts\/contract\.mjs/,
-  },
-];
-
-const NOTES_REMOVAL = /\bnotes?\b/i;
-const REMOVE = /hapus|menghapus|penghapusan|buang/i;
 const ENDS_WITH_CHECK = /`?pnpm check`? hijau\.?$/i;
 const FLUTTER_WEB = /flutter run -d chrome/;
-/** Lebih dari ini hanya peringatan: task mungkin terlalu kecil (target MVP 20–45 task). */
-export const MAX_TASKS = 60;
 
 export function validateTasks(md: string, prd: PrdInfo & { nfrIds: string[] }): StageValidation {
   const errors: string[] = [];
@@ -160,13 +144,9 @@ export function validateTasks(md: string, prd: PrdInfo & { nfrIds: string[] }): 
     if (t.doneWhen && !ENDS_WITH_CHECK.test(t.doneWhen.split('\n').at(-1) as string)) {
       errors.push(`${t.id} done when tidak diakhiri \`pnpm check\` hijau`);
     }
-    const setup = TEMPLATE_SETUP.filter(
-      (s) => s.title.test(t.title) || (t.files !== null && s.files.test(t.files)),
-    );
+    const setup = templateSetupOf(t.title, t.files);
     if (setup.length) {
-      errors.push(
-        `${t.id} adalah setup yang sudah disediakan template (${setup.map((s) => s.name).join(', ')})`,
-      );
+      errors.push(`${t.id} adalah setup yang sudah disediakan template (${setup.join(', ')})`);
     }
     if (/\(manual\)/i.test(t.block)) {
       if (!t.block.includes('.env')) errors.push(`${t.id} manual tanpa persiapan \`.env\``);
@@ -199,7 +179,7 @@ export function validateTasks(md: string, prd: PrdInfo & { nfrIds: string[] }): 
     if (!referenced.has(fr)) errors.push(`${fr} tidak dirujuk task mana pun`);
   }
 
-  const removals = tasks.filter((t) => NOTES_REMOVAL.test(t.title) && REMOVE.test(t.title));
+  const removals = tasks.filter((t) => isNotesRemoval(t.title));
   if (removals.length !== 1) {
     errors.push(`harus ada tepat satu task penghapusan fitur contoh notes, ada ${removals.length}`);
   } else {

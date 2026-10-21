@@ -101,6 +101,16 @@ describe('bagian per tahap', () => {
       ok: true,
       text: EXPECTED_SECTIONS.review2,
     });
+    expect(stageSections(TEMPLATE_CONVENTIONS, 'stage7a')).toEqual({
+      ok: true,
+      text: EXPECTED_SECTIONS.stage7a,
+    });
+    expect(CONVENTION_SECTIONS.stage7a).toEqual([
+      '## Struktur repo',
+      '## Memulai proyek dan log task',
+      '## Script dan perintah root',
+      '## Menghapus fitur contoh notes',
+    ]);
     expect(sectionProblems(TEMPLATE_CONVENTIONS)).toEqual([]);
   });
 

@@ -3,7 +3,7 @@
 // (D-06). Heading yang tidak ada di template membuat tahap gagal sebelum `claude` dipanggil dan
 // tampil sebagai masalah di halaman pengaturan (FR-07, FR-11).
 //
-// Daftar tahap 7a dan 7b ditambahkan bersama tahapnya (T-026, T-027).
+// Daftar tahap 7b ditambahkan bersama tahapnya (T-027).
 
 /** Heading persis (satu baris) per tahap; setiap heading dibawa beserta sub-heading-nya. */
 export const CONVENTION_SECTIONS = {
@@ -24,6 +24,14 @@ export const CONVENTION_SECTIONS = {
     '## Format error',
     '## Clean Architecture API',
   ],
+  // Daftar task: apa yang sudah disediakan template (agar tidak dibuat ulang), cara kerja task dan
+  // `pnpm check`, dan prosedur menghapus fitur contoh notes.
+  stage7a: [
+    '## Struktur repo',
+    '## Memulai proyek dan log task',
+    '## Script dan perintah root',
+    '## Menghapus fitur contoh notes',
+  ],
 } as const satisfies Record<string, readonly string[]>;
 
 export type ConventionStage = keyof typeof CONVENTION_SECTIONS;
@@ -32,6 +40,7 @@ export type ConventionStage = keyof typeof CONVENTION_SECTIONS;
 export const CONVENTION_STAGE_LABELS: Record<ConventionStage, string> = {
   stage6: 'tahap 6 (PRD)',
   review2: 'review kedua',
+  stage7a: 'tahap 7a (daftar task)',
 };
 
 export type SectionSelection = { ok: true; text: string } | { ok: false; missing: string[] };

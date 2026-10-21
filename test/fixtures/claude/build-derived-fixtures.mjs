@@ -1,5 +1,5 @@
 // Membangun fixture TURUNAN di test/fixtures/claude/derived/ (tahap 3: keputusan T-009; tahap 6: T-012;
-// tahap 7: T-014).
+// tahap 7: T-014; tahap 7a: T-026).
 //
 //   node test/fixtures/claude/build-derived-fixtures.mjs
 //
@@ -195,12 +195,86 @@ function tasksGym() {
   };
 }
 
+/**
+ * Daftar task tahap 7a (T-026, JSON) dari TASKS gym yang sudah disesuaikan FR-08 (`tasksGym`, turunan
+ * docs/reference/e2e-output/TASKS.md): judul, fase, layer, depends_on, dan refs apa adanya; id
+ * dinomori ulang berurutan. Fitur dipilih dari FR yang dirujuk (baris "Fitur: F-xx" di PRD gym);
+ * task tanpa FR mendapat fitur pertama fasenya; task hapus notes tanpa fitur dan tanpa refs.
+ */
+function taskListGym() {
+  const md = tasksGym().output;
+  const prd = prdGym().output;
+  const stage4 = JSON.parse(JSON.parse(readFileSync(join(here, 'stage4.json'), 'utf8')).result);
+  const featureOfFr = new Map();
+  for (const block of prd.split(/\n(?=### FR-\d{2})/)) {
+    const fr = block.match(/^### (FR-\d{2})/)?.[1];
+    const feature = block.match(/Fitur: (F-\d{2})/)?.[1];
+    if (fr && feature) featureOfFr.set(fr, feature);
+  }
+  const phaseOf = new Map(stage4.phases.flatMap((p) => p.feature_ids.map((id) => [id, p.phase])));
+  const firstOfPhase = new Map(stage4.phases.map((p) => [p.phase, p.feature_ids[0]]));
+  const lastPhase = Math.max(...stage4.phases.map((p) => p.phase));
+
+  const tasks = [];
+  let phase = null;
+  const lines = md.split('\n');
+  lines.forEach((line, i) => {
+    const heading = line.match(/^## Fase (\d+)/);
+    // Fase di luar struktur fitur ("Fase 4 — Pengerasan dan Rilis") digabung ke fase terakhir.
+    if (heading) phase = Math.min(Number(heading[1]), lastPhase);
+    const task = line.match(/^- \[ \] (T-\d{3}) (.+)$/);
+    if (!task) return;
+    const meta = lines[i + 1] ?? '';
+    const field = (key) => meta.match(new RegExp(`${key}: ([^·]+)`))?.[1]?.trim() ?? '-';
+    const list = (value) => (value === '-' ? [] : value.split(',').map((x) => x.trim()));
+    const refs = list(field('refs'));
+    const removal = /notes/i.test(task[2]);
+    const fromRefs = refs
+      .map((r) => featureOfFr.get(r))
+      .find((f) => f !== undefined && phaseOf.get(f) <= phase);
+    tasks.push({
+      oldId: task[1],
+      title: task[2].trim(),
+      phase,
+      feature: removal ? null : (fromRefs ?? firstOfPhase.get(phase)),
+      layer: field('layer'),
+      depends_on: list(field('depends_on')),
+      refs,
+    });
+  });
+  const newId = new Map(tasks.map((t, i) => [t.oldId, `T-${String(i + 1).padStart(3, '0')}`]));
+  const output = {
+    tasks: tasks.map(({ oldId, depends_on, ...t }) => ({
+      id: newId.get(oldId),
+      ...t,
+      depends_on: depends_on.map((d) => newId.get(d)),
+    })),
+  };
+  const { envelope } = tasksGym();
+  return {
+    envelope: { ...envelope, session_id: 'fixture-derived-gym-stage7a' },
+    output,
+    derived: {
+      source:
+        'derived/stage7-gym.json (test/fixtures/claude/stage7.json, docs/reference/e2e-output/TASKS.md)',
+      changes: [
+        'TASKS Markdown diubah menjadi daftar task JSON tahap 7a: judul, fase, layer, depends_on, dan refs apa adanya',
+        'id dinomori ulang berurutan (T-001 …) dan depends_on mengikuti id baru',
+        'task "Fase 4 — Pengerasan dan Rilis" (tidak ada di struktur fitur tahap 4) dipindah ke fase 3',
+        'feature: fitur dari baris "Fitur: F-xx" FR pertama yang dirujuk (fasenya tidak lebih lambat dari task); task tanpa FR mendapat fitur pertama fasenya; task hapus notes null',
+        'usage, total_cost_usd, dan duration_ms masih dari pemanggilan tahap 7 lama (TASKS utuh)',
+      ],
+    },
+  };
+}
+
 mkdirSync(target, { recursive: true });
 for (const [name, build] of [
   ['stage3-gym', gym],
   ['stage3-umkm-b', umkmProfileB],
   ['stage6-gym', prdGym],
   ['stage7-gym', tasksGym],
+  ['stage7a-gym', taskListGym],
 ]) {
   const { envelope, output, derived } = build();
   const text = typeof output === 'string' ? output : JSON.stringify(output, null, 2);

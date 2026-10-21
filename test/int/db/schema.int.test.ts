@@ -200,6 +200,31 @@ describe('partial unique index', () => {
     expect(count('stage_runs')).toBe(5);
   });
 
+  it('stage_runs: satu run berlaku per (project, stage, scope), scope NULL juga dijaga (T-026)', () => {
+    const p = insertProject();
+    insertChild('stage_runs', p, { is_current: 1, stage: 'stage7a' });
+    // Tanpa ifnull di indeks, dua NULL dianggap berbeda dan baris ini lolos.
+    expect(() => insertChild('stage_runs', p, { is_current: 1, stage: 'stage7a' })).toThrow(
+      /UNIQUE/,
+    );
+    insertChild('stage_runs', p, { is_current: 1, stage: 'stage7b', scope: '0' });
+    insertChild('stage_runs', p, { is_current: 1, stage: 'stage7b', scope: '1' });
+    expect(() =>
+      insertChild('stage_runs', p, { is_current: 1, stage: 'stage7b', scope: '1' }),
+    ).toThrow(/UNIQUE/);
+    insertChild('stage_runs', p, { is_current: 0, stage: 'stage7b', scope: '1' });
+    expect(count('stage_runs')).toBe(4);
+  });
+
+  it('stage_runs.stage: stage7a dan stage7b, bukan stage7; jobs tetap stage7', () => {
+    const p = insertProject();
+    expect(() => insertChild('stage_runs', p, { stage: 'stage7' })).toThrow(/CHECK/);
+    insertChild('stage_runs', p, { stage: 'stage7a' });
+    insertChild('stage_runs', p, { stage: 'stage7b', scope: '2' });
+    insertChild('jobs', p, { stage: 'stage7' });
+    expect(() => insertChild('jobs', insertProject(), { stage: 'stage7a' })).toThrow(/CHECK/);
+  });
+
   it('hanya satu job queued atau running di seluruh aplikasi', () => {
     const first = insertProject();
     const other = insertProject();

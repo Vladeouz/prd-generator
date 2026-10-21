@@ -20,6 +20,18 @@ export const TEMPLATE_SECTIONS = {
     '```',
   ].join('\r\n'),
   git: ['## Git', '', '- Pesan commit: `<type>: <ringkasan> (T-xxx)`'].join('\r\n'),
+  tasks: ['## Memulai proyek dan log task', '', 'Satu task per sesi; log di `docs/logs/`.'].join(
+    '\r\n',
+  ),
+  scripts: [
+    '## Script dan perintah root',
+    '',
+    '`pnpm check` menjalankan semua pemeriksaan.',
+    '',
+    '### `pnpm check` dan CI',
+    '',
+    'CI menjalankan perintah yang sama.',
+  ].join('\r\n'),
   job: ['## Job (pg-boss)', '', 'Job terjadwal.', '', '### Shutdown', '', 'Berhenti rapi.'].join(
     '\r\n',
   ),
@@ -38,6 +50,7 @@ export const TEMPLATE_SECTIONS = {
     'Aturan di API.',
   ].join('\r\n'),
   flutter: ['## Flutter', '', 'Bloc/Cubit per fitur.'].join('\r\n'),
+  notes: ['## Menghapus fitur contoh notes', '', '1. Hapus `features/notes/`.'].join('\r\n'),
 };
 
 const S = TEMPLATE_SECTIONS;
@@ -57,6 +70,7 @@ export const EXPECTED_SECTIONS = {
     S.architecture,
   ].join('\n\n'),
   review2: [S.auth, S.pagination, S.database, S.errors, S.architecture].join('\n\n'),
+  stage7a: [S.structure, S.tasks, S.scripts, S.notes].join('\n\n'),
 };
 
 export type TemplateRepo = { dir: string; commit: string; remove(): void };
