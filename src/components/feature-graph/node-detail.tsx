@@ -18,9 +18,12 @@ export const SOURCE_LABELS = {
   rekomendasi: 'Rekomendasi diterima',
 } as const;
 
-/** Kode singkat di atas judul node: `FASE 1`, `F-03`, `T-007`. */
+/**
+ * Kode singkat sesudah label jenis node: nomor fase (`Fase 1`), `F-03`, `T-007`. Kelompok
+ * rekomendasi tidak punya kode.
+ */
 export function nodeCode(data: GraphNodeData): string | null {
-  if (data.kind === 'phase') return data.phase === null ? 'REKOMENDASI' : `FASE ${data.phase}`;
+  if (data.kind === 'phase') return data.phase === null ? null : String(data.phase);
   if (data.kind === 'feature' || data.kind === 'task') return data.code;
   return null;
 }

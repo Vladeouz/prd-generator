@@ -124,7 +124,7 @@ test('dari input ide sampai export, dengan satu percobaan ulang', async ({ page,
   await expect(detail).toContainText('Task tampil setelah daftar task (tahap 7) selesai.');
   await graph.locator('.react-flow__node[data-id="phase-1"]').focus();
   await page.keyboard.press('Enter');
-  await expect(detail.getByTestId('node-detail')).toContainText('FASE 1');
+  await expect(detail.getByTestId('node-detail')).toContainText(/Fase\s*1/);
   await page.keyboard.press('Escape');
   await expect(detail).toContainText('Pilih node dengan klik');
   await save(page, 'Simpan pilihan fitur');

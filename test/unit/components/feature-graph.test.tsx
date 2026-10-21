@@ -4,7 +4,11 @@ import {
   FeatureGraphSection,
   hasTasks,
 } from '../../../src/app/projects/[id]/feature-graph-section.tsx';
-import { NodeDetail, nodeAriaLabel } from '../../../src/components/feature-graph/node-detail.tsx';
+import {
+  NodeDetail,
+  nodeAriaLabel,
+  nodeCode,
+} from '../../../src/components/feature-graph/node-detail.tsx';
 import type { GraphNodeData } from '../../../src/projects/graph.ts';
 
 const feature: GraphNodeData = {
@@ -83,8 +87,23 @@ describe('NodeDetail', () => {
     expect(nodeAriaLabel(feature)).toBe('Fitur, F-01, Registrasi member, 3 task');
     expect(
       nodeAriaLabel({ kind: 'phase', label: 'Fondasi', phase: 0, goal: '', taskCount: null }),
-    ).toBe('Fase, FASE 0, Fondasi');
+    ).toBe('Fase, 0, Fondasi');
     expect(nodeAriaLabel(task(null))).toBe('Task, T-004, API registrasi member');
+  });
+
+  it('kode fase tidak mengulang label jenis ("Fase 1", bukan "Fase FASE 1")', () => {
+    const phase = (n: number | null): GraphNodeData => ({
+      kind: 'phase',
+      label: 'Fondasi',
+      phase: n,
+      goal: 'Tujuan',
+      taskCount: null,
+    });
+    expect(nodeCode(phase(1))).toBe('1');
+    expect(nodeCode(phase(null))).toBeNull();
+    const html = text(renderToStaticMarkup(<NodeDetail data={phase(1)} />));
+    expect(html).toContain('Fase 1 Fondasi');
+    expect(html).not.toMatch(/fase\s+fase/i);
   });
 });
 
