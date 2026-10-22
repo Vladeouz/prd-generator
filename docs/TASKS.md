@@ -142,10 +142,34 @@ Baseline dari uji T-012 ada di bagian 3 PRD (Pemanggilan Claude Code); targetnya
   - files: `package.json` (`@xyflow/react` dipin), `docs/conventions.md` (versi), `src/projects/graph.ts`, `src/app/api/projects/[id]/graph/**`, `src/components/feature-graph/**`, `src/app/projects/[id]/**`, test terkait
   - done when: `GET /api/projects/{id}/graph` menyusun node dan edge dari data tahap 4 (hanya fitur yang diterima) dan 7a, dengan posisi yang deterministik (dibuktikan unit test); flowchart tampil di halaman proyek setelah tahap 4 dengan kontrol zoom dan "pas ke layar"; memilih node dengan klik atau keyboard membuka panel detail; warna hanya memakai token (pencarian `#[0-9a-fA-F]{3,6}` seperti T-020 tetap hanya menemukan `globals.css`); tidak ada pemanggilan `claude` tambahan; **(manual)** user membuka flowchart proyek uji di kedua tema dan di lebar 390 px, lalu mengonfirmasi graf terbaca dan bisa digeser; `pnpm check` hijau
 
+## Fase 3b — Perbaikan dari uji nyata T-018
+
+Temuan uji nyata pertama T-018 (ide reservasi massage) yang membuat agent proyek turunan harus mengambil keputusan konvensi. Nomor temuan merujuk `docs/logs/T-018.md` di branch `test/t-018-uji-nyata`. Output nyata uji itu menjadi fixture verifikasi.
+
+- [ ] T-029 Daftar task 7a: tabel per fitur, dependensi, dan kontrak bersama API
+  - layer: app · depends_on: T-027 · refs: FR-08, D-11 (temuan 1, 7, 9, 12)
+  - files: `prompts/stage-7a.md`, `src/stages/stage-7a/**`, `src/stages/task-rules.ts`, `src/template/sections.ts`, `src/projects/compose-tasks.ts`, `test/helpers/template-repo.ts`, `test/fixtures/claude/**`, `test/unit/stages/**`, `test/int/stages/**`, `test/e2e/**`
+  - done when: konvensi `stage7a` membawa bagian `## Database` dan `## Kontrak dan client Dart` template; prompt 7a (versi naik) tidak lagi meminta semua skema di fase 0, melainkan tabel dibuat di task `db` fitur pemiliknya, dan perubahan route atau skema Zod dikerjakan bersama `pnpm contract:generate` di task `api`-nya (layer `contract` terpisah tidak dipakai); output 7a menyebut `tables` (tabel yang dibuat) untuk task `db`; validator 7a menolak task selain yang pertama tanpa `depends_on`, task layer `contract`, tabel yang dibuat lebih dari satu task, dan tabel di bagian 4 PRD yang tidak dibuat task mana pun (kecuali tabel yang disediakan template, yaitu `users`); daftar 7a nyata uji T-018 disimpan sebagai fixture verifikasi dan ditolak dengan error yang menyebut task tanpa dependensi dan task `contract`-nya (unit test); fixture gym diturunkan ulang dan lolos; `pnpm check` hijau
+
+- [ ] T-030 Detail 7b: konvensi Database, path `files`, dan perintah test
+  - layer: app · depends_on: T-029 · refs: FR-08, D-11 (temuan 6, 8, 10)
+  - files: `prompts/stage-7b.md`, `src/stages/stage-7b/**`, `src/projects/compose-tasks.ts`, `src/template/sections.ts`, `test/helpers/template-repo.ts`, `test/fixtures/claude/**`, `test/unit/stages/**`, `test/int/stages/**`
+  - done when: konvensi `stage7b` membawa bagian `## Database` template; prompt 7b (versi naik) meminta `files` berupa path saja, dengan keterangan di field terpisah, dan `composeTasks` menulis path dalam backtick dengan keterangan di luarnya; validator 7b menolak `files` yang bukan path (berisi spasi atau tanda kurung), path skema yang bertentangan dengan konvensi template (`apps/api/src/db/schema.ts`, bukan `apps/api/src/db/schema/<tabel>.ts`), dan perintah test dengan `--` sebelum filter (`test:int -- <filter>`; pnpm meneruskan `--` ke vitest sehingga filternya tidak berlaku, terbukti di proyek uji T-018; bentuk benar `pnpm --filter api test:int <filter>`); detail 7b nyata uji T-018 disimpan sebagai fixture verifikasi dan ditolak dengan alasan yang tepat (unit test); `pnpm check` hijau
+
+- [ ] T-031 Review kritis dan review kedua: fase yang ada, `passed_checks`, dan klaim peran
+  - layer: app · depends_on: T-027 · refs: FR-06, FR-07 (temuan 2, 3, 11)
+  - files: `prompts/stage-5.md`, `prompts/review-2.md`, `src/stages/stage-5/**`, `src/stages/review-2/**`, modul validator review bersama, `test/fixtures/claude/**`, `test/unit/stages/**`, `test/int/stages/**`
+  - done when: prompt tahap 5 (versi naik) memuat daftar fase tahap 4 dan melarang opsi yang merujuk fase lain; validator tahap 5 menolak opsi atau rekomendasi yang menyebut "fase N" yang tidak ada di tahap 4 (output nyata tahap 5 uji T-018 ditolak karena "fase 4"); prompt review 2 (versi naik) menyebut daftar nilai `passed_checks` yang diizinkan, dan nilai yang tidak dikenal menjadi peringatan, bukan error (output nyata percobaan 1 review 2 uji T-018 lolos dengan peringatan); prompt review 2 meminta pemeriksaan klaim peran atau identitas (misalnya peran dari email yang belum diverifikasi) sebagai temuan `business_rule`; fixture dan test diperbarui; `pnpm check` hijau
+
+- [ ] T-032 Perkiraan durasi dari pemanggilan dengan prompt terbaru
+  - layer: app · depends_on: T-027 · refs: FR-10 (temuan 5)
+  - files: `src/projects/usage.ts`, `test/int/stages/rerun.int.test.ts` atau test perkiraan yang ada, `test/unit/projects/**`
+  - done when: `stageEstimate` hanya merata-rata pemanggilan dengan versi prompt yang sama dengan prompt saat ini (tahap 7: versi 7a dan 7b masing-masing); bila belum ada, dipakai `TEST_ESTIMATES`; dibuktikan integration test bahwa run dengan versi prompt lama tidak memengaruhi perkiraan; `pnpm check` hijau
+
 ## Fase 4 — Uji nyata dan penyelesaian
 
 - [ ] T-018 Uji nyata: dari ide sampai Claude Code
-  - layer: test · depends_on: T-027, T-028 · refs: semua FR, NFR-06
+  - layer: test · depends_on: T-027, T-028, T-029, T-030, T-031, T-032 · refs: semua FR, NFR-06
   - files: `docs/logs/T-018.md`
   - done when: **(manual)** user menjalankan satu ide nyata pilihannya dari tahap 1 sampai export dengan `claude` sungguhan; total durasi dan token tercatat di log dan dibandingkan dengan NFR-06; hasil ekspor diberikan ke Claude Code di proyek baru dari template, dan dua task pertama selesai tanpa keputusan konvensi di log-nya; temuan yang perlu diperbaiki dicatat sebagai usulan task
 
