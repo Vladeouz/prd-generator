@@ -196,8 +196,9 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - **Tahap 7b** (`src/stages/stage-7b/`, prompt `stage-7b.md`):
   - konvensi `stage7b` diletakkan di AWAL prompt, sehingga awalan semua fase sama dan bisa dibaca dari cache;
   - prompt berisi task fase itu (JSON dari 7a) dan `prdExcerpt`: blok FR dan butir NFR yang dirujuk, ditambah bagian 4 bila ada task `db`;
-  - output `{ tasks: [{ id, files, done_when, manual }] }`;
+  - output `{ tasks: [{ id, files, file_notes?, done_when, manual }] }`. `files` berisi path saja; keterangan per path di `file_notes`, dan `composeTasks` menulisnya sebagai `` `path` (keterangan) ``;
   - `validateStage7b` memeriksa: setiap task fase tepat sekali; `files` tanpa file setup template; `done_when` tanpa `pnpm check`; `manual.steps` tanpa langkah persiapan;
+  - aturan dari uji nyata T-018 (prompt versi 2): `files` tanpa spasi, tanda kurung, atau backtick; `file_notes` hanya untuk path di `files`; path yang bertentangan dengan konvensi template ditolak (`CONVENTION_PATHS`, misalnya `apps/api/src/db/schema.ts`); perintah test dengan `--` sebelum filter ditolak (`TEST_DASH`), karena pnpm meneruskan `--` ke vitest sehingga filternya tidak berlaku. Konvensi `stage7b` kini membawa `## Database`. Regresi: `verification/t018-stage7b-fase-{0..3}.json` harus ditolak;
   - fixture `derived/stage7b-gym-fase-{0..3}.json`. Runner palsu mode `flow` memilih fase dari "untuk fase N" di prompt.
 - **`docs/TASKS.md` disusun aplikasi** (`composeTasks`, `src/projects/compose-tasks.ts`):
   - format sama dengan TASKS lama;

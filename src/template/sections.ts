@@ -34,9 +34,11 @@ export const CONVENTION_SECTIONS = {
     '## Menghapus fitur contoh notes',
   ],
   // Detail task per fase: path, pola, dan perintah test untuk `files` dan *done when*.
+  // `## Database` sejak uji T-018: tanpa itu `files` menebak path skema (`schema.ts`).
   stage7b: [
     '## Struktur repo',
     '## Script dan perintah root',
+    '## Database',
     '## Clean Architecture API',
     '## Test API',
     '## Kontrak dan client Dart',
