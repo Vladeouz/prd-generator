@@ -50,10 +50,38 @@ export type ReviewRules = {
   categories: readonly string[];
   /** Awalan id temuan, misalnya `RV` (RV-01) atau `RV2` (RV2-01). */
   idPrefix: string;
+  /**
+   * `passed_checks` di luar kategori: `error` (bawaan) atau hanya `warning`. Review kedua memakai
+   * `warning`: di uji T-018 kalimat bebas di `passed_checks` memicu satu pemanggilan ulang, padahal
+   * temuannya valid.
+   */
+  unknownPassedChecks?: 'error' | 'warning';
 };
 
-export function validateStage5(output: Stage5Output): StageValidation {
-  return validateReview(output, { categories: REVIEW_CATEGORIES, idPrefix: 'RV' });
+/** "fase N" di opsi (label dan konsekuensi) yang tidak ada di struktur fitur tahap 4. */
+export function unknownPhaseErrors(output: unknown, phases: readonly number[]): string[] {
+  const findings = isRecord(output) && Array.isArray(output.findings) ? output.findings : [];
+  return findings.flatMap((f: unknown, i) => {
+    if (!isRecord(f) || !Array.isArray(f.options)) return [];
+    const text = f.options
+      .filter(isRecord)
+      .map((o) => `${String(o.label)} ${String(o.consequence)}`)
+      .join(' ');
+    const numbers = [...text.matchAll(/\bfase\s+(\d+)\b/gi)].map((m) => Number(m[1]));
+    return [...new Set(numbers)]
+      .filter((n) => !phases.includes(n))
+      .map(
+        (n) =>
+          `findings[${i}] (${String(f.id)}) opsi menyebut fase ${n} yang tidak ada di struktur fitur (fase yang ada: ${phases.join(', ')})`,
+      );
+  });
+}
+
+/** `phases`: fase struktur fitur tahap 4; opsi tidak boleh menyebut fase lain (uji T-018). */
+export function validateStage5(output: Stage5Output, phases?: readonly number[]): StageValidation {
+  const result = validateReview(output, { categories: REVIEW_CATEGORIES, idPrefix: 'RV' });
+  if (!phases) return result;
+  return { ...result, errors: [...result.errors, ...unknownPhaseErrors(output, phases)] };
 }
 
 export function validateReview(output: unknown, rules: ReviewRules): StageValidation {
@@ -98,22 +126,28 @@ export function validateReview(output: unknown, rules: ReviewRules): StageValida
     }
   });
 
+  const notes: string[] = [];
   if (!Array.isArray(o.passed_checks)) {
     errors.push('passed_checks bukan array');
   } else {
     const unknown = o.passed_checks.filter(
       (c) => !(rules.categories as readonly unknown[]).includes(c),
     );
-    if (unknown.length) errors.push(`passed_checks tidak dikenal: ${unknown.join(', ')}`);
+    if (unknown.length) {
+      const message = `passed_checks tidak dikenal: ${unknown.join(', ')}`;
+      (rules.unknownPassedChecks === 'warning' ? notes : errors).push(message);
+    }
   }
   if (typeof o.ready !== 'boolean') errors.push('ready bukan boolean');
   if (o.ready === true && o.findings.some((f) => isRecord(f) && f.severity === 'high')) {
     errors.push('ready true padahal ada temuan severity high');
   }
 
-  const warnings =
-    errors.length === 0 && INTERNAL_TERMS.test(JSON.stringify(o.findings))
+  const warnings = [
+    ...notes,
+    ...(errors.length === 0 && INTERNAL_TERMS.test(JSON.stringify(o.findings))
       ? ['temuan menyebut istilah internal ("Profil A", "Profil B", atau "stack profile")']
-      : [];
+      : []),
+  ];
   return { errors, warnings };
 }

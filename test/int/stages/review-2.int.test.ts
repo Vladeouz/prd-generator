@@ -131,7 +131,7 @@ describe('menjalankan review kedua', () => {
       .from(stageRuns)
       .where(and(eq(stageRuns.projectId, 'p1'), eq(stageRuns.stage, 'review2')))
       .get();
-    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '2', isCurrent: 1 });
+    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '3', isCurrent: 1 });
     expect(JSON.parse(run?.outputJson as string).findings[0]).toMatchObject({
       id: 'RV2-01',
       category: 'ui_endpoint',

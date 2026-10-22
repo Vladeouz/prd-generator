@@ -21,6 +21,10 @@ export function reachedStage(db: Db, projectId: string, stage: (typeof PROJECT_S
   return PROJECT_STAGES.indexOf(project.currentStage) >= PROJECT_STAGES.indexOf(stage);
 }
 
+/** Fase struktur fitur tahap 4, berurutan. */
+const draftPhases = (db: Db, projectId: string) =>
+  [...(featureDraft(db, projectId)?.phases ?? [])].sort((a, b) => a.phase - b.phase);
+
 export function stage5Definition(): StageDefinition<Stage5Output> {
   const prompt = loadPrompt('stage-5');
   return {
@@ -41,9 +45,16 @@ export function stage5Definition(): StageDefinition<Stage5Output> {
 
 ${formatTechnicalContext(technicalContext(db, projectId))}`,
         draft: JSON.stringify(featureDraft(db, projectId), null, 2),
+        phases: draftPhases(db, projectId)
+          .map((p) => `${p.phase} (${p.name})`)
+          .join(', '),
       }),
     parse: (result) => extractJson(result) as Stage5Output,
-    validate: validateStage5,
+    validate: (output, { db, projectId }) =>
+      validateStage5(
+        output,
+        draftPhases(db, projectId).map((p) => p.phase),
+      ),
     // Temuan baru: keputusan review pertama yang lama tidak berlaku lagi.
     onSuccess: ({ tx, projectId, now }) => {
       tx.delete(decisions)

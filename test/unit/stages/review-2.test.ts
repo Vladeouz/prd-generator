@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadClaudeFixture } from '../../../src/claude/fake-runner.ts';
 import { extractJson } from '../../../src/stages/parse.ts';
@@ -17,6 +18,32 @@ const GAP = {
   missing: 'GET /items/{id}',
   resource: '/items/{}',
 };
+
+describe('validateReview2Output: passed_checks (uji nyata T-018)', () => {
+  it('kalimat bebas di passed_checks hanya peringatan; temuan valid tetap diterima', () => {
+    const t018 = extractJson(
+      loadClaudeFixture('verification/t018-review2-attempt1').result,
+    ) as Review2Output;
+    const prdV1 = readFileSync('test/fixtures/claude/verification/t018-prd-v1.md', 'utf8');
+    const result = validateReview2Output(t018, endpointGaps(prdV1));
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings?.[0]).toMatch(
+      /^passed_checks tidak dikenal: Autentikasi, format error, dan pagination sudah sesuai konvensi/,
+    );
+  });
+
+  it('nilai tak dikenal tidak menggagalkan, nilai kategori tetap tanpa peringatan', () => {
+    const output = structuredClone(review());
+    output.passed_checks = ['kalimat bebas' as never];
+    expect(validateReview2Output(output, [GAP])).toEqual({
+      errors: [],
+      warnings: ['passed_checks tidak dikenal: kalimat bebas'],
+    });
+    output.passed_checks = ['data_model'];
+    expect(validateReview2Output(output, [GAP]).warnings).toEqual([]);
+  });
+});
 
 function broken(change: (output: Review2Output, first: Review2Finding) => void) {
   const output = structuredClone(review());
@@ -121,12 +148,15 @@ describe('validateReview2Output', () => {
 describe('prompts/review-2.md', () => {
   it('punya versi dan placeholder celah, kategori, konvensi terpilih, dan PRD', () => {
     const prompt = loadPrompt('review-2');
-    expect(prompt.version).toBe('2');
+    expect(prompt.version).toBe('3');
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
       'gaps',
+      'categories',
       'categories',
       'conventions',
       'prd',
     ]);
+    expect(prompt.body).toContain('Jangan menulis kalimat atau penjelasan di "passed_checks"');
+    expect(prompt.body).toContain('klaim peran atau identitas');
   });
 });
