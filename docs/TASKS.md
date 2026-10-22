@@ -166,6 +166,11 @@ Temuan uji nyata pertama T-018 (ide reservasi massage) yang membuat agent proyek
   - files: `src/projects/usage.ts`, `test/int/stages/rerun.int.test.ts` atau test perkiraan yang ada, `test/unit/projects/**`
   - done when: `stageEstimate` hanya merata-rata pemanggilan dengan versi prompt yang sama dengan prompt saat ini (tahap 7: versi 7a dan 7b masing-masing); bila belum ada, dipakai `TEST_ESTIMATES`; dibuktikan integration test bahwa run dengan versi prompt lama tidak memengaruhi perkiraan; `pnpm check` hijau
 
+- [ ] T-033 Tahap 7 dalam batas NFR-06: 7b fase paralel dan percobaan ulang yang lebih jarang
+  - layer: app · depends_on: T-030, T-032 · refs: NFR-06, FR-08, FR-02, D-03, D-08, D-11 (uji ulang T-018: 446 dtk untuk 5 fase dan 35 task, 2 percobaan ulang di fase 4)
+  - files: `src/stages/stage-7b/**`, `src/stages/run-stage.ts`, `src/jobs/{job-queue,progress}.ts`, `prompts/stage-7b.md`, `src/projects/usage.ts`, komponen progres tahap 7, `test/unit/stages/**`, `test/int/stages/**`, `test/int/jobs/**`, `test/e2e/**`, `docs/conventions.md`
+  - done when: setelah 7a, detail 7b semua fase yang belum valid dijalankan bersamaan dalam satu job (jumlah pemanggilan serentak dibatasi konstanta, bawaan semua fase), masing-masing tetap tercatat sebagai `stage_runs` sendiri dengan percobaan ulang sendiri (D-08), dan satu fase yang gagal tidak membatalkan fase lain yang berhasil (dibuktikan integration test dengan runner palsu yang menahan dan menggagalkan fase tertentu); progres menampilkan jumlah fase selesai dari n; tetap hanya satu job aktif di aplikasi (D-03); validator 7b tidak menolak `done_when` yang menyebut `pnpm check` hanya dalam kalimat larangan (output nyata percobaan 2 fase 4 uji ulang T-018 disimpan sebagai fixture verifikasi dan diterima tanpa error), dan prompt 7b (versi naik) memberi contoh perintah test berfilter yang benar; perkiraan tahap 7 (FR-10) memakai durasi terlama antarfase, bukan jumlahnya; **(manual)** dengan `claude` sungguhan, tahap 7 proyek "Reservasi Massage 2" dijalankan ulang: durasi, token, dan percobaan ulang dicatat dan dibandingkan dengan NFR-06 (perkiraan 2–4 menit dan ±$1,5 kuota); `pnpm check` hijau
+
 ## Fase 4 — Uji nyata dan penyelesaian
 
 - [ ] T-018 Uji nyata: dari ide sampai Claude Code
