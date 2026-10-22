@@ -306,6 +306,7 @@ Acceptance criteria:
 - [ ] Given output AI, When divalidasi, Then PRD merujuk `docs/conventions.md` tanpa menyalin isinya (tidak ada paragraf atau blok kode konvensi yang disalin persis), dan ukuran di atas batas NFR-06 tampil sebagai peringatan, bukan kegagalan.
 - [ ] Given keputusan, jawaban bertanda tebakan, dan asumsi tersimpan, When PRD disusun, Then bagian 8 *Assumptions & Decisions* dan *Open Questions* ditulis oleh aplikasi dari data itu, bukan oleh AI.
 - [ ] Given PRD selesai, When review kedua dijalankan, Then temuan tentang data model, aturan bisnis tanpa constraint, dan rute UI tanpa endpoint pendukung ditampilkan sebagai keputusan `RV2-xx`; bila user memilih perbaikan, PRD dibuat ulang satu kali dengan keputusan itu.
+- [ ] Given tahap 6 dan review kedua, When prompt dibuat, Then berisi konvensi kontrak dan client Dart template, sehingga aturan body request dan nullability di API Contract sesuai cara client mengirim data (misalnya field opsional bernilai `null` tidak dikirim), dan review kedua memeriksa PRD terhadapnya.
 
 ### FR-08: TASKS (tahap 7)
 
@@ -315,6 +316,7 @@ Acceptance criteria:
 - [ ] Given tahap 7a, When prompt dibuat, Then berisi ringkasan PRD yang disusun aplikasi (kode dan judul `FR-xx`, daftar endpoint, nama tabel, fase dan fitur dari tahap 4), bukan PRD utuh.
 - [ ] Given output tahap 7a, When divalidasi, Then setiap task punya judul, fase, fitur tahap 4 yang dirujuk, `layer`, `depends_on` yang hanya merujuk task sebelumnya, dan `refs` yang ada di PRD; setiap `FR-xx` dirujuk minimal satu task; tidak ada judul duplikat; tidak ada task setup yang sudah disediakan template (monorepo, Biome, Docker Compose, emulator, pipeline kontrak); ada satu task penghapusan fitur contoh notes setelah fitur pertama.
 - [ ] Given tahap 7b, When dijalankan, Then setiap fase dipanggil terpisah dengan task fase itu dan hanya bagian PRD yang dirujuk task-nya; setiap task mendapat `files` dan *done when*; percobaan ulang (D-08) berlaku per fase; menjalankan ulang tahap 7 hanya mengulang fase yang belum punya hasil valid.
+- [ ] Given tahap 7b, When prompt dibuat, Then berisi daftar file sumber dan test yang sudah ada di template (D-15); task yang mengubah fitur template memakai file template dengan nama yang sama, dan perintah test di *done when* memakai level test sesuai konvensi Test API template (perilaku route berlogin atau dengan database di integration test).
 - [ ] Given `docs/TASKS.md` disusun aplikasi, When divalidasi, Then setiap *done when* diakhiri `pnpm check` hijau, dan setiap task dengan kriteria manual punya langkah persiapan `.env`, layanan Docker, dan perintah Flutter web dengan `--web-browser-flag=--incognito`; bagian baku ini ditambahkan aplikasi, bukan ditulis AI.
 
 ### FR-09: Export
@@ -374,6 +376,7 @@ Acceptance criteria:
 | D-12 | Output Claude Code di-stream ke UI lewat SSE dari job di memori (D-03) | Progres sebelumnya hanya perkiraan waktu |
 | D-13 | Flowchart fitur dengan React Flow dari data tersimpan | Gambaran struktur seperti referensi tanpa token tambahan |
 | D-14 | Model dan effort per profil tahap. `standard` (tahap 2–7b kecuali review 2): Sonnet `--effort low` sesuai D-09. `reasoning` (review 2): Opus `--effort medium` (spike T-034). Semua bisa diganti lewat env | Tahap penulisan tidak terlihat turun kualitasnya dengan effort rendah (T-022). Spike T-034: celah klaim admin uji T-018 (temuan 11) kini tertangkap review 2 di semua konfigurasi berkat prompt versi 3 (T-031), tetapi Opus `medium` memberi temuan review 2 yang semuanya valid dan lebih dalam, dengan tambahan ±$0,19 dan ±38 dtk per proyek. Di tahap 5 keunggulannya kecil, dan celah seperti temuan 11 baru muncul di PRD, sehingga tahap 5 tetap `standard` |
+| D-15 | Prompt 7b membawa daftar file sumber dan test yang sudah ada di template, dibaca dari `TEMPLATE_DIR` (tanpa fitur contoh notes dan file hasil generate), bukan hanya konvensinya | Uji ulang T-018: TASKS menyebut `users.route.ts` padahal template sudah punya `me.route.ts`, sehingga agent proyek turunan harus mengganti nama file dan mengubah konvensi template. Konvensi hanya menyebut sebagian file sebagai contoh. Sumbernya tetap `TEMPLATE_DIR` (D-06) |
 
 ### Open Questions
 
