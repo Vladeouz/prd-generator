@@ -401,7 +401,8 @@ describe('detail fase bersamaan (T-033)', () => {
 
     expect((await flow.queue.waitFor(job.id))?.status).toBe('succeeded');
     expect(gate.maxInFlight).toBe(2);
-    expect(gate.started).toEqual([0, 1, 2, 3]);
+    // Urutan tiba di runner tidak pasti (prompt dibangun async); setiap fase dipanggil sekali.
+    expect([...gate.started].sort()).toEqual([0, 1, 2, 3]);
     expect(tasksDocuments()).toHaveLength(1);
   });
 
