@@ -17,6 +17,7 @@ import type { ClaudeProgress } from '../../claude/types.ts';
 import { documents, projects, stageRuns } from '../../core/db/schema.ts';
 import { composeTasks } from '../../projects/compose-tasks.ts';
 import { latestDocument } from '../../projects/documents.ts';
+import { readTemplate } from '../../template/template.ts';
 import { STAGE7B_CONCURRENCY } from '../attempts.ts';
 import {
   currentOutput,
@@ -33,7 +34,7 @@ import type { Stage6Options } from '../stage-6/definition.ts';
 import { prdInfo } from '../stage-6/validate.ts';
 import { stage7aDefinition } from '../stage-7a/definition.ts';
 import type { Stage7aOutput } from '../stage-7a/validate.ts';
-import { phaseTasks, stage7bDefinition } from './definition.ts';
+import { phaseTasks, readTemplateFiles, stage7bDefinition } from './definition.ts';
 import { nfrIds, validateTasks } from './tasks-markdown.ts';
 import type { Stage7bOutput, TaskDetail } from './validate.ts';
 
@@ -133,6 +134,11 @@ export function stage7Job(
         : 'Selesaikan PRD dan review kedua dulu sebelum menulis TASKS.',
     execute: async (deps: RunStageDeps, projectId: string) => {
       const context = { db: deps.db, projectId };
+      // Daftar file template dibutuhkan 7b (D-15): diperiksa sebelum 7a, agar tahap gagal sebelum
+      // `claude` dipanggil bila tidak bisa dibaca. Template yang tidak valid dilaporkan 7a dengan
+      // pesan konvensinya sendiri.
+      const dir = (options.templateDir ?? (() => process.env.TEMPLATE_DIR))();
+      if ((await readTemplate(dir)).ok) await readTemplateFiles(dir);
       const before = stage7Progress(context);
       const complete = before.list !== null && before.missing.length === 0;
       const needsList = before.list === null || complete;
