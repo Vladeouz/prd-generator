@@ -120,8 +120,8 @@ describe('validateStage7a', () => {
   });
 
   it('layer harus dikenal; output bukan daftar task ditolak; terlalu banyak task hanya peringatan', () => {
-    expect(errorsOf(patch('T-002', { layer: 'frontend' }))).toEqual([
-      'T-002 layer tidak dikenal: frontend',
+    expect(errorsOf(patch('T-003', { layer: 'frontend' }))).toEqual([
+      'T-003 layer tidak dikenal: frontend',
     ]);
     expect(errorsOf({})).toEqual(['tasks kosong atau bukan array']);
     expect(errorsOf({ tasks: [] })).toEqual(['tasks kosong atau bukan array']);
@@ -132,7 +132,7 @@ describe('validateStage7a', () => {
         ...last,
         id: `T-${String(i + 1).padStart(3, '0')}`,
         title: `Tambahan ${i}`,
-        depends_on: [],
+        depends_on: [last.id],
       });
     }
     const result = validateStage7a(many, context);
@@ -143,17 +143,83 @@ describe('validateStage7a', () => {
   });
 });
 
+describe('validateStage7a: aturan dari uji nyata T-018', () => {
+  it('setiap task selain yang pertama wajib punya depends_on', () => {
+    expect(errorsOf(patch('T-001', { depends_on: [] }))).toEqual([]);
+    expect(errorsOf(patch('T-003', { depends_on: [] }))).toEqual([
+      'T-003 tanpa depends_on; hanya task pertama yang boleh tanpa dependensi',
+    ]);
+  });
+
+  it('layer contract ditolak: kontrak di-generate bersama task api', () => {
+    expect(errorsOf(patch('T-003', { layer: 'contract' }))).toEqual([
+      'T-003 layer contract tidak dipakai: jalankan pnpm contract:generate di task api yang mengubah route atau skema Zod',
+    ]);
+  });
+
+  it('tables: wajib di task db, hanya di task db, setiap tabel PRD dibuat tepat sekali', () => {
+    const schema = fixture().tasks.find((t) => t.layer === 'db') as Stage7aTask;
+    const created = schema.tables as string[];
+    expect(created).toContain('PACKAGES');
+    // Tanpa tables, tabelnya juga dianggap tidak dibuat task mana pun.
+    const withoutTables = errorsOf(patch(schema.id, { tables: undefined }));
+    expect(withoutTables[0]).toBe(
+      `${schema.id} (layer db) tanpa tables; isi [] bila hanya mengubah tabel yang ada`,
+    );
+    expect(withoutTables).toContain('tabel packages di PRD tidak dibuat task mana pun');
+    expect(errorsOf(patch('T-003', { tables: ['PACKAGES'] }))).toEqual(
+      expect.arrayContaining([
+        'T-003 membuat tabel PACKAGES padahal layer-nya api; tabel dibuat task db',
+        'tabel packages dibuat lebih dari satu task: T-002, T-003',
+      ]),
+    );
+    // Huruf besar-kecil diabaikan; users disediakan template.
+    expect(errorsOf(patch(schema.id, { tables: [...created, 'users'] }))).toEqual([]);
+    expect(errorsOf(patch(schema.id, { tables: [...created, 'payments'] }))).toEqual([
+      `${schema.id} membuat tabel payments yang tidak ada di PRD`,
+    ]);
+    expect(errorsOf(patch(schema.id, { tables: created.filter((t) => t !== 'PACKAGES') }))).toEqual(
+      ['tabel packages di PRD tidak dibuat task mana pun'],
+    );
+  });
+
+  it('daftar task nyata uji T-018 ditolak: dependensi kosong, task contract, dan tanpa tables', () => {
+    const t018 = JSON.parse(loadClaudeFixture('verification/t018-stage7a').result);
+    const s4 = JSON.parse(loadClaudeFixture('verification/t018-stage4').result) as Stage4Output;
+    const t018Prd = readFileSync('test/fixtures/claude/verification/t018-prd.md', 'utf8');
+    const t018Context = stage7aContext(prdDigest(t018Prd, buildFeatureDraft(s4, ['R-01', 'R-03'])));
+    const { errors } = validateStage7a(t018, t018Context);
+    const missingDeps = errors.filter((e) =>
+      e.endsWith('tanpa depends_on; hanya task pertama yang boleh tanpa dependensi'),
+    );
+    expect(missingDeps).toHaveLength(25);
+    expect(missingDeps[0]).toBe(
+      'T-010 tanpa depends_on; hanya task pertama yang boleh tanpa dependensi',
+    );
+    expect(errors).toContain(
+      'T-006 layer contract tidak dipakai: jalankan pnpm contract:generate di task api yang mengubah route atau skema Zod',
+    );
+    expect(errors).toContain(
+      'T-001 (layer db) tanpa tables; isi [] bila hanya mengubah tabel yang ada',
+    );
+  });
+});
+
 describe('prompts/stage-7a.md', () => {
-  it('versi 2 dengan ringkasan PRD (bukan PRD utuh), konvensi terpilih, dan daftar layer', () => {
+  it('versi 3 dengan ringkasan PRD (bukan PRD utuh), konvensi terpilih, layer, dan tabel template', () => {
     const prompt = loadPrompt('stage-7a');
-    expect(prompt.version).toBe('2');
+    expect(prompt.version).toBe('3');
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
       'digest',
       'conventions',
       'layers',
+      'templateTables',
     ]);
     expect(prompt.body).toContain('Kamu adalah tahap "Daftar Task"');
     expect(prompt.body).toContain('"Hapus fitur contoh notes"');
+    expect(prompt.body).toContain('"depends_on" WAJIB berisi minimal satu id');
+    expect(prompt.body).toContain('Jangan membuat task kontrak atau client Dart terpisah');
+    expect(prompt.body).not.toContain('fase 0 berisi skema dan migrasi tabel proyek');
     expect(prompt.body).not.toContain('{{prd}}');
   });
 });

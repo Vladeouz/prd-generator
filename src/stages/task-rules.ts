@@ -3,6 +3,17 @@
 
 export const TASK_LAYERS = ['infra', 'db', 'api', 'contract', 'app', 'test', 'docs'] as const;
 
+/**
+ * Layer yang boleh dipakai daftar task 7a. `contract` tidak termasuk: konvensi template mewajibkan
+ * `pnpm contract:generate` dijalankan dan di-commit bersama perubahan route atau skema Zod, jadi
+ * task kontrak terpisah membuat `pnpm check` task API-nya gagal (uji T-018). `TASK_LAYERS` tetap
+ * memuatnya agar TASKS.md lama masih terbaca validator.
+ */
+export const PLAN_LAYERS = TASK_LAYERS.filter((layer) => layer !== 'contract');
+
+/** Tabel yang sudah disediakan template: tidak perlu dibuat task (boleh diubah lewat migrasi). */
+export const TEMPLATE_TABLES = ['users'];
+
 /** Setup yang sudah ada di template: dikenali dari judul task atau file konfigurasinya. */
 export const TEMPLATE_SETUP: { name: string; title: RegExp; files: RegExp }[] = [
   { name: 'monorepo', title: /monorepo/i, files: /pnpm-workspace\.yaml/ },
