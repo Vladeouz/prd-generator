@@ -84,7 +84,7 @@ describe('GET /api/projects/{id}/graph', () => {
     const flow = createFlow(
       t.db,
       clock,
-      [F.stage2(), F.stage3(), F.stage4(), F.stage5(), F.stage6(), F.review2(), ...F.stage7()],
+      [F.stage2(), F.stage3(), F.stage4(), F.stage5(), F.stage6(), F.review2(), ...F.stage7Job()],
       { templateDir: template.dir },
     );
     await projectReadyForTasks(flow);

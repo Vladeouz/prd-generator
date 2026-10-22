@@ -6,7 +6,8 @@
 // Aturan:
 // - setiap task fase itu (dari 7a) muncul tepat sekali, tanpa task lain;
 // - `files` berisi minimal satu path, tanpa file setup yang sudah disediakan template;
-// - `done_when` berisi minimal satu kriteria, tanpa `pnpm check` (ditambahkan aplikasi);
+// - `done_when` berisi minimal satu kriteria, tanpa perintah `pnpm check` (ditambahkan aplikasi);
+//   menyebutnya dalam kalimat larangan diterima (T-033);
 // - `manual` (opsional) berisi kriteria dan langkah spesifik task itu, tanpa langkah persiapan baku.
 // Tambahan dari uji nyata T-018 (prompt versi 2):
 // - `files` berisi path saja; keterangan di `file_notes` (path → keterangan), agar path bisa disalin;
@@ -52,6 +53,19 @@ const isTextArray = (value: unknown): value is string[] =>
   value.every((item) => typeof item === 'string' && item.trim() !== '');
 
 const PNPM_CHECK = /pnpm check/i;
+const NEGATION = /\b(tidak|jangan|bukan|tanpa)\b/i;
+
+/**
+ * True bila kriteria menyebut `pnpm check` sebagai sesuatu yang dijalankan, bukan hanya dalam
+ * kalimat larangan ("pnpm check lain tidak dipakai; jalankan flutter test …", uji ulang T-018 fase 4
+ * percobaan 2). Diperiksa per anak kalimat (dipisah `;`, `,`, akhir kalimat, atau baris baru), agar
+ * larangan di anak kalimat lain tidak membenarkan perintah `pnpm check`.
+ */
+export function requiresPnpmCheck(criterion: string): boolean {
+  return criterion
+    .split(/[;,\n]|\.(?:\s|$)/)
+    .some((clause) => PNPM_CHECK.test(clause) && !NEGATION.test(clause));
+}
 const PREPARATION = /\.env\b|docker compose|flutter run/i;
 
 export function validateStage7b(output: unknown, phaseTasks: Stage7aTask[]): StageValidation {
@@ -114,7 +128,7 @@ export function validateStage7b(output: unknown, phaseTasks: Stage7aTask[]): Sta
     if (!isTextArray(item.done_when)) {
       errors.push(`${id} tanpa done_when`);
     } else {
-      if (item.done_when.some((c) => PNPM_CHECK.test(c))) {
+      if (item.done_when.some(requiresPnpmCheck)) {
         errors.push(`${id} done_when menyebut \`pnpm check\`; aplikasi menambahkannya sendiri`);
       }
       if (item.done_when.some((c) => TEST_DASH.test(c))) {

@@ -35,6 +35,23 @@ describe('ProgressStore', () => {
     expect(store.get('j1')).toEqual({ chars: 0, preview: '', attempt: 2, step: 2, totalSteps: 4 });
   });
 
+  it('jumlah fase selesai dan gagal dicatat tanpa mereset teks dan langkah (T-033)', () => {
+    const store = new ProgressStore();
+    store.startStep('j1', 2, 2);
+    store.report('j1', { kind: 'text', text: 'abc', chars: 3 });
+    store.setPhases('j1', 1, 4, 1);
+    expect(store.get('j1')).toEqual({
+      chars: 3,
+      preview: 'abc',
+      attempt: 1,
+      step: 2,
+      totalSteps: 2,
+      phasesDone: 1,
+      phasesFailed: 1,
+      phasesTotal: 4,
+    });
+  });
+
   it('pendengar menerima progres, lalu done saat selesai; progres dihapus', () => {
     const store = new ProgressStore();
     const events: ProgressEvent[] = [];

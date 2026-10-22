@@ -4,6 +4,7 @@ import { and, asc, eq, isNotNull } from 'drizzle-orm';
 import { type ClaudeProfileConfig, claudeProfile, STAGE_PROFILES } from '../core/config/claude.ts';
 import type { Db } from '../core/db/client.ts';
 import { type STAGES, stageRuns } from '../core/db/schema.ts';
+import { STAGE7B_CONCURRENCY } from '../stages/attempts.ts';
 import { loadPrompt } from '../stages/prompt.ts';
 import { stageOfRun } from '../stages/run-stage.ts';
 
@@ -161,19 +162,23 @@ export function currentEstimateSettings(
  * detik, dan model lain (T-035) punya durasi yang jauh berbeda. Run sebelum T-035 tidak mencatat
  * model, jadi tidak dihitung.
  * - Tahap 6: rata-rata satu pemanggilan.
- * - Tahap 7 (D-11): rata-rata pemanggilan 7a ditambah rata-rata pemanggilan 7b per fase dikali
- *   `phases`, masing-masing dengan versi prompt-nya sendiri. Run tahap 7 lama hasil migrasi
- *   (`stage7b` tanpa scope) tidak dihitung.
+ * - Tahap 7 (D-11): token adalah rata-rata pemanggilan 7a ditambah rata-rata pemanggilan 7b per
+ *   fase dikali `phases`, masing-masing dengan versi prompt-nya sendiri. Detail fase berjalan
+ *   bersamaan (T-033), jadi durasinya rata-rata 7a ditambah durasi fase terlama (rata-rata per fase,
+ *   lalu yang terbesar), dikali jumlah gelombang bila `concurrency` lebih kecil dari `phases`. Run
+ *   tahap 7 lama hasil migrasi (`stage7b` tanpa scope) tidak dihitung.
  */
 export function stageEstimate(
   { db }: { db: Db },
   stage: 'stage6' | 'stage7',
   phases = 4,
   settings: Record<EstimateRunStage, EstimateSetting> = currentEstimateSettings(),
+  concurrency = STAGE7B_CONCURRENCY,
 ): StageEstimate {
   const rowsOf = (runStage: EstimateRunStage) =>
     db
       .select({
+        scope: stageRuns.scope,
         durationMs: stageRuns.durationMs,
         inputTokens: stageRuns.inputTokens,
         outputTokens: stageRuns.outputTokens,
@@ -203,8 +208,11 @@ export function stageEstimate(
   }
   const a = averageOf(list);
   const b = averageOf(details);
+  const scopes = Map.groupBy(details, (row) => row.scope);
+  const longest = Math.max(...[...scopes.values()].map((rows) => averageOf(rows).durationMs));
+  const waves = Math.ceil(phases / Math.max(1, Math.min(concurrency, phases)));
   return {
-    durationMs: a.durationMs + b.durationMs * phases,
+    durationMs: a.durationMs + longest * waves,
     inputTokens: a.inputTokens + b.inputTokens * phases,
     outputTokens: a.outputTokens + b.outputTokens * phases,
     basis: 'average',
