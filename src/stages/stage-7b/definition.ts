@@ -2,6 +2,7 @@
 // - Prompt: bagian konvensi 7b di awal (sama untuk setiap fase, sehingga bisa dibaca dari cache),
 //   task fase itu dari output 7a yang berlaku, dan hanya bagian PRD yang dirujuk task-nya.
 // - Run dicatat sebagai `stage7b` dengan `scope` nomor fase; percobaan ulang (D-08) per fase.
+import { STAGE_PROFILES } from '../../core/config/claude.ts';
 import { latestDocument } from '../../projects/documents.ts';
 import { readStageConventions } from '../conventions.ts';
 import { extractJson } from '../parse.ts';
@@ -29,6 +30,7 @@ export function stage7bDefinition(
     runStage: 'stage7b',
     scope: String(phase.phase),
     promptVersion: prompt.version,
+    profile: STAGE_PROFILES.stage7b,
     buildPrompt: async ({ db, projectId }) => {
       const { sections } = await readStageConventions(
         templateDir(),

@@ -16,6 +16,7 @@ import { createTestDb, type TestDb } from '../../helpers/db.ts';
 const stage2: StageDefinition<{ questions: unknown[] }> = {
   stage: 'stage2',
   promptVersion: 'test-1',
+  profile: 'standard',
   buildPrompt: () => 'PROMPT',
   parse: (result) => JSON.parse(result) as { questions: unknown[] },
   validate: (output) => ({

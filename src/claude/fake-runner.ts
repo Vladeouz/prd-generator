@@ -37,6 +37,8 @@ export type FakeRunnerOptions = {
 export class FakeClaudeRunner implements ClaudeRunner {
   /** Prompt yang diterima, berurutan. */
   readonly prompts: string[] = [];
+  /** Model dan effort yang diminta per pemanggilan, berurutan (sejajar dengan `prompts`). */
+  readonly calls: { model: string | undefined; effort: string | undefined }[] = [];
   private readonly queue: FakeResponse[];
   private readonly chunkSize: number;
   private readonly chunkDelayMs: number;
@@ -49,6 +51,7 @@ export class FakeClaudeRunner implements ClaudeRunner {
 
   async run(prompt: string, options: ClaudeRunOptions = {}): Promise<ClaudeResult> {
     this.prompts.push(prompt);
+    this.calls.push({ model: options.model, effort: options.effort });
     const next = this.queue.shift();
     if (next === undefined) {
       throw new Error(

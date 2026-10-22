@@ -8,8 +8,10 @@
 // - Output yang valid disusun dengan bagian 8 (`composePrd`) dan disimpan sebagai dokumen `prd`
 //   versi berikutnya. Proyek lalu pindah ke review kedua, atau ke TASKS bila PRD ini ditulis ulang
 //   setelah keputusan review kedua.
+
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
+import { STAGE_PROFILES } from '../../core/config/claude.ts';
 import { decisions, documents, projects } from '../../core/db/schema.ts';
 import { composePrd, prdAppendix } from '../../projects/compose-prd.ts';
 import { readStageConventions } from '../conventions.ts';
@@ -45,6 +47,7 @@ export function stage6Definition({
   return {
     stage: 'stage6',
     promptVersion: prompt.version,
+    profile: STAGE_PROFILES.stage6,
     notReadyReason: ({ db, projectId }) =>
       reachedStage(db, projectId, 'stage6')
         ? null

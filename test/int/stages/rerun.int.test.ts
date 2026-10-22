@@ -4,7 +4,7 @@ import type { ClaudeResult } from '../../../src/claude/types.ts';
 import type { Clock } from '../../../src/core/clock.ts';
 import { decisions, documents, stageRuns } from '../../../src/core/db/schema.ts';
 import {
-  currentPromptVersions,
+  currentEstimateSettings,
   getStageUsage,
   stageEstimate,
   TEST_ESTIMATES,
@@ -182,8 +182,13 @@ describe('pemakaian token dan perkiraan (FR-10)', () => {
         outputTokens: fixture.outputTokens,
         costUsd: fixture.costUsd,
         durationMs: fixture.durationMs,
+        model: 'sonnet',
+        effort: 'low',
       });
     }
+    // Model dan effort pemanggilan per tahap (D-14): review kedua memakai profil reasoning.
+    expect(usage.review2).toMatchObject({ model: 'opus', effort: 'medium' });
+    expect(usage.stage7).toMatchObject({ model: 'sonnet', effort: 'low' });
     // Tahap 7: 7a dan 7b keempat fase dijumlahkan, termasuk durasi run yang berlaku.
     const stage7 = F.stage7();
     const sum = (pick: (f: ClaudeResult) => number | null) =>
@@ -237,7 +242,7 @@ describe('pemakaian token dan perkiraan (FR-10)', () => {
     const flow = flowWith(...F.stage7());
     await projectWithTasks(flow);
     await runStage(flow, 'stage7');
-    const versions = currentPromptVersions();
+    const settings = currentEstimateSettings();
     const before6 = stageEstimate({ db: t.db }, 'stage6');
     expect(before6.basis).toBe('average');
 
@@ -260,7 +265,12 @@ describe('pemakaian token dan perkiraan (FR-10)', () => {
     // Semua run 7a dari versi prompt lama: tahap 7 kembali ke angka uji, begitu juga bila versi
     // prompt 7b yang dipakai belum pernah dijalankan.
     expect(stageEstimate({ db: t.db }, 'stage7').basis).toBe('average');
-    expect(stageEstimate({ db: t.db }, 'stage7', 4, { ...versions, stage7b: '99' })).toEqual({
+    expect(
+      stageEstimate({ db: t.db }, 'stage7', 4, {
+        ...settings,
+        stage7b: { ...settings.stage7b, promptVersion: '99' },
+      }),
+    ).toEqual({
       ...TEST_ESTIMATES.stage7,
       basis: 'test',
       samples: 0,
@@ -270,6 +280,49 @@ describe('pemakaian token dan perkiraan (FR-10)', () => {
       ...TEST_ESTIMATES.stage7,
       basis: 'test',
       samples: 0,
+    });
+  });
+
+  it('perkiraan hanya dari run dengan model dan effort yang sedang dipakai (T-035)', async () => {
+    const flow = flowWith(...F.stage7());
+    await projectWithTasks(flow);
+    const settings = currentEstimateSettings();
+    expect(settings.stage6).toMatchObject({ model: 'sonnet', effort: 'low' });
+    const before = stageEstimate({ db: t.db }, 'stage6');
+    expect(before).toMatchObject({ basis: 'average', samples: 1 });
+
+    // Run dengan versi prompt sama tetapi model atau effort lain, dan run sebelum T-035 (tanpa model).
+    const base = t.db.select().from(stageRuns).where(eq(stageRuns.stage, 'stage6')).get();
+    const slow = {
+      durationMs: 9_000_000,
+      inputTokens: 900_000,
+      outputTokens: 900_000,
+      isCurrent: 0,
+    };
+    t.db
+      .insert(stageRuns)
+      .values([
+        { ...(base as typeof stageRuns.$inferSelect), ...slow, id: 'opus', model: 'opus' },
+        { ...(base as typeof stageRuns.$inferSelect), ...slow, id: 'high', effort: 'high' },
+        {
+          ...(base as typeof stageRuns.$inferSelect),
+          ...slow,
+          id: 'lama',
+          model: null,
+          effort: null,
+        },
+      ])
+      .run();
+    expect(stageEstimate({ db: t.db }, 'stage6')).toEqual(before);
+
+    // Bila pengaturan diganti ke Opus, hanya run Opus yang dirata-rata.
+    const opus = { ...settings, stage6: { ...settings.stage6, model: 'opus' } };
+    expect(stageEstimate({ db: t.db }, 'stage6', 4, opus)).toEqual({
+      durationMs: 9_000_000,
+      inputTokens: 900_000,
+      outputTokens: 900_000,
+      basis: 'average',
+      samples: 1,
     });
   });
 });

@@ -1,7 +1,9 @@
 // Review kedua: PRD yang sudah ditulis diperiksa sebelum dipecah menjadi task (FR-07). Prompt berisi
 // bagian `docs/conventions.md` review kedua dari `TEMPLATE_DIR` apa adanya (D-10); template yang
 // tidak valid atau heading yang hilang menggagalkan job sebelum `claude` dipanggil.
+
 import { and, eq } from 'drizzle-orm';
+import { STAGE_PROFILES } from '../../core/config/claude.ts';
 import { decisions, projects } from '../../core/db/schema.ts';
 import { latestDocument } from '../../projects/documents.ts';
 import { readStageConventions } from '../conventions.ts';
@@ -20,6 +22,7 @@ export function review2Definition({
   return {
     stage: 'review2',
     promptVersion: prompt.version,
+    profile: STAGE_PROFILES.review2,
     notReadyReason: ({ db, projectId }) =>
       latestDocument(db, projectId, 'prd') && reachedStage(db, projectId, 'review2')
         ? null

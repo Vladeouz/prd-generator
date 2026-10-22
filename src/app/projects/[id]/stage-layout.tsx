@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Card } from '../../../components/ui/card.tsx';
 import type { StageUsage } from '../../../projects/projects.ts';
-import { formatCost, formatDuration, formatTokens } from '../format.ts';
+import { formatCost, formatDuration, formatModel, formatTokens } from '../format.ts';
 
 type Props = {
   id: string;
@@ -86,6 +86,7 @@ export function UsageCard({ usage }: { usage: StageUsage | undefined }) {
               formatTokens(usage),
               formatCost(usage.costUsd),
               usage.durationMs !== null ? formatDuration(usage.durationMs) : '',
+              formatModel(usage),
             ]
               .filter(Boolean)
               .join(' · ')

@@ -11,6 +11,12 @@ export function formatTokens({ inputTokens, outputTokens }: TokenTotals): string
   return `${numberFormat.format(inputTokens)} input · ${numberFormat.format(outputTokens)} output`;
 }
 
+/** Model dan effort pemanggilan (D-14), contoh `opus · effort medium`; kosong bila tidak tercatat. */
+export function formatModel({ model, effort }: { model: string | null; effort: string | null }) {
+  if (!model) return '';
+  return effort ? `${model} · effort ${effort}` : model;
+}
+
 /** Tanggal dan jam lokal untuk timestamp ISO, contoh `12 Okt 2026 15.04`. */
 export function formatDateTime(iso: string): string {
   return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(

@@ -358,8 +358,22 @@ describe('getStageUsage (stepper dan panel pemakaian, T-020)', () => {
     insertRun(other.id, 'stage2', { input: 7, output: 7 });
 
     expect(getStageUsage({ db: t.db }, id)).toEqual({
-      stage2: { inputTokens: 25_000, outputTokens: 1_590, costUsd: 0, durationMs: 19_000 },
-      stage3: { inputTokens: 50, outputTokens: 5, costUsd: 0, durationMs: null },
+      stage2: {
+        inputTokens: 25_000,
+        outputTokens: 1_590,
+        costUsd: 0,
+        durationMs: 19_000,
+        model: null,
+        effort: null,
+      },
+      stage3: {
+        inputTokens: 50,
+        outputTokens: 5,
+        costUsd: 0,
+        durationMs: null,
+        model: null,
+        effort: null,
+      },
     });
     expect(getStageUsage({ db: t.db }, 'tidak-ada')).toEqual({});
   });

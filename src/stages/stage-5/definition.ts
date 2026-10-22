@@ -1,5 +1,7 @@
 // Tahap 5: review kritis atas draft rencana sebelum PRD ditulis (FR-06).
+
 import { and, eq } from 'drizzle-orm';
+import { STAGE_PROFILES } from '../../core/config/claude.ts';
 import type { Db } from '../../core/db/client.ts';
 import { decisions, PROJECT_STAGES, projects } from '../../core/db/schema.ts';
 import { extractJson } from '../parse.ts';
@@ -30,6 +32,7 @@ export function stage5Definition(): StageDefinition<Stage5Output> {
   return {
     stage: 'stage5',
     promptVersion: prompt.version,
+    profile: STAGE_PROFILES.stage5,
     notReadyReason: ({ db, projectId }) => {
       if (!featureDraft(db, projectId)) {
         return 'Jalankan struktur fitur dulu sebelum review kritis.';

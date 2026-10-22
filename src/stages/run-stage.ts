@@ -1,7 +1,8 @@
 // Eksekusi satu tahap secara generik (FR-02, D-08), diturunkan dari `runStage` di
 // docs/reference/e2e-gym.mjs:
 // - output yang gagal parse atau validasi dicoba ulang SEKALI dengan daftar error-nya;
-// - setiap percobaan dicatat di stage_runs (versi prompt, output mentah, token, biaya, durasi);
+// - setiap percobaan dicatat di stage_runs (versi prompt, model dan effort profil tahap, output
+//   mentah, token, biaya, durasi);
 // - hanya percobaan yang valid yang menjadi `is_current = 1`, menggantikan output tahap itu
 //   sebelumnya dalam satu transaksi;
 // - kegagalan runner (exit code, batas waktu, envelope rusak, is_error) tidak dicoba ulang dan
@@ -15,6 +16,11 @@ import {
   type ClaudeRunOptions,
 } from '../claude/types.ts';
 import type { Clock } from '../core/clock.ts';
+import {
+  type ClaudeProfile,
+  type ClaudeProfileConfig,
+  claudeProfile,
+} from '../core/config/claude.ts';
 import type { Db } from '../core/db/client.ts';
 import {
   DOCUMENT_KINDS,
@@ -57,6 +63,8 @@ export type StageDefinition<T = unknown> = {
   scope?: string | null;
   /** `version` dari front matter prompt di prompts/. */
   promptVersion: string;
+  /** Profil model dan effort (D-14), dari `STAGE_PROFILES`. */
+  profile: ClaudeProfile;
   /**
    * Prasyarat sebelum tahap boleh dijalankan; mengembalikan alasan (Bahasa Indonesia) bila belum
    * terpenuhi, yang dikirim ke user sebagai 409.
@@ -182,6 +190,8 @@ export type RunStageDeps = {
   onProgress?: ClaudeRunOptions['onProgress'];
   /** Langkah ke-`step` dari `totalSteps` dimulai, untuk tahap berlangkah (tahap 7: 7a lalu 7b per fase). */
   onStep?: (step: number, totalSteps: number) => void;
+  /** Model dan effort per profil; bawaan dari env saat tahap dijalankan (`claudeProfile`). */
+  profiles?: (profile: ClaudeProfile) => ClaudeProfileConfig;
 };
 
 /**
@@ -219,6 +229,13 @@ export async function runStage<T>(
   }
   const runStage = definition.runStage ?? (definition.stage as RunStage);
   const scope = definition.scope ?? null;
+  // Env yang tidak valid menggagalkan tahap sebelum prompt dibuat dan `claude` dipanggil (FR-11).
+  const { model, effort, problems } = (deps.profiles ?? claudeProfile)(definition.profile);
+  if (problems.length > 0) {
+    throw new StageFailedError(
+      `Pengaturan model profil ${definition.profile} belum valid, jadi tahap ini belum bisa dijalankan: ${problems.join(' ')} Perbaiki di .env, lalu jalankan ulang server.`,
+    );
+  }
   // `await` hanya untuk prompt async: prompt sinkron tetap dikirim ke runner pada tick yang sama.
   const built = definition.buildPrompt({ db, projectId });
   const prompt = typeof built === 'string' ? built : await built;
@@ -233,13 +250,15 @@ export async function runStage<T>(
       scope,
       attempt,
       promptVersion: definition.promptVersion,
+      model,
+      effort,
       createdAt,
     };
 
     let result: ClaudeResult;
     try {
       deps.onAttempt?.(attempt);
-      result = await runner.run(currentPrompt, { onProgress: deps.onProgress });
+      result = await runner.run(currentPrompt, { model, effort, onProgress: deps.onProgress });
     } catch (error) {
       if (!(error instanceof ClaudeRunError)) throw error;
       db.insert(stageRuns)
@@ -254,6 +273,15 @@ export async function runStage<T>(
         })
         .run();
       throw new StageFailedError(error.message);
+    }
+
+    // Log server: model yang diminta profil dan model yang dilaporkan Claude Code di event `init`
+    // (verifikasi manual T-035). Runner palsu tidak punya event `init`.
+    if (result.initModel) {
+      const label = scope === null ? runStage : `${runStage} fase ${scope}`;
+      console.info(
+        `[${label}] profil ${definition.profile}: diminta ${model} (effort ${effort}), Claude Code memakai ${result.initModel}.`,
+      );
     }
 
     const measured = {

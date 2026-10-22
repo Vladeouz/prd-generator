@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { claudeProfile } from '../../../src/core/config/claude.ts';
 import { checkClaude, getSettings } from '../../../src/template/settings.ts';
 import { readTemplate } from '../../../src/template/template.ts';
 import { TEMPLATE_CONVENTIONS, TEMPLATE_SECTIONS } from '../../helpers/template-repo.ts';
@@ -106,6 +107,7 @@ describe('getSettings', () => {
     const settings = await getSettings({
       templateDir: dir,
       checkClaude: () => checkClaude(FAKE_CLAUDE),
+      profiles: (profile) => claudeProfile(profile, {}),
     });
     expect(settings).toEqual({
       templateDir: dir,
@@ -113,7 +115,52 @@ describe('getSettings', () => {
       claudeAvailable: true,
       claudeVersion: '9.9.9 (Claude Code palsu)',
       problems: [],
+      claudeProfiles: [
+        {
+          profile: 'standard',
+          model: 'sonnet',
+          effort: 'low',
+          problems: [],
+          modelVar: 'CLAUDE_MODEL',
+          effortVar: 'CLAUDE_EFFORT',
+          stages: [
+            'Klarifikasi produk',
+            'Klarifikasi teknis',
+            'Struktur fitur',
+            'Review kritis',
+            'PRD',
+            'TASKS (daftar task)',
+            'TASKS (detail per fase)',
+          ],
+        },
+        {
+          profile: 'reasoning',
+          model: 'opus',
+          effort: 'medium',
+          problems: [],
+          modelVar: 'CLAUDE_MODEL_REASONING',
+          effortVar: 'CLAUDE_EFFORT_REASONING',
+          stages: ['Review kedua'],
+        },
+      ],
     });
+  });
+
+  it('profil dengan env tidak valid: masalahnya di profil itu, bukan di masalah template', async () => {
+    makeTemplate(TEMPLATE_CONVENTIONS);
+    const settings = await getSettings({
+      templateDir: dir,
+      checkClaude: () => checkClaude(FAKE_CLAUDE),
+      profiles: (profile) =>
+        claudeProfile(profile, { CLAUDE_MODEL_REASONING: 'opus 5', CLAUDE_EFFORT: 'maks' }),
+    });
+    expect(settings.problems).toEqual([]);
+    const [standard, reasoning] = settings.claudeProfiles;
+    expect(standard?.problems).toEqual([
+      'CLAUDE_EFFORT tidak valid: "maks". Pilih salah satu: low, medium, high, xhigh, max.',
+    ]);
+    expect(reasoning?.problems).toHaveLength(1);
+    expect(reasoning?.problems[0]).toContain('CLAUDE_MODEL_REASONING tidak valid: "opus 5"');
   });
 
   it('heading konvensi yang dibutuhkan tidak ada: masalah menyebut heading dan tahapnya', async () => {

@@ -16,6 +16,7 @@ import type { Db } from '../core/db/client.ts';
 import { ACTIVE_JOB_STATUSES, jobs, projects, stageRuns } from '../core/db/schema.ts';
 import { AppError } from '../core/errors.ts';
 import {
+  type RunStageDeps,
   runStage,
   runStagesOf,
   type Stage,
@@ -37,6 +38,8 @@ export type JobQueueDeps = {
   runner: ClaudeRunner;
   clock: Clock;
   stages: StageRegistry;
+  /** Model dan effort per profil (D-14); bawaan dari env saat tahap dijalankan. */
+  profiles?: RunStageDeps['profiles'];
   /** Bawaan: store bersama di globalThis. Test memberi store sendiri. */
   progress?: ProgressStore;
 };

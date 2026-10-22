@@ -22,6 +22,13 @@
       "when": 1792561827783,
       "tag": "0002_stage7a_stage7b_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792659824693,
+      "tag": "0003_stage_runs_model_effort",
+      "breakpoints": true
     }
   ]
 }

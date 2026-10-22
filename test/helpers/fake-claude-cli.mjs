@@ -42,13 +42,22 @@ const usage = {
   output_tokens: 42,
 };
 
+/**
+ * Model di event `init`: nilai `--model` dengan akhiran `-palsu` (Claude Code menulis nama model lengkap
+ * di sini), atau `claude-palsu` bila tidak ada.
+ */
+const initModel = () => {
+  const at = process.argv.indexOf('--model');
+  return at === -1 ? 'claude-palsu' : `${process.argv[at + 1]}-palsu`;
+};
+
 const line = (event) => process.stdout.write(`${JSON.stringify(event)}\n`);
 
 /** Mencetak envelope sebagai stream: init, thinking, potongan teks `result`, lalu event result. */
 async function stream(envelope, { withResult = true } = {}) {
   const size = Number(process.env.FAKE_CLAUDE_CHUNK_SIZE ?? 2000);
   const delayMs = Number(process.env.FAKE_CLAUDE_CHUNK_DELAY_MS ?? 0);
-  line({ type: 'system', subtype: 'init', model: 'claude-palsu', tools: [], mcp_servers: [] });
+  line({ type: 'system', subtype: 'init', model: initModel(), tools: [], mcp_servers: [] });
   line({ type: 'system', subtype: 'thinking_tokens', estimated_tokens: 50 });
   const text = typeof envelope.result === 'string' ? envelope.result : '';
   for (let at = 0; at < text.length; at += size) {

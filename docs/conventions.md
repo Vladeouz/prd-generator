@@ -218,9 +218,9 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - `GET /api/jobs/{id}` mengembalikan job beserta `attempts` (`JobQueue.attempts`: percobaan job itu dari `stage_runs`, dikenali dari proyek, tahap, dan waktu mulai job). `StageRunner` menampilkan `attemptNote` ("Percobaan 2 dari 2. Percobaan 1 ditolak: …") selama job berjalan. `MAX_ATTEMPTS` ada di `src/stages/attempts.ts` agar bisa dipakai komponen klien.
 - Fixture **verifikasi** di `test/fixtures/claude/verification/`: output nyata dari verifikasi manual yang dipakai sebagai test regresi, disalin apa adanya dari database lokal, dengan sumbernya di field `fixture_source` (contoh: `t014-prd.md` dan `t014-stage7-attempt{1,2}.json`).
 - Pemakaian token (`src/projects/usage.ts`, FR-10):
-  - `getStageUsage` menghitung token input/output dan biaya per tahap dari semua percobaan, dan durasi dari run yang berlaku. `usageTotals` menghitung total proyek;
-  - tampil di `UsageCard` per tahap dan `UsageSummary` (kolom stepper). Biaya diformat `formatCost` ("$0,72") dan selalu disebut perkiraan;
-  - `stageEstimate(db, 'stage6' | 'stage7', phases?)` merata-rata pemanggilan sebelumnya di semua proyek, hanya yang memakai versi prompt saat ini (`currentPromptVersions`: `stage-6`, `stage-7a`, `stage-7b`; T-032). Menaikkan versi prompt berarti perkiraan kembali ke `TEST_ESTIMATES` sampai ada pemanggilan dengan versi baru. Tahap 7 dihitung sebagai rata-rata 7a ditambah rata-rata 7b × jumlah fase, tanpa run lama `stage7b` yang tidak punya scope. Bila belum ada pemanggilan, dipakai `TEST_ESTIMATES` (tahap 6 dari verifikasi T-025, tahap 7 dari target NFR-06). Durasi tahap 7 di pemakaian adalah jumlah run yang berlaku;
+  - `getStageUsage` menghitung token input/output dan biaya per tahap dari semua percobaan, durasi dari run yang berlaku, serta model dan effort pemanggilan terakhir (null untuk run sebelum T-035). `usageTotals` menghitung total proyek;
+  - tampil di `UsageCard` per tahap dan `UsageSummary` (kolom stepper), model dan effort lewat `formatModel` ("opus · effort medium"). Biaya diformat `formatCost` ("$0,72") dan selalu disebut perkiraan;
+  - `stageEstimate(db, 'stage6' | 'stage7', phases?)` merata-rata pemanggilan sebelumnya di semua proyek, hanya yang memakai versi prompt, model, dan effort saat ini (`currentEstimateSettings`: versi `stage-6`, `stage-7a`, `stage-7b` dan profil tahapnya; T-032, T-035). Menaikkan versi prompt atau mengganti model/effort berarti perkiraan kembali ke `TEST_ESTIMATES` sampai ada pemanggilan dengan pengaturan baru; run sebelum T-035 (tanpa model) tidak dihitung. Tahap 7 dihitung sebagai rata-rata 7a ditambah rata-rata 7b × jumlah fase, tanpa run lama `stage7b` yang tidak punya scope. Bila belum ada pemanggilan, dipakai `TEST_ESTIMATES` (tahap 6 dari verifikasi T-025, tahap 7 dari target NFR-06). Durasi tahap 7 di pemakaian adalah jumlah run yang berlaku;
   - teks konfirmasinya dari `confirmationText` (`run-confirmation.ts`), ditampilkan `StageRunner` (prop `confirmation`) dan `DecisionForm` (`regenerateConfirmation`) sebagai panel di halaman, bukan dialog browser.
 - Menjalankan ulang tahap: `invalidateLaterStages` (`run-stage.ts`) berjalan di transaksi output yang berhasil, sebelum `onSuccess`:
   - output tahap sesudahnya `is_current = 0`;
@@ -247,11 +247,22 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 
   ```
   claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1
-    --model <CLAUDE_MODEL> --effort low --system-prompt "<CLAUDE_SYSTEM_PROMPT>" --tools ""
+    --model <model profil> --effort <effort profil> --system-prompt "<CLAUDE_SYSTEM_PROMPT>" --tools ""
     --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence
   ```
 
-  - `CLAUDE_MODEL` (opsional, `.env`, bawaan `sonnet`, `claudeModel()` di `src/core/config/claude.ts`). Nilainya divalidasi sebelum dipakai: alias atau nama lengkap tanpa spasi atau karakter shell. Bila tidak valid, `INVALID_CONFIG`.
+  - **Profil model dan effort** (D-14, T-035; `src/core/config/claude.ts`):
+
+    | Profil | Variabel `.env` (opsional) | Bawaan | Tahap |
+    | --- | --- | --- | --- |
+    | `standard` | `CLAUDE_MODEL`, `CLAUDE_EFFORT` | `sonnet`, `low` (D-09) | 2–6, 7a, 7b |
+    | `reasoning` | `CLAUDE_MODEL_REASONING`, `CLAUDE_EFFORT_REASONING` | `opus`, `medium` (spike T-034) | review kedua |
+
+  - Pemetaan tahap ada di satu tempat, `STAGE_PROFILES`. Setiap definisi tahap wajib mengisi `profile: STAGE_PROFILES.<tahap>`; tahap baru ditambahkan ke `STAGE_PROFILES` dulu.
+  - `claudeProfile(profile, env?)` membaca env saat tahap dijalankan (kosong → bawaan) dan mengembalikan `problems`: model harus alias atau nama lengkap tanpa spasi atau karakter shell, effort salah satu `CLAUDE_EFFORTS` (`low`, `medium`, `high`, `xhigh`, `max`). Pesannya menyebut nama variabel.
+  - `runStage` memeriksa profil tahap sebelum prompt dibuat. Bila ada masalah, tahap gagal (`StageFailedError`) tanpa memanggil `claude` dan tanpa baris `stage_runs`. Bila valid, model dan effort dikirim per pemanggilan (`ClaudeRunOptions.model`/`effort`) dan dicatat di `stage_runs.model`/`effort`. Runner tidak menyimpan effort tetap; tanpa opsi per pemanggilan ia memakai bawaan profil `standard`, dan tetap menolak nilai tidak valid dengan `INVALID_CONFIG` sebagai pengaman terakhir.
+  - Test memberi profil lewat `JobQueueDeps.profiles`/`RunStageDeps.profiles` (`createFlow` memakai env kosong), bukan lewat `process.env`. `FakeClaudeRunner.calls` mencatat model dan effort per pemanggilan.
+  - Halaman Pengaturan dan `GET /api/settings` (`claudeProfiles`) menampilkan model, effort, tahap, dan masalah setiap profil (`profileSettings` di `src/template/settings.ts`). `pnpm claude:smoke` memakai profil `standard`.
   - Extended thinking tidak bisa dimatikan di Sonnet 5.5. `--effort low` menguranginya (D-09).
   - Tidak dipakai, karena tidak berpengaruh: `MAX_THINKING_TOKENS=0`, `alwaysThinkingEnabled: false`, dan `--safe-mode`.
   - Tidak dipakai, karena tidak cocok: `--bare`, yang auth-nya hanya API key, bukan langganan.

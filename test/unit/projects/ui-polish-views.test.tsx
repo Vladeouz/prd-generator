@@ -19,9 +19,11 @@ import {
   splitRequirementId,
 } from '../../../src/components/ui/markdown-outline.ts';
 import { MarkdownPreview } from '../../../src/components/ui/markdown-preview.tsx';
+import { claudeProfile } from '../../../src/core/config/claude.ts';
 import { composePrd } from '../../../src/projects/compose-prd.ts';
 import type { ProjectDetail } from '../../../src/projects/projects.ts';
 import { TEST_ESTIMATES } from '../../../src/projects/usage.ts';
+import { profileSettings } from '../../../src/template/settings.ts';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 
@@ -232,6 +234,7 @@ describe('landmark konten utama (tautan "Lewati ke konten utama")', () => {
             problems: ['TEMPLATE_DIR belum diisi'],
             claudeAvailable: false,
             claudeVersion: null,
+            claudeProfiles: profileSettings((p) => claudeProfile(p, {})),
           }}
         />,
       ),
