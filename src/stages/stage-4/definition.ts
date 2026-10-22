@@ -1,5 +1,7 @@
 // Tahap 4: struktur fitur dan draft fase (FR-05).
+
 import { eq } from 'drizzle-orm';
+import { STAGE_PROFILES } from '../../core/config/claude.ts';
 import { featureChoices, projects } from '../../core/db/schema.ts';
 import { storedAnswers } from '../answers.ts';
 import { extractJson } from '../parse.ts';
@@ -14,6 +16,7 @@ export function stage4Definition(): StageDefinition<Stage4Output> {
   return {
     stage: 'stage4',
     promptVersion: prompt.version,
+    profile: STAGE_PROFILES.stage4,
     notReadyReason: ({ db, projectId }) => {
       if (!currentOutput(db, projectId, 'stage3')) {
         return 'Jalankan klarifikasi teknis dulu sebelum struktur fitur.';

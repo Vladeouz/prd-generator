@@ -3,6 +3,7 @@
 // - Prompt berisi ringkasan PRD yang disusun aplikasi (`prdDigest`), bukan PRD utuh, dan bagian
 //   konvensi tahap 7a dari `TEMPLATE_DIR` apa adanya (D-10).
 // - Run dicatat sebagai `stage7a` (job tetap `stage7`).
+import { STAGE_PROFILES } from '../../core/config/claude.ts';
 import type { Db } from '../../core/db/client.ts';
 import { latestDocument } from '../../projects/documents.ts';
 import { formatPrdDigest, type PrdDigest, prdDigest } from '../../projects/prd-digest.ts';
@@ -47,6 +48,7 @@ export function stage7aDefinition({
     stage: 'stage7',
     runStage: 'stage7a',
     promptVersion: prompt.version,
+    profile: STAGE_PROFILES.stage7a,
     notReadyReason: ({ db, projectId }) =>
       latestDocument(db, projectId, 'prd') && reachedStage(db, projectId, 'stage7')
         ? null

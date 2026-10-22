@@ -1,6 +1,8 @@
 // Membaca stdout `claude -p --output-format stream-json --verbose --include-partial-messages`
 // baris demi baris (D-12, spike T-022):
 // - `stream_event` dengan `content_block_delta`/`text_delta` adalah potongan teks jawaban;
+// - `system`/`init` menyebut model yang dipakai Claude Code (`model`, nama lengkap), dikembalikan
+//   sebagai `initModel`;
 // - `system`/`thinking_tokens` (tidak terdokumentasi) berisi perkiraan token thinking selama model
 //   berpikir, sebelum teks pertama keluar;
 // - event terakhir `type: "result"` berbentuk sama dengan envelope `--output-format json` (`result`,
@@ -14,6 +16,7 @@ type StreamEvent = {
   type?: string;
   subtype?: string;
   estimated_tokens?: number;
+  model?: string;
   event?: { type?: string; delta?: { type?: string; text?: string } };
 };
 
@@ -30,6 +33,7 @@ export class StreamReader {
   private pending = '';
   private chars = 0;
   private resultLine: string | null = null;
+  private initModel: string | null = null;
   private readonly onProgress: ((progress: ClaudeProgress) => void) | undefined;
 
   constructor(onProgress?: (progress: ClaudeProgress) => void) {
@@ -62,7 +66,7 @@ export class StreamReader {
       );
     }
     try {
-      return parseEnvelope(this.resultLine, durationMs);
+      return { ...parseEnvelope(this.resultLine, durationMs), initModel: this.initModel };
     } catch (error) {
       // Detail error memuat seluruh stream, bukan hanya baris result, untuk keterlacakan.
       if (error instanceof ClaudeRunError) {
@@ -78,6 +82,10 @@ export class StreamReader {
     if (!event) return;
     if (event.type === 'result') {
       this.resultLine = line;
+      return;
+    }
+    if (event.type === 'system' && event.subtype === 'init') {
+      this.initModel = typeof event.model === 'string' ? event.model : null;
       return;
     }
     if (event.type === 'system' && event.subtype === 'thinking_tokens') {

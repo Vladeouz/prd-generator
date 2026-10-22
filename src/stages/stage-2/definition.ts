@@ -1,5 +1,7 @@
 // Tahap 2: klarifikasi produk (FR-03).
+
 import { and, eq } from 'drizzle-orm';
+import { STAGE_PROFILES } from '../../core/config/claude.ts';
 import { answers, projects } from '../../core/db/schema.ts';
 import { extractJson } from '../parse.ts';
 import { loadPrompt, renderPrompt } from '../prompt.ts';
@@ -11,6 +13,7 @@ export function stage2Definition(): StageDefinition<Stage2Output> {
   return {
     stage: 'stage2',
     promptVersion: prompt.version,
+    profile: STAGE_PROFILES.stage2,
     buildPrompt: ({ db, projectId }) => {
       const project = db
         .select({ idea: projects.idea })

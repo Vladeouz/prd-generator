@@ -79,6 +79,60 @@ export function SettingsView({ settings }: { settings: Settings }) {
               : 'Tidak tersedia: perintah `claude` tidak ditemukan. Pasang Claude Code, lalu login dengan menjalankan `claude`.'}
           </p>
         </Card>
+
+        <Card
+          as="section"
+          size="main"
+          aria-labelledby="profiles-title"
+          className="flex flex-col gap-4"
+        >
+          <h2 id="profiles-title" className="text-lg font-bold">
+            Model dan effort
+          </h2>
+          {settings.claudeProfiles.map((profile) => {
+            const ok = profile.problems.length === 0;
+            return (
+              <div
+                key={profile.profile}
+                className="flex flex-col gap-2 border-t border-line-subtle pt-3 first-of-type:border-t-0 first-of-type:pt-0"
+                data-testid={`profile-${profile.profile}`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="font-semibold">
+                    Profil <span className="font-mono">{profile.profile}</span>
+                  </h3>
+                  <Badge tone={ok ? 'success' : 'high'} dot>
+                    {ok ? 'Valid' : 'Bermasalah'}
+                  </Badge>
+                </div>
+                <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-[14rem_1fr]">
+                  <dt className="font-mono text-[13px] text-ink-muted">{profile.modelVar}</dt>
+                  <dd className="font-mono text-[13px] break-all">{profile.model}</dd>
+                  <dt className="font-mono text-[13px] text-ink-muted">{profile.effortVar}</dt>
+                  <dd className="font-mono text-[13px] break-all">{profile.effort}</dd>
+                  <dt className="text-ink-muted">Dipakai tahap</dt>
+                  <dd>{profile.stages.join(', ')}</dd>
+                </dl>
+                {!ok && (
+                  <div
+                    className="rounded-control border border-high bg-high-soft p-4 text-sm text-ink"
+                    role="alert"
+                  >
+                    <ul className="list-disc space-y-1 pl-5">
+                      {profile.problems.map((problem) => (
+                        <li key={problem}>{problem}</li>
+                      ))}
+                    </ul>
+                    <p className="mt-3">
+                      Tahap yang memakai profil ini tidak bisa dijalankan sampai masalah ini
+                      diperbaiki. Ubah `.env`, lalu jalankan ulang server.
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </Card>
       </main>
     </>
   );

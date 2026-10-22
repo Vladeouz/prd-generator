@@ -2,13 +2,14 @@ import { Card } from '../../../components/ui/card.tsx';
 import type { Stage, StageUsage } from '../../../projects/projects.ts';
 import { STAGE_LABELS } from '../../../projects/stage-labels.ts';
 import { type StageUsage as Usage, usageTotals } from '../../../projects/usage.ts';
-import { formatCost, formatCount, formatDuration } from '../format.ts';
+import { formatCost, formatCount, formatDuration, formatModel } from '../format.ts';
 
 const ORDER: Stage[] = ['stage2', 'stage3', 'stage4', 'stage5', 'stage6', 'review2', 'stage7'];
 
 /**
  * Pemakaian token per tahap dan total proyek (FR-10): token input (termasuk cache) dan output dari
- * semua percobaan, perkiraan biaya dari envelope, dan durasi run yang berlaku.
+ * semua percobaan, perkiraan biaya dari envelope, durasi run yang berlaku, serta model dan effort
+ * pemanggilan terakhir (D-14).
  */
 export function UsageSummary({ usage }: { usage: Partial<Record<Stage, StageUsage>> }) {
   const rows = ORDER.flatMap((stage) => {
@@ -39,6 +40,14 @@ export function UsageSummary({ usage }: { usage: Partial<Record<Stage, StageUsag
               <tr key={stage} className="border-t border-line-subtle first:border-t-0">
                 <th scope="row" className="py-1.5 pr-2 text-left font-semibold">
                   {STAGE_LABELS[stage]}
+                  {value.model && (
+                    <span
+                      className="block font-mono text-[11px] font-normal text-ink-faint"
+                      data-testid={`usage-model-${stage}`}
+                    >
+                      {formatModel(value)}
+                    </span>
+                  )}
                   <span
                     className="mt-1 block h-1.5 overflow-hidden rounded-full bg-line-subtle"
                     aria-hidden="true"

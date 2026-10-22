@@ -1,5 +1,7 @@
 // Tahap 3: klarifikasi teknis dan rekomendasi stack (FR-04).
+
 import { and, eq } from 'drizzle-orm';
+import { STAGE_PROFILES } from '../../core/config/claude.ts';
 import { answers, decisions, projects } from '../../core/db/schema.ts';
 import { storedAnswers } from '../answers.ts';
 import { extractJson } from '../parse.ts';
@@ -15,6 +17,7 @@ export function stage3Definition(): StageDefinition<Stage3Output> {
   return {
     stage: 'stage3',
     promptVersion: prompt.version,
+    profile: STAGE_PROFILES.stage3,
     notReadyReason: ({ db, projectId }) => {
       if (!currentOutput(db, projectId, 'stage2')) {
         return 'Jalankan klarifikasi produk dulu sebelum klarifikasi teknis.';

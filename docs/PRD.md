@@ -244,7 +244,7 @@ Route handler internal di `src/app/api/`, dipanggil oleh UI. Semua body dan quer
 | GET /api/projects/{id}/graph | — | `200 { nodes, edges }` untuk flowchart: proyek, fase, fitur yang diterima, sub-fitur, dan task bila tahap 7a selesai |
 | GET /api/projects/{id}/documents/{kind} | query `download=1` opsional | `200` Markdown |
 | POST /api/projects/{id}/export | `{ targetDir }` | `200 { written: string[] }`; `422` bila folder bukan proyek turunan template; `409` bila PRD di folder itu bukan placeholder dan `overwrite` tidak `true` |
-| GET /api/settings | — | `200 { templateDir, templateCommit, claudeAvailable }` |
+| GET /api/settings | — | `200 { templateDir, templateCommit, claudeAvailable, claudeProfiles }` (`claudeProfiles`: profil, model, effort, variabel env, tahap, dan masalahnya; D-14) |
 
 Menjalankan ulang sebuah tahap menandai output tahap-tahap sesudahnya tidak berlaku (`is_current = 0`) dan menghapus dokumen yang bergantung padanya.
 

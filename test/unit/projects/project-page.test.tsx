@@ -117,7 +117,16 @@ describe('stepper proyek', () => {
   it('tahap 3: tahap 2 selesai dan bisa dibuka lagi; token per tahap tampil', () => {
     const steps = projectSteps(
       atStage3({ stageOutputs: { stage2, stage3: gym3 }, profileChoice: 'A' }),
-      { stage2: { inputTokens: 24_100, outputTokens: 1_512, costUsd: 0.1, durationMs: 19_000 } },
+      {
+        stage2: {
+          inputTokens: 24_100,
+          outputTokens: 1_512,
+          costUsd: 0.1,
+          durationMs: 19_000,
+          model: null,
+          effort: null,
+        },
+      },
       'stage3',
     );
     expect(steps[1]).toMatchObject({
@@ -175,7 +184,14 @@ describe('halaman proyek', () => {
       <ProjectView
         project={project()}
         usage={{
-          stage2: { inputTokens: 24_100, outputTokens: 1_512, costUsd: 0.1, durationMs: 19_000 },
+          stage2: {
+            inputTokens: 24_100,
+            outputTokens: 1_512,
+            costUsd: 0.1,
+            durationMs: 19_000,
+            model: null,
+            effort: null,
+          },
         }}
       />,
     );
@@ -188,7 +204,14 @@ describe('halaman proyek', () => {
     const html = renderToStaticMarkup(
       <Stage2Section
         project={project({ stageOutputs: { stage2 } })}
-        usage={{ inputTokens: 24_100, outputTokens: 1_512, costUsd: 0.1, durationMs: 19_000 }}
+        usage={{
+          inputTokens: 24_100,
+          outputTokens: 1_512,
+          costUsd: 0.1,
+          durationMs: 19_000,
+          model: null,
+          effort: null,
+        }}
       />,
     );
     const total = stage2.questions.length;

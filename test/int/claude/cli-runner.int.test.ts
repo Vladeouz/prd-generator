@@ -62,7 +62,7 @@ describe('CliClaudeRunner dengan perintah palsu', () => {
 
     // Di Windows, ini juga membuktikan tanda kutip string cmd.exe: `--tools ""` sampai sebagai
     // argumen kosong dan system prompt berspasi sebagai satu argumen.
-    expect(received.argv).toEqual(claudeArgs('sonnet'));
+    expect(received.argv).toEqual(claudeArgs({ model: 'sonnet', effort: 'low' }));
     expect(received.stdin).toBe(prompt);
     expect(received.argv.join(' ')).not.toContain('Halo');
     expect(dirname(received.cwd)).toBe(tmpdir());
@@ -78,9 +78,20 @@ describe('CliClaudeRunner dengan perintah palsu', () => {
     expect(JSON.parse(result.rawEnvelope).session_id).toBe('fake');
   });
 
-  it('model dari opsi sampai ke argumen', async () => {
+  it('model dari opsi runner sampai ke argumen', async () => {
     const result = await runner('ok', {}, undefined, 'claude-opus-5-5').run('x');
-    expect((JSON.parse(result.result) as Received).argv).toEqual(claudeArgs('claude-opus-5-5'));
+    expect((JSON.parse(result.result) as Received).argv).toEqual(
+      claudeArgs({ model: 'claude-opus-5-5', effort: 'low' }),
+    );
+  });
+
+  it('model dan effort per pemanggilan sampai ke argumen proses', async () => {
+    const result = await runner('ok').run('x', { model: 'opus', effort: 'medium' });
+    expect((JSON.parse(result.result) as Received).argv).toEqual(
+      claudeArgs({ model: 'opus', effort: 'medium' }),
+    );
+    // Event `init` CLI palsu menyebut model dari `--model` (verifikasi manual T-035 memakai log ini).
+    expect(result.initModel).toBe('opus-palsu');
   });
 
   it('stream: potongan teks diteruskan bertahap sebelum selesai, hasil dari event result', async () => {

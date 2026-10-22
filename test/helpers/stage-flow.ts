@@ -5,10 +5,11 @@ import { expect } from 'vitest';
 import { FakeClaudeRunner, loadClaudeFixture } from '../../src/claude/fake-runner.ts';
 import type { ClaudeResult } from '../../src/claude/types.ts';
 import type { Clock } from '../../src/core/clock.ts';
+import { claudeProfile } from '../../src/core/config/claude.ts';
 import type { Db } from '../../src/core/db/client.ts';
 import { projects } from '../../src/core/db/schema.ts';
 import { jobHandlers } from '../../src/jobs/handlers.ts';
-import { JobQueue } from '../../src/jobs/job-queue.ts';
+import { JobQueue, type JobQueueDeps } from '../../src/jobs/job-queue.ts';
 import { answerHandlers } from '../../src/stages/answers-handlers.ts';
 import { createStageRegistry } from '../../src/stages/registry.ts';
 import type { Stage } from '../../src/stages/run-stage.ts';
@@ -40,11 +41,13 @@ export function createFlow(
   db: Db,
   clock: Clock,
   responses: ClaudeResult[],
-  options: { templateDir?: string } = {},
+  options: { templateDir?: string; profiles?: JobQueueDeps['profiles'] } = {},
 ) {
   const runner = new FakeClaudeRunner(responses);
   const stages = createStageRegistry({ templateDir: () => options.templateDir });
-  const queue = new JobQueue({ db, runner, clock, stages });
+  // Bawaan: env kosong, agar `.env` pengembang tidak memengaruhi test (bawaan profil D-14).
+  const profiles = options.profiles ?? ((profile) => claudeProfile(profile, {}));
+  const queue = new JobQueue({ db, runner, clock, stages, profiles });
   return {
     db,
     clock,

@@ -1,10 +1,52 @@
 // Data halaman pengaturan dan `GET /api/settings` (FR-11).
 import { spawn } from 'node:child_process';
 import { isRealClaudeCommand } from '../claude/cli-runner.ts';
+import {
+  CLAUDE_PROFILES,
+  type ClaudeProfile,
+  type ClaudeProfileConfig,
+  claudeProfile,
+  PROFILE_ENV,
+  STAGE_PROFILES,
+} from '../core/config/claude.ts';
+import { STAGE_LABELS } from '../projects/stage-labels.ts';
 import { sectionProblems } from './sections.ts';
 import { readTemplate } from './template.ts';
 
 export type ClaudeAvailability = { available: boolean; version: string | null };
+
+/** Model dan effort satu profil (D-14) untuk halaman pengaturan (FR-11). */
+export type ProfileSetting = ClaudeProfileConfig & {
+  modelVar: string;
+  effortVar: string;
+  /** Nama tahap yang memakai profil ini, urut alur. */
+  stages: string[];
+};
+
+/** Nama tahap per run di `STAGE_PROFILES`: 7a dan 7b dibedakan. */
+const RUN_STAGE_LABELS: Record<keyof typeof STAGE_PROFILES, string> = {
+  stage2: STAGE_LABELS.stage2,
+  stage3: STAGE_LABELS.stage3,
+  stage4: STAGE_LABELS.stage4,
+  stage5: STAGE_LABELS.stage5,
+  stage6: STAGE_LABELS.stage6,
+  review2: STAGE_LABELS.review2,
+  stage7a: `${STAGE_LABELS.stage7} (daftar task)`,
+  stage7b: `${STAGE_LABELS.stage7} (detail per fase)`,
+};
+
+export function profileSettings(
+  profiles: (profile: ClaudeProfile) => ClaudeProfileConfig = claudeProfile,
+): ProfileSetting[] {
+  return CLAUDE_PROFILES.map((profile) => ({
+    ...profiles(profile),
+    modelVar: PROFILE_ENV[profile].model,
+    effortVar: PROFILE_ENV[profile].effort,
+    stages: (Object.keys(STAGE_PROFILES) as (keyof typeof STAGE_PROFILES)[])
+      .filter((stage) => STAGE_PROFILES[stage] === profile)
+      .map((stage) => RUN_STAGE_LABELS[stage]),
+  }));
+}
 
 export type Settings = {
   templateDir: string | null;
@@ -16,6 +58,8 @@ export type Settings = {
    * `docs/conventions.md` yang dibutuhkan suatu tahap tidak ada (D-10). Kosong bila tidak ada.
    */
   problems: string[];
+  /** Model dan effort per profil beserta tahapnya; masalah env ada di `problems` tiap profil. */
+  claudeProfiles: ProfileSetting[];
 };
 
 /** Menjalankan `<command> --version` (tidak memakai kuota). Test wajib memakai perintah palsu. */
@@ -48,6 +92,8 @@ export function checkClaude(command = 'claude', timeoutMs = 15_000): Promise<Cla
 export type SettingsDeps = {
   templateDir: string | undefined;
   checkClaude: () => Promise<ClaudeAvailability>;
+  /** Bawaan: env proses (`claudeProfile`). */
+  profiles?: (profile: ClaudeProfile) => ClaudeProfileConfig;
 };
 
 export async function getSettings(
@@ -63,5 +109,6 @@ export async function getSettings(
     claudeAvailable: claude.available,
     claudeVersion: claude.version,
     problems: template.ok ? sectionProblems(template.template.conventions) : template.problems,
+    claudeProfiles: profileSettings(deps.profiles),
   };
 }

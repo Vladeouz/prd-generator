@@ -1,7 +1,8 @@
 // Verifikasi manual T-004 dan T-023: satu pemanggilan `claude` sungguhan dengan prompt kecil lewat
 // CliClaudeRunner (bentuk perintah stream dari spike T-022), lalu menampilkan hasil, jumlah potongan
-// stream, token, perkiraan biaya, dan durasi. Model dari `CLAUDE_MODEL` (env atau `.env`, bawaan
-// sonnet). Memakai kuota langganan; tidak pernah dijalankan oleh test.
+// stream, token, perkiraan biaya, dan durasi. Model dan effort dari profil `standard` (`CLAUDE_MODEL`
+// dan `CLAUDE_EFFORT`, env atau `.env`, bawaan sonnet dan low; D-14). Memakai kuota langganan; tidak
+// pernah dijalankan oleh test.
 //
 //   pnpm claude:smoke
 //   pnpm claude:smoke --command "node <path absolut>/test/helpers/fake-claude-cli.mjs"
@@ -10,7 +11,7 @@
 //
 // Dijalankan langsung oleh Node 24 (type stripping), jadi import relatif memakai `.ts`.
 import { existsSync } from 'node:fs';
-import { claudeModel } from '../core/config/claude.ts';
+import { claudeProfile } from '../core/config/claude.ts';
 import { CliClaudeRunner } from './cli-runner.ts';
 import { envelopeResult } from './envelope.ts';
 import { ClaudeRunError } from './types.ts';
@@ -21,12 +22,16 @@ JANGAN memakai tool apa pun. JANGAN membaca atau menulis file.`;
 
 const commandIndex = process.argv.indexOf('--command');
 const command = commandIndex === -1 ? undefined : process.argv[commandIndex + 1];
-// CLAUDE_MODEL dari .env, sama dengan aplikasi; variabel lingkungan proses tetap menang.
+// Profil dari .env, sama dengan aplikasi; variabel lingkungan proses tetap menang.
 if (existsSync('.env')) process.loadEnvFile('.env');
-const model = claudeModel();
+const { model, effort, problems } = claudeProfile('standard');
+if (problems.length > 0) {
+  console.error(`GAGAL: ${problems.join(' ')}`);
+  process.exit(1);
+}
 
 console.log(
-  `Perintah: ${command ?? 'claude'}, model ${model} (prompt lewat stdin, ${PROMPT.length} karakter)`,
+  `Perintah: ${command ?? 'claude'}, profil standard: model ${model}, effort ${effort} (prompt lewat stdin, ${PROMPT.length} karakter)`,
 );
 console.log('Menunggu Claude Code...\n');
 
@@ -34,13 +39,16 @@ try {
   let chunks = 0;
   let firstChunkMs: number | null = null;
   const started = performance.now();
-  const result = await new CliClaudeRunner({ command, model, timeoutMs: 3 * 60_000 }).run(PROMPT, {
-    onProgress: (progress) => {
-      if (progress.kind !== 'text') return;
-      chunks++;
-      firstChunkMs ??= performance.now() - started;
+  const result = await new CliClaudeRunner({ command, model, effort, timeoutMs: 3 * 60_000 }).run(
+    PROMPT,
+    {
+      onProgress: (progress) => {
+        if (progress.kind !== 'text') return;
+        chunks++;
+        firstChunkMs ??= performance.now() - started;
+      },
     },
-  });
+  );
   let ok = false;
   try {
     ok = JSON.parse(result.result).ok === true;

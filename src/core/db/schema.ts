@@ -85,6 +85,9 @@ export const stageRuns = sqliteTable(
     scope: text('scope'),
     attempt: integer('attempt').notNull(),
     promptVersion: text('prompt_version').notNull(),
+    /** `--model` dan `--effort` pemanggilan (profil tahap, D-14); null untuk run sebelum T-035. */
+    model: text('model'),
+    effort: text('effort'),
     status: text('status', { enum: STAGE_RUN_STATUSES }).notNull(),
     outputRaw: text('output_raw'),
     outputJson: text('output_json'),

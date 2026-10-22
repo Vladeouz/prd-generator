@@ -15,6 +15,7 @@ type Stage2Output = { clarity: number; questions: { id: string; options: string[
 const stage2: StageDefinition<Stage2Output> = {
   stage: 'stage2',
   promptVersion: 'test-1',
+  profile: 'standard',
   buildPrompt: ({ projectId }) => `PROMPT AWAL untuk ${projectId}`,
   parse: (result) => JSON.parse(result) as Stage2Output,
   validate: (output) => ({

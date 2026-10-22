@@ -24,6 +24,33 @@ function smoke(envelope: unknown) {
   });
 }
 
+describe('pnpm claude:smoke memakai profil standard (D-14)', () => {
+  const run = (env: Record<string, string>) =>
+    spawnSync(process.execPath, ['src/claude/smoke.ts', '--command', COMMAND], {
+      encoding: 'utf8',
+      env: { ...process.env, FAKE_CLAUDE_MODE: 'ok', ...env },
+    });
+
+  it('model dan effort dari CLAUDE_MODEL dan CLAUDE_EFFORT, bukan profil reasoning', () => {
+    const result = run({
+      CLAUDE_MODEL: 'claude-sonnet-5-5',
+      CLAUDE_EFFORT: 'medium',
+      CLAUDE_MODEL_REASONING: 'opus',
+      CLAUDE_EFFORT_REASONING: 'high',
+    });
+    expect(result.stdout).toContain('profil standard: model claude-sonnet-5-5, effort medium');
+    // Mode `ok` CLI palsu membalas argumen yang diterimanya.
+    expect(result.stdout).toContain('"--model","claude-sonnet-5-5","--effort","medium"');
+  });
+
+  it('effort tidak valid: gagal sebelum memanggil claude, dengan nama variabelnya', () => {
+    const result = run({ CLAUDE_EFFORT: 'sedang' });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('CLAUDE_EFFORT tidak valid: "sedang"');
+    expect(result.stdout).not.toContain('Menunggu Claude Code');
+  });
+});
+
 describe('pnpm claude:smoke saat gagal', () => {
   it('menampilkan result dari envelope secara utuh, bukan hanya cuplikan', () => {
     const result = `Invalid API key · Please run /login\n${'detail '.repeat(100)}akhir pesan`;
