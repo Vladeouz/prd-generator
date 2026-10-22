@@ -20,6 +20,19 @@ function broken(change: (output: Stage5Output, first: Finding) => void) {
 describe('validateStage5', () => {
   it('menerima output nyata tanpa error dan tanpa peringatan', () => {
     expect(validateStage5(gym())).toEqual({ errors: [], warnings: [] });
+    // Fase struktur fitur gym 0–3: opsi review gym tidak menyebut fase lain.
+    expect(validateStage5(gym(), [0, 1, 2, 3])).toEqual({ errors: [], warnings: [] });
+  });
+
+  it('opsi yang menyebut fase di luar struktur fitur ditolak (uji nyata T-018)', () => {
+    const t018 = extractJson(loadClaudeFixture('verification/t018-stage5').result) as Stage5Output;
+    const { errors } = validateStage5(t018, [0, 1, 2, 3]);
+    expect(errors).toEqual([
+      'findings[0] (RV-01) opsi menyebut fase 4 yang tidak ada di struktur fitur (fase yang ada: 0, 1, 2, 3)',
+      'findings[1] (RV-02) opsi menyebut fase 4 yang tidak ada di struktur fitur (fase yang ada: 0, 1, 2, 3)',
+    ]);
+    // Dengan fase 4 di struktur fitur, temuan yang sama diterima.
+    expect(validateStage5(t018, [0, 1, 2, 3, 4]).errors).toEqual([]);
   });
 
   it('temuan tanpa bukti ditolak', () => {
@@ -117,12 +130,14 @@ describe('validateStage5', () => {
 describe('prompts/stage-5.md', () => {
   it('punya versi dan placeholder kategori, konteks, dan draft', () => {
     const prompt = loadPrompt('stage-5');
-    expect(prompt.version).toBe('1');
+    expect(prompt.version).toBe('2');
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
       'categories',
+      'phases',
       'context',
       'draft',
     ]);
+    expect(prompt.body).toContain('jangan mengusulkan fase baru seperti "fase 4"');
     expect(prompt.body).toContain(
       '"accepted_recommendations" adalah fitur rekomendasi yang SUDAH DIPILIH',
     );

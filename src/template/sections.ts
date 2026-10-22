@@ -23,17 +23,22 @@ export const CONVENTION_SECTIONS = {
     '## Clean Architecture API',
   ],
   // Daftar task: apa yang sudah disediakan template (agar tidak dibuat ulang), cara kerja task dan
-  // `pnpm check`, dan prosedur menghapus fitur contoh notes.
+  // `pnpm check`, prosedur menghapus fitur contoh notes, serta aturan skema dan kontrak yang
+  // menentukan pembagian task (uji T-018: tabel per fitur, `contract:generate` bersama route).
   stage7a: [
     '## Struktur repo',
     '## Memulai proyek dan log task',
     '## Script dan perintah root',
+    '## Database',
+    '## Kontrak dan client Dart',
     '## Menghapus fitur contoh notes',
   ],
   // Detail task per fase: path, pola, dan perintah test untuk `files` dan *done when*.
+  // `## Database` sejak uji T-018: tanpa itu `files` menebak path skema (`schema.ts`).
   stage7b: [
     '## Struktur repo',
     '## Script dan perintah root',
+    '## Database',
     '## Clean Architecture API',
     '## Test API',
     '## Kontrak dan client Dart',

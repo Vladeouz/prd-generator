@@ -4,6 +4,7 @@ import type { ClaudeResult } from '../../../src/claude/types.ts';
 import type { Clock } from '../../../src/core/clock.ts';
 import { decisions, documents, stageRuns } from '../../../src/core/db/schema.ts';
 import {
+  currentPromptVersions,
   getStageUsage,
   stageEstimate,
   TEST_ESTIMATES,
@@ -230,5 +231,45 @@ describe('pemakaian token dan perkiraan (FR-10)', () => {
     expect(stageEstimate({ db: t.db }, 'stage7', 2).durationMs).toBe(
       list.durationMs + detail.durationMs * 2,
     );
+  });
+
+  it('perkiraan hanya dari run dengan versi prompt yang sedang dipakai (uji T-018)', async () => {
+    const flow = flowWith(...F.stage7());
+    await projectWithTasks(flow);
+    await runStage(flow, 'stage7');
+    const versions = currentPromptVersions();
+    const before6 = stageEstimate({ db: t.db }, 'stage6');
+    expect(before6.basis).toBe('average');
+
+    // Run tahap 6 versi prompt lama yang sangat lambat (seperti sebelum efisiensi T-023/T-025).
+    const old = t.db.select().from(stageRuns).where(eq(stageRuns.stage, 'stage6')).get();
+    t.db
+      .insert(stageRuns)
+      .values({
+        ...(old as typeof stageRuns.$inferSelect),
+        id: 'run-lama',
+        promptVersion: '1',
+        durationMs: 9_000_000,
+        inputTokens: 900_000,
+        outputTokens: 900_000,
+        isCurrent: 0,
+      })
+      .run();
+    expect(stageEstimate({ db: t.db }, 'stage6')).toEqual(before6);
+
+    // Semua run 7a dari versi prompt lama: tahap 7 kembali ke angka uji, begitu juga bila versi
+    // prompt 7b yang dipakai belum pernah dijalankan.
+    expect(stageEstimate({ db: t.db }, 'stage7').basis).toBe('average');
+    expect(stageEstimate({ db: t.db }, 'stage7', 4, { ...versions, stage7b: '99' })).toEqual({
+      ...TEST_ESTIMATES.stage7,
+      basis: 'test',
+      samples: 0,
+    });
+    t.db.update(stageRuns).set({ promptVersion: '0' }).where(eq(stageRuns.stage, 'stage7a')).run();
+    expect(stageEstimate({ db: t.db }, 'stage7')).toEqual({
+      ...TEST_ESTIMATES.stage7,
+      basis: 'test',
+      samples: 0,
+    });
   });
 });

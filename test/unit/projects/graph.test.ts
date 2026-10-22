@@ -192,7 +192,12 @@ describe('buildGraph: setelah tahap 7a dan 7b', () => {
       layer: phase0?.layer,
       dependsOn: phase0?.depends_on,
       refs: phase0?.refs,
-      detail: { files: expected.files, done_when: expected.done_when, manual: expected.manual },
+      detail: {
+        files: expected.files,
+        file_notes: expected.file_notes ?? null,
+        done_when: expected.done_when,
+        manual: expected.manual,
+      },
     });
     expect(byId(graph.nodes, `task-${phase1?.id}`).data).toMatchObject({ detail: null });
   });

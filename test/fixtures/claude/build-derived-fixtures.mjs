@@ -243,11 +243,19 @@ function taskListGym() {
     });
   });
   const newId = new Map(tasks.map((t, i) => [t.oldId, `T-${String(i + 1).padStart(3, '0')}`]));
+  // Tabel erDiagram PRD gym selain `users` (disediakan template). TASKS rujukan membuat semuanya di
+  // task skema pertama; task db lain (repository) tidak membuat tabel.
+  const erDiagram = prd.match(/```mermaid\n(erDiagram[\s\S]*?)```/)?.[1] ?? '';
+  const tables = [...erDiagram.matchAll(/^\s+([A-Za-z_]+) \{/gm)]
+    .map((m) => m[1])
+    .filter((t) => t.toLowerCase() !== 'users');
+  const firstDb = tasks.findIndex((t) => t.layer === 'db');
   const output = {
-    tasks: tasks.map(({ oldId, depends_on, ...t }) => ({
+    tasks: tasks.map(({ oldId, depends_on, ...t }, i) => ({
       id: newId.get(oldId),
       ...t,
       depends_on: depends_on.map((d) => newId.get(d)),
+      ...(t.layer === 'db' ? { tables: i === firstDb ? tables : [] } : {}),
     })),
   };
   const { envelope } = tasksGym();
@@ -260,12 +268,37 @@ function taskListGym() {
       changes: [
         'TASKS Markdown diubah menjadi daftar task JSON tahap 7a: judul, fase, layer, depends_on, dan refs apa adanya',
         'id dinomori ulang berurutan (T-001 …) dan depends_on mengikuti id baru',
+        'tables (prompt 7a versi 3): task db pertama membuat semua tabel erDiagram PRD selain users, task db lain []',
         'task "Fase 4 — Pengerasan dan Rilis" (tidak ada di struktur fitur tahap 4) dipindah ke fase 3',
         'feature: fitur dari baris "Fitur: F-xx" FR pertama yang dirujuk (fasenya tidak lebih lambat dari task); task tanpa FR mendapat fitur pertama fasenya; task hapus notes null',
         'usage, total_cost_usd, dan duration_ms masih dari pemanggilan tahap 7 lama (TASKS utuh)',
       ],
     },
   };
+}
+
+/**
+ * Baris `files` TASKS (`` `path` (keterangan), `path` ``) menjadi daftar path dan keterangan per path.
+ * Keterangan boleh memuat backtick dan koma, jadi dipotong per item dari depan, bukan per koma.
+ * @param {string} line
+ */
+function parseFiles(line) {
+  /** @type {string[]} */
+  const files = [];
+  /** @type {Record<string, string>} */
+  const notes = {};
+  let rest = line.trim();
+  while (rest) {
+    const item = rest.match(/^`([^`]+)`(?: \(((?:[^()]|\([^()]*\))*)\))?(?:,\s*|$)/);
+    if (!item) {
+      files.push(rest);
+      break;
+    }
+    files.push(item[1]);
+    if (item[2]) notes[item[1]] = item[2];
+    rest = rest.slice(item[0].length);
+  }
+  return { files, notes };
 }
 
 /**
@@ -290,13 +323,14 @@ function taskDetailGym(phase) {
     .filter(({ task }) => task.phase === phase)
     .map(({ task, block }) => {
       const lines = block.split('\n');
-      const files = (lines.find((l) => l.startsWith('  - files: ')) ?? '')
-        .replace('  - files: ', '')
-        .split(/,\s(?=`)/)
-        .map((file) => (/^`[^`]+`$/.test(file) ? file.slice(1, -1) : file));
+      const { files, notes } = parseFiles(
+        (lines.find((l) => l.startsWith('  - files: ')) ?? '').replace('  - files: ', ''),
+      );
       const doneWhen = (lines.find((l) => l.startsWith('  - done when: ')) ?? '')
         .replace('  - done when: ', '')
-        .replace(/;?\s*`pnpm check` hijau$/, '');
+        .replace(/;?\s*`pnpm check` hijau$/, '')
+        // Prompt 7b versi 2: filter test tanpa `--` (pnpm meneruskan `--` ke vitest).
+        .replace(/\b(test(?::[\w-]+)?)\s+--\s/g, '$1 ');
       const manualMatch = doneWhen.match(/;?\s*\*\*\(manual\)\*\* (.+)$/);
       const criteria = (manualMatch ? doneWhen.slice(0, manualMatch.index) : doneWhen)
         .split('; ')
@@ -308,6 +342,7 @@ function taskDetailGym(phase) {
       return {
         id: task.id,
         files,
+        ...(Object.keys(notes).length > 0 ? { file_notes: notes } : {}),
         done_when: criteria,
         manual: manualMatch ? { criterion: manualMatch[1], steps } : null,
       };
@@ -321,6 +356,7 @@ function taskDetailGym(phase) {
         'derived/stage7-gym.json (test/fixtures/claude/stage7.json, docs/reference/e2e-output/TASKS.md)',
       changes: [
         `detail task fase ${phase} (id dari derived/stage7a-gym.json): files dan done when apa adanya, done when dipecah per "; "`,
+        'prompt 7b versi 2: keterangan dalam kurung di files dipindah ke file_notes (files berisi path saja), dan `--` sebelum filter test dibuang',
         '"`pnpm check` hijau" di akhir done when dibuang (ditambahkan aplikasi)',
         'penanda **(manual)** menjadi manual.criterion; langkah persiapan (.env, Docker) dan Flutter web dibuang (ditambahkan aplikasi), langkah lain menjadi manual.steps',
         'usage, total_cost_usd, dan duration_ms masih dari pemanggilan tahap 7 lama (TASKS utuh)',

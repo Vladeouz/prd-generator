@@ -69,6 +69,10 @@ describe('menjalankan tahap 5', () => {
 
     const prompt = flow.runner.prompts[3] as string;
     expect(prompt).toContain('Kamu adalah tahap "Review Kritis"');
+    // Fase struktur fitur gym (0–3) dari tahap 4.
+    expect(prompt).toMatch(
+      /Fase yang ada di struktur fitur: 0 \([^)]+\), 1 \([^)]+\), 2 \([^)]+\), 3 \([^)]+\)\./,
+    );
     expect(prompt).toContain(
       'stack_deploy, dependency_order, security, consistency, scope_creep, testability',
     );
@@ -86,7 +90,7 @@ describe('menjalankan tahap 5', () => {
       .from(stageRuns)
       .where(and(eq(stageRuns.projectId, 'p1'), eq(stageRuns.stage, 'stage5')))
       .get();
-    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '1', isCurrent: 1 });
+    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '2', isCurrent: 1 });
     expect(projectRow(t.db)?.currentStage).toBe('stage5');
   });
 
