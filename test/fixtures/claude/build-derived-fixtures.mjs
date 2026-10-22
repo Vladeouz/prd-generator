@@ -278,6 +278,30 @@ function taskListGym() {
 }
 
 /**
+ * Baris `files` TASKS (`` `path` (keterangan), `path` ``) menjadi daftar path dan keterangan per path.
+ * Keterangan boleh memuat backtick dan koma, jadi dipotong per item dari depan, bukan per koma.
+ * @param {string} line
+ */
+function parseFiles(line) {
+  /** @type {string[]} */
+  const files = [];
+  /** @type {Record<string, string>} */
+  const notes = {};
+  let rest = line.trim();
+  while (rest) {
+    const item = rest.match(/^`([^`]+)`(?: \(((?:[^()]|\([^()]*\))*)\))?(?:,\s*|$)/);
+    if (!item) {
+      files.push(rest);
+      break;
+    }
+    files.push(item[1]);
+    if (item[2]) notes[item[1]] = item[2];
+    rest = rest.slice(item[0].length);
+  }
+  return { files, notes };
+}
+
+/**
  * Detail task tahap 7b (T-027, JSON) untuk satu fase, dari blok task TASKS gym yang sama dengan
  * `taskListGym`: `files` dan kriteria *done when* apa adanya, dipecah per kriteria. Bagian baku yang
  * kini ditambahkan aplikasi dibuang: `pnpm check` hijau di akhir, serta langkah persiapan `.env`,
@@ -299,13 +323,14 @@ function taskDetailGym(phase) {
     .filter(({ task }) => task.phase === phase)
     .map(({ task, block }) => {
       const lines = block.split('\n');
-      const files = (lines.find((l) => l.startsWith('  - files: ')) ?? '')
-        .replace('  - files: ', '')
-        .split(/,\s(?=`)/)
-        .map((file) => (/^`[^`]+`$/.test(file) ? file.slice(1, -1) : file));
+      const { files, notes } = parseFiles(
+        (lines.find((l) => l.startsWith('  - files: ')) ?? '').replace('  - files: ', ''),
+      );
       const doneWhen = (lines.find((l) => l.startsWith('  - done when: ')) ?? '')
         .replace('  - done when: ', '')
-        .replace(/;?\s*`pnpm check` hijau$/, '');
+        .replace(/;?\s*`pnpm check` hijau$/, '')
+        // Prompt 7b versi 2: filter test tanpa `--` (pnpm meneruskan `--` ke vitest).
+        .replace(/\b(test(?::[\w-]+)?)\s+--\s/g, '$1 ');
       const manualMatch = doneWhen.match(/;?\s*\*\*\(manual\)\*\* (.+)$/);
       const criteria = (manualMatch ? doneWhen.slice(0, manualMatch.index) : doneWhen)
         .split('; ')
@@ -317,6 +342,7 @@ function taskDetailGym(phase) {
       return {
         id: task.id,
         files,
+        ...(Object.keys(notes).length > 0 ? { file_notes: notes } : {}),
         done_when: criteria,
         manual: manualMatch ? { criterion: manualMatch[1], steps } : null,
       };
@@ -330,6 +356,7 @@ function taskDetailGym(phase) {
         'derived/stage7-gym.json (test/fixtures/claude/stage7.json, docs/reference/e2e-output/TASKS.md)',
       changes: [
         `detail task fase ${phase} (id dari derived/stage7a-gym.json): files dan done when apa adanya, done when dipecah per "; "`,
+        'prompt 7b versi 2: keterangan dalam kurung di files dipindah ke file_notes (files berisi path saja), dan `--` sebelum filter test dibuang',
         '"`pnpm check` hijau" di akhir done when dibuang (ditambahkan aplikasi)',
         'penanda **(manual)** menjadi manual.criterion; langkah persiapan (.env, Docker) dan Flutter web dibuang (ditambahkan aplikasi), langkah lain menjadi manual.steps',
         'usage, total_cost_usd, dan duration_ms masih dari pemanggilan tahap 7 lama (TASKS utuh)',

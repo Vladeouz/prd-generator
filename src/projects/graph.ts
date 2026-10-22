@@ -82,7 +82,12 @@ export type GraphInput = {
 function taskTree(task: Stage7aTask, details: Map<string, TaskDetail>): Tree {
   const found = details.get(task.id);
   const detail = found
-    ? { files: found.files, done_when: found.done_when, manual: found.manual }
+    ? {
+        files: found.files,
+        file_notes: found.file_notes ?? null,
+        done_when: found.done_when,
+        manual: found.manual,
+      }
     : null;
   return {
     id: `task-${task.id}`,

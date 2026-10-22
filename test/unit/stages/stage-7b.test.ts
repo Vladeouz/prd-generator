@@ -67,7 +67,7 @@ describe('validateStage7b', () => {
     };
     const id = (detail(2).tasks[0] as TaskDetail).id;
     expect(edit({ files: [] })).toEqual([`${id} tanpa files`]);
-    expect(edit({ files: ['docker-compose.yml'] })).toEqual([
+    expect(edit({ files: ['docker-compose.yml'], file_notes: null })).toEqual([
       `${id} menyentuh file setup yang sudah disediakan template (Docker Compose)`,
     ]);
     expect(edit({ done_when: [] })).toEqual([`${id} tanpa done_when`]);
@@ -98,6 +98,19 @@ describe('validateStage7b', () => {
 });
 
 describe('composeTasks', () => {
+  it('path dalam backtick, keterangan file_notes di luarnya (bisa disalin apa adanya)', () => {
+    const md = compose();
+    // T-020 gym: keterangan berisi backtick dan koma, dari TASKS rujukan.
+    expect(md).toContain(
+      '`apps/api/src/features/members/http/schemas.ts` (objek `Member`, `Period`)',
+    );
+    const filesLines = md.split('\n').filter((l) => l.startsWith('  - files: '));
+    for (const line of filesLines) {
+      const paths = [...line.matchAll(/`([^`]+)`(?: \(|,|$)/g)].map((m) => m[1] as string);
+      expect(paths.every((p) => !/\s/.test(p))).toBe(true);
+    }
+  });
+
   it('susunan dari 7a + 7b lolos aturan FR-08 (validateTasks)', () => {
     const md = compose();
     expect(validateTasks(md, PRD)).toEqual({ errors: [], warnings: [] });
@@ -175,10 +188,83 @@ describe('prdExcerpt', () => {
   });
 });
 
+describe('validateStage7b: aturan dari uji nyata T-018', () => {
+  const tasks = () => phaseTasks(list(), 2);
+  const first = () => detail(2).tasks[0] as TaskDetail;
+  const edit = (change: Partial<TaskDetail>) => {
+    const output = detail(2);
+    output.tasks[0] = { ...first(), file_notes: null, ...change };
+    return validateStage7b(output, tasks()).errors;
+  };
+
+  it('files berisi path saja; keterangan di file_notes untuk path yang ada di files', () => {
+    const { id } = first();
+    expect(edit({ files: ['apps/api/src/app.ts'] })).toEqual([]);
+    expect(
+      edit({
+        files: ['apps/api/src/app.ts'],
+        file_notes: { 'apps/api/src/app.ts': 'rakit route' },
+      }),
+    ).toEqual([]);
+    expect(edit({ files: ['apps/api/src/app.ts (rakit route)'] })).toEqual([
+      `${id} files "apps/api/src/app.ts (rakit route)" bukan path; tulis keterangannya di file_notes`,
+    ]);
+    expect(edit({ files: ['`apps/api/src/app.ts`'] })).toEqual([
+      `${id} files "\`apps/api/src/app.ts\`" bukan path; tulis keterangannya di file_notes`,
+    ]);
+    expect(
+      edit({ files: ['apps/api/src/app.ts'], file_notes: { 'apps/api/src/lain.ts': 'x' } }),
+    ).toEqual([`${id} file_notes menyebut apps/api/src/lain.ts yang tidak ada di files`]);
+  });
+
+  it('path skema mengikuti konvensi Database template', () => {
+    const { id } = first();
+    expect(edit({ files: ['apps/api/src/db/schema/reservations.ts'] })).toEqual([]);
+    expect(edit({ files: ['apps/api/src/db/schema.ts'] })).toEqual([
+      `${id} files apps/api/src/db/schema.ts bertentangan dengan konvensi template: satu file per tabel di apps/api/src/db/schema/<tabel>.ts (konvensi Database)`,
+    ]);
+  });
+
+  it('perintah test dengan `--` sebelum filter ditolak', () => {
+    const { id } = first();
+    const dash = `${id} done_when memakai \`--\` sebelum filter test; tulis \`pnpm --filter api test:int <filter>\` (dengan \`--\` filternya tidak berlaku)`;
+    expect(edit({ done_when: ['`pnpm --filter api test:int reservations` lulus'] })).toEqual([]);
+    expect(edit({ done_when: ['`pnpm --filter api test:int -- reservations` lulus'] })).toEqual([
+      dash,
+    ]);
+    expect(edit({ done_when: ['`pnpm --filter api test -- require-role` lulus'] })).toEqual([dash]);
+  });
+
+  it('detail 7b nyata uji T-018 ditolak dengan alasan yang tepat', () => {
+    const t018 = (phase: number) =>
+      JSON.parse(loadClaudeFixture(`verification/t018-stage7b-fase-${phase}`).result);
+    const t018List = JSON.parse(loadClaudeFixture('verification/t018-stage7a').result);
+    const errorsOf = (phase: number) =>
+      validateStage7b(t018(phase), phaseTasks(t018List, phase)).errors;
+    const phase0 = errorsOf(0);
+    expect(phase0).toContain(
+      'T-001 files apps/api/src/db/schema.ts bertentangan dengan konvensi template: satu file per tabel di apps/api/src/db/schema/<tabel>.ts (konvensi Database)',
+    );
+    expect(phase0.some((e) => e.startsWith('T-001 files "apps/api/src/db/schema.ts (tabel'))).toBe(
+      true,
+    );
+    expect(phase0.filter((e) => e.includes('memakai `--` sebelum filter test'))).not.toHaveLength(
+      0,
+    );
+    for (const phase of [1, 2, 3]) {
+      expect(errorsOf(phase).some((e) => e.includes('bukan path'))).toBe(true);
+    }
+  });
+});
+
 describe('prompts/stage-7b.md', () => {
-  it('versi 1; konvensi di awal (awalan sama antarfase), task fase, dan bagian PRD yang dirujuk', () => {
+  it('versi 2; konvensi di awal (awalan sama antarfase), task fase, dan bagian PRD yang dirujuk', () => {
     const prompt = loadPrompt('stage-7b');
-    expect(prompt.version).toBe('1');
+    expect(prompt.version).toBe('2');
+    expect(prompt.body).toContain('PATH SAJA tanpa spasi, tanda kurung, atau backtick');
+    expect(prompt.body).toContain('"file_notes"');
+    expect(prompt.body).toContain('Perintah test dengan filter ditulis TANPA `--`');
+    expect(prompt.body).toContain('`apps/api/src/db/schema/<tabel>.ts`, bukan `schema.ts`');
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
       'conventions',
       'phase',

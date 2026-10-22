@@ -81,7 +81,15 @@ export const EXPECTED_SECTIONS = {
   ].join('\n\n'),
   review2: [S.auth, S.pagination, S.database, S.errors, S.architecture].join('\n\n'),
   stage7a: [S.structure, S.tasks, S.scripts, S.database, S.contract, S.notes].join('\n\n'),
-  stage7b: [S.structure, S.scripts, S.architecture, S.testApi, S.contract, S.flutter].join('\n\n'),
+  stage7b: [
+    S.structure,
+    S.scripts,
+    S.database,
+    S.architecture,
+    S.testApi,
+    S.contract,
+    S.flutter,
+  ].join('\n\n'),
 };
 
 export type TemplateRepo = { dir: string; commit: string; remove(): void };

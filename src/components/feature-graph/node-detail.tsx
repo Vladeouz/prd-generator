@@ -111,7 +111,13 @@ function Body({ data }: { data: GraphNodeData }) {
           {data.detail ? (
             <>
               <Field label="File">
-                <List items={data.detail.files} mono />
+                <List
+                  items={data.detail.files.map((file) => {
+                    const note = data.detail?.file_notes?.[file];
+                    return note ? `${file} — ${note}` : file;
+                  })}
+                  mono
+                />
               </Field>
               <Field label="Done when">
                 <List items={data.detail.done_when} />

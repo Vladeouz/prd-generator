@@ -8,6 +8,11 @@
 // - `files` berisi minimal satu path, tanpa file setup yang sudah disediakan template;
 // - `done_when` berisi minimal satu kriteria, tanpa `pnpm check` (ditambahkan aplikasi);
 // - `manual` (opsional) berisi kriteria dan langkah spesifik task itu, tanpa langkah persiapan baku.
+// Tambahan dari uji nyata T-018 (prompt versi 2):
+// - `files` berisi path saja; keterangan di `file_notes` (path → keterangan), agar path bisa disalin;
+// - path skema mengikuti konvensi Database template (satu file per tabel di `schema/`);
+// - perintah test tanpa `--` sebelum filter: pnpm meneruskan `--` ke vitest sehingga filternya tidak
+//   berlaku dan semua test dijalankan (terbukti di proyek uji T-018).
 import type { StageValidation } from '../run-stage.ts';
 import type { Stage7aTask } from '../stage-7a/validate.ts';
 import { templateSetupOf } from '../task-rules.ts';
@@ -17,9 +22,25 @@ export type TaskManual = { criterion: string; steps: string[] };
 export type TaskDetail = {
   id: string;
   files: string[];
+  /** Keterangan singkat per path di `files` (opsional). */
+  file_notes?: Record<string, string> | null;
   done_when: string[];
   manual?: TaskManual | null;
 };
+
+/** Path yang bertentangan dengan konvensi template, beserta bentuk yang benar. */
+const CONVENTION_PATHS: { pattern: RegExp; correct: string }[] = [
+  {
+    pattern: /(^|\/)apps\/api\/src\/db\/schema\.ts$/,
+    correct: 'satu file per tabel di apps/api/src/db/schema/<tabel>.ts (konvensi Database)',
+  },
+];
+
+/** `pnpm … test -- <filter>` / `test:int -- <filter>`: `--` membuat filter tidak berlaku. */
+const TEST_DASH = /\btest(?::[\w-]+)?\s+--\s/;
+
+/** Path tanpa spasi, tanda kurung, atau backtick (keterangan ditulis di `file_notes`). */
+const isPlainPath = (file: string) => !/[\s()`]/.test(file);
 
 export type Stage7bOutput = { tasks: TaskDetail[] };
 
@@ -64,6 +85,30 @@ export function validateStage7b(output: unknown, phaseTasks: Stage7aTask[]): Sta
           `${id} menyentuh file setup yang sudah disediakan template (${setup.join(', ')})`,
         );
       }
+      for (const file of item.files) {
+        if (!isPlainPath(file)) {
+          errors.push(`${id} files "${file}" bukan path; tulis keterangannya di file_notes`);
+        }
+        // Bagian path saja, agar path yang masih berketerangan tetap diperiksa.
+        const path = file.trim().replace(/`/g, '').split(/\s/)[0] ?? '';
+        for (const { pattern, correct } of CONVENTION_PATHS) {
+          if (pattern.test(path)) {
+            errors.push(`${id} files ${path} bertentangan dengan konvensi template: ${correct}`);
+          }
+        }
+      }
+      const notes = item.file_notes;
+      if (notes !== undefined && notes !== null) {
+        if (!isRecord(notes) || !Object.values(notes).every((n) => typeof n === 'string')) {
+          errors.push(`${id} file_notes harus objek path → keterangan`);
+        } else {
+          for (const path of Object.keys(notes)) {
+            if (!item.files.includes(path)) {
+              errors.push(`${id} file_notes menyebut ${path} yang tidak ada di files`);
+            }
+          }
+        }
+      }
     }
 
     if (!isTextArray(item.done_when)) {
@@ -71,6 +116,11 @@ export function validateStage7b(output: unknown, phaseTasks: Stage7aTask[]): Sta
     } else {
       if (item.done_when.some((c) => PNPM_CHECK.test(c))) {
         errors.push(`${id} done_when menyebut \`pnpm check\`; aplikasi menambahkannya sendiri`);
+      }
+      if (item.done_when.some((c) => TEST_DASH.test(c))) {
+        errors.push(
+          `${id} done_when memakai \`--\` sebelum filter test; tulis \`pnpm --filter api test:int <filter>\` (dengan \`--\` filternya tidak berlaku)`,
+        );
       }
       if (item.done_when.join(' ').length < 30) warnings.push(`${id} done_when terlalu singkat`);
     }

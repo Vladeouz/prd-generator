@@ -145,7 +145,8 @@ describe('job tahap 7: 7a lalu 7b per fase', () => {
     const prompt = prompts[3] as string;
     expect(prompt.startsWith('KONVENSI PROYEK')).toBe(true);
     expect(prompt).toContain(`"""\n${EXPECTED_SECTIONS.stage7b}\n"""`);
-    expect(prompt).not.toContain(TEMPLATE_SECTIONS.database);
+    // Bagian tahap lain (misalnya Format error milik tahap 6) tidak ikut.
+    expect(prompt).not.toContain(TEMPLATE_SECTIONS.errors);
     expect(prompt).toContain(
       'Kamu adalah tahap "Detail Task" di aplikasi PRD Generator, untuk fase 2',
     );

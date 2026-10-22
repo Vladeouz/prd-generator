@@ -30,7 +30,12 @@ export type ComposeTasksInput = {
 export const touchesFlutterApp = (task: Stage7aTask, detail: TaskDetail) =>
   task.layer === 'app' || detail.files.some((file) => file.includes('apps/app/lib'));
 
-const formatFile = (file: string) => (file.includes('`') ? file : `\`${file}\``);
+/** Path dalam backtick (bisa disalin apa adanya), keterangan dari `file_notes` di luarnya. */
+function formatFile(file: string, notes: TaskDetail['file_notes']): string {
+  const path = file.includes('`') ? file : `\`${file}\``;
+  const note = notes?.[file]?.trim();
+  return note ? `${path} (${note})` : path;
+}
 const stripEnd = (text: string) => text.trim().replace(/[.;]+$/, '');
 
 function composeTask(task: Stage7aTask, detail: TaskDetail): string {
@@ -43,7 +48,7 @@ function composeTask(task: Stage7aTask, detail: TaskDetail): string {
   const lines = [
     `- [ ] ${task.id} ${task.title}`,
     `  - layer: ${task.layer} · depends_on: ${task.depends_on.join(', ') || '-'} · refs: ${task.refs.join(', ') || '-'}`,
-    `  - files: ${detail.files.map(formatFile).join(', ')}`,
+    `  - files: ${detail.files.map((file) => formatFile(file, detail.file_notes)).join(', ')}`,
     `  - done when: ${criteria.join('; ')}`,
   ];
   if (manual) {
