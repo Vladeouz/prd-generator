@@ -110,9 +110,9 @@ Terbukti di uji sebelumnya dan wajib diikuti:
 - Envelope akhir berisi `result`, `usage`, `total_cost_usd`, `is_error`; `usage` dan durasi disimpan.
 - Batas waktu per pemanggilan: 15 menit.
 
-Efisiensi (D-09 sampai D-12). Nama flag persis ditetapkan spike T-022 dari `claude --help` versi terpasang, lalu dicatat di `docs/conventions.md`:
+Efisiensi (D-09 sampai D-12, D-14). Nama flag persis ditetapkan spike T-022 dari `claude --help` versi terpasang, lalu dicatat di `docs/conventions.md`:
 
-- Model dari env `CLAUDE_MODEL` (bawaan `sonnet`) dengan `--effort low`. Extended thinking tidak bisa dimatikan di Sonnet 5.5; effort rendah menguranginya (spike T-022).
+- Model dan effort mengikuti profil tahap (D-14): profil `standard` dari env `CLAUDE_MODEL` dan `CLAUDE_EFFORT` (bawaan `sonnet` dan `low`), profil `reasoning` dari `CLAUDE_MODEL_REASONING` dan `CLAUDE_EFFORT_REASONING` (bawaan dari spike T-034). Extended thinking tidak bisa dimatikan di Sonnet 5.5; effort rendah menguranginya (spike T-022).
 - Overhead Claude Code dikurangi: system prompt sendiri yang pendek, tanpa tool, tanpa server MCP dan pengaturan dari folder user.
 - Output memakai format stream (`--output-format stream-json`), sehingga potongan teks diteruskan ke UI selama pemanggilan berjalan.
 
@@ -149,6 +149,8 @@ erDiagram
         text scope "nullable"
         integer attempt
         text prompt_version
+        text model "nullable"
+        text effort "nullable"
         text status
         text output_raw "nullable"
         text output_json "nullable"
@@ -327,6 +329,7 @@ Acceptance criteria:
 
 Acceptance criteria:
 - [ ] Given setiap pemanggilan, When selesai, Then token input, token output, perkiraan biaya, dan durasi tersimpan dan tampil per tahap dan total per proyek.
+- [ ] Given setiap pemanggilan, When dicatat, Then model dan effort yang dipakai tersimpan di `stage_runs` dan tampil per tahap; perkiraan durasi hanya merata-rata pemanggilan dengan versi prompt, model, dan effort yang sama dengan pengaturan saat ini.
 - [ ] Given tahap 6 atau 7 akan dijalankan, When user menekan tombol, Then muncul konfirmasi dengan perkiraan durasi dan pemakaian token berdasarkan rata-rata pemanggilan sebelumnya (atau angka uji bila belum ada).
 
 ### FR-11: Pengaturan template
@@ -334,6 +337,7 @@ Acceptance criteria:
 Acceptance criteria:
 - [ ] Given `TEMPLATE_DIR` tidak valid, When aplikasi dibuka, Then halaman pengaturan menampilkan masalahnya dan tahap 6–7 tidak bisa dijalankan.
 - [ ] Given `TEMPLATE_DIR` valid, When dibuka, Then commit template yang dipakai tampil.
+- [ ] Given halaman pengaturan, When dibuka, Then model dan effort setiap profil (`standard`, `reasoning`) beserta tahap yang memakainya tampil; nilai effort di luar `low`, `medium`, `high`, `xhigh`, `max` atau model yang tidak valid ditampilkan sebagai masalah, dan tahap yang memakai profil itu tidak bisa dijalankan.
 
 ### FR-12: Flowchart fitur
 
@@ -348,7 +352,7 @@ Acceptance criteria:
 - **NFR-01 Lokal:** server hanya mendengarkan `127.0.0.1`; path ekspor divalidasi sebagai path absolut dan tidak pernah dibentuk dari teks output AI.
 - **NFR-02 Tanpa kuota di test:** `pnpm check` tidak pernah memanggil `claude` sungguhan; dibuktikan dengan runner yang gagal keras bila perintah sungguhan dipanggil saat `NODE_ENV=test`.
 - **NFR-03 Lintas platform:** semua script dan perintah README berjalan di Windows (CMD, PowerShell, Git Bash).
-- **NFR-04 Keterlacakan:** setiap dokumen bisa ditelusuri ke versi prompt, output mentah, dan commit template yang menghasilkannya.
+- **NFR-04 Keterlacakan:** setiap dokumen bisa ditelusuri ke versi prompt, model dan effort, output mentah, dan commit template yang menghasilkannya.
 - **NFR-05 Waktu verifikasi:** `pnpm check` selesai di bawah 5 menit.
 - **NFR-06 Efisiensi:** untuk ide uji gym dari T-012: tahap 6 selesai ≤ 4 menit, tahap 7 (7a + 7b) ≤ 5 menit, PRD ±45 KB (target di prompt; validator memberi peringatan di atas 50 KB), dan perkiraan biaya satu proyek dari tahap 2 sampai 7 ≤ 25% dari baseline T-012. Angka tahap 6 dan ukuran PRD disesuaikan dari hasil spike T-022 dengan persetujuan user.
 
@@ -364,11 +368,12 @@ Acceptance criteria:
 | D-06 | Konvensi proyek dibaca dari `TEMPLATE_DIR` | Satu sumber kebenaran; generator ikut berubah saat template berubah |
 | D-07 | Test memakai runner palsu dengan fixture output nyata | Tanpa kuota, deterministik, tetapi realistis |
 | D-08 | Satu kali percobaan ulang dengan daftar error | Pola yang terbukti di uji end-to-end |
-| D-09 | Model Sonnet di semua tahap dengan `--effort low`; bisa diganti lewat env `CLAUDE_MODEL`. Extended thinking tidak bisa dimatikan di Sonnet 5.5, jadi dikurangi lewat effort | Uji T-012 dengan model bawaan (kelas Opus) dan thinking: tahap 6 ±9 menit, satu proyek ±$12. Spike T-022: Sonnet + `--effort low` mengurangi thinking ±48% tanpa penurunan kualitas PRD yang terlihat |
+| D-09 | Model Sonnet dengan `--effort low` untuk tahap penulisan (profil `standard`, D-14); tahap review memakai profil `reasoning`. Bisa diganti lewat env `CLAUDE_MODEL` dan `CLAUDE_EFFORT`. Extended thinking tidak bisa dimatikan di Sonnet 5.5, jadi dikurangi lewat effort | Uji T-012 dengan model bawaan (kelas Opus) dan thinking: tahap 6 ±9 menit, satu proyek ±$12. Spike T-022: Sonnet + `--effort low` mengurangi thinking ±48% tanpa penurunan kualitas PRD yang terlihat |
 | D-10 | Prompt hanya membawa bagian `docs/conventions.md` yang relevan per tahap, dan PRD merujuk konvensi tanpa menyalinnya | Seluruh file (±77 KB) ikut di tahap 6 dan 7, dan PRD membengkak ke ±95 KB. D-06 tetap berlaku: sumbernya tetap `TEMPLATE_DIR` |
 | D-11 | Tahap 7 dua langkah: daftar task (7a) lalu detail per fase (7b); `TASKS.md` dan bagian bakunya disusun aplikasi | Satu pemanggilan besar ±108k token input dan gagal validasi format berulang (4 panggilan di uji T-012) |
 | D-12 | Output Claude Code di-stream ke UI lewat SSE dari job di memori (D-03) | Progres sebelumnya hanya perkiraan waktu |
 | D-13 | Flowchart fitur dengan React Flow dari data tersimpan | Gambaran struktur seperti referensi tanpa token tambahan |
+| D-14 | Model dan effort per profil tahap. `standard` (tahap 2–4, 6, 7a, 7b): Sonnet `--effort low` sesuai D-09. `reasoning` (tahap 5 dan review 2): model dan effort bawaan ditetapkan spike T-034. Semua bisa diganti lewat env | Tahap penulisan tidak terlihat turun kualitasnya dengan effort rendah (T-022), sedangkan tahap review meloloskan celah klaim admin di uji T-018 (temuan 11). Output review kecil (±3k token), jadi effort atau model yang lebih kuat hanya menambah ±$0,2–0,4 per proyek |
 
 ### Open Questions
 
