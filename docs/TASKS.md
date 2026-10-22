@@ -146,7 +146,7 @@ Baseline dari uji T-012 ada di bagian 3 PRD (Pemanggilan Claude Code); targetnya
 
 Temuan uji nyata pertama T-018 (ide reservasi massage) yang membuat agent proyek turunan harus mengambil keputusan konvensi. Nomor temuan merujuk `docs/logs/T-018.md` di branch `test/t-018-uji-nyata`. Output nyata uji itu menjadi fixture verifikasi.
 
-- [ ] T-029 Daftar task 7a: tabel per fitur, dependensi, dan kontrak bersama API
+- [x] T-029 Daftar task 7a: tabel per fitur, dependensi, dan kontrak bersama API
   - layer: app · depends_on: T-027 · refs: FR-08, D-11 (temuan 1, 7, 9, 12)
   - files: `prompts/stage-7a.md`, `src/stages/stage-7a/**`, `src/stages/task-rules.ts`, `src/template/sections.ts`, `src/projects/compose-tasks.ts`, `test/helpers/template-repo.ts`, `test/fixtures/claude/**`, `test/unit/stages/**`, `test/int/stages/**`, `test/e2e/**`
   - done when: konvensi `stage7a` membawa bagian `## Database` dan `## Kontrak dan client Dart` template; prompt 7a (versi naik) tidak lagi meminta semua skema di fase 0, melainkan tabel dibuat di task `db` fitur pemiliknya, dan perubahan route atau skema Zod dikerjakan bersama `pnpm contract:generate` di task `api`-nya (layer `contract` terpisah tidak dipakai); output 7a menyebut `tables` (tabel yang dibuat) untuk task `db`; validator 7a menolak task selain yang pertama tanpa `depends_on`, task layer `contract`, tabel yang dibuat lebih dari satu task, dan tabel di bagian 4 PRD yang tidak dibuat task mana pun (kecuali tabel yang disediakan template, yaitu `users`); daftar 7a nyata uji T-018 disimpan sebagai fixture verifikasi dan ditolak dengan error yang menyebut task tanpa dependensi dan task `contract`-nya (unit test); fixture gym diturunkan ulang dan lolos; `pnpm check` hijau

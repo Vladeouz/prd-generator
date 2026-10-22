@@ -93,12 +93,14 @@ describe('tahap 7a: daftar task', () => {
     expect(prompt).not.toContain('## 8. Assumptions & Decisions');
     expect(prompt.length).toBeLessThan(F.stage6().result.length / 2);
     expect(prompt).toContain(`"""\n${EXPECTED_SECTIONS.stage7a}\n"""`);
-    expect(prompt).not.toContain(TEMPLATE_SECTIONS.database);
-    expect(prompt).toContain('infra, db, api, contract, app, test, docs');
+    // Bagian tahap lain (misalnya Test API milik 7b) tidak ikut.
+    expect(prompt).not.toContain(TEMPLATE_SECTIONS.testApi);
+    expect(prompt).toContain('(salah satu dari: infra, db, api, app, test, docs)');
+    expect(prompt).toContain('tabel yang sudah disediakan template (users)');
     expect(prompt).not.toMatch(/\{\{\w+\}\}/);
 
     expect(runs7a()).toMatchObject([
-      { attempt: 1, status: 'succeeded', scope: null, promptVersion: '2', isCurrent: 1 },
+      { attempt: 1, status: 'succeeded', scope: null, promptVersion: '3', isCurrent: 1 },
     ]);
     const output = currentOutput<Stage7aOutput>(t.db, 'p1', 'stage7a');
     expect(output?.tasks).toHaveLength(42);
@@ -107,15 +109,11 @@ describe('tahap 7a: daftar task', () => {
   it('daftar dengan task setup template ditolak, lalu percobaan ulang dengan daftar error diterima', async () => {
     await projectAtStage7();
     const invalid = JSON.parse(taskList().result) as Stage7aOutput;
-    invalid.tasks.unshift({
-      id: 'T-000',
+    // Task pertama diganti setup template (menambah task di depan membuat task lain tanpa depends_on).
+    invalid.tasks[0] = {
+      ...(invalid.tasks[0] as Stage7aOutput['tasks'][number]),
       title: 'Setup monorepo dan Docker Compose',
-      phase: 0,
-      feature: 'F-01',
-      layer: 'infra',
-      depends_on: [],
-      refs: ['NFR-11'],
-    });
+    };
     const runner = new FakeClaudeRunner([
       { ...taskList(), result: JSON.stringify(invalid) },
       taskList(),
@@ -127,10 +125,10 @@ describe('tahap 7a: daftar task', () => {
     );
     expect(runs7a().map((r) => r.status)).toEqual(['failed', 'succeeded']);
     expect(JSON.parse(runs7a()[0]?.errorsJson ?? '[]')).toEqual([
-      'T-000 adalah setup yang sudah disediakan template (monorepo, Docker Compose)',
+      'T-001 adalah setup yang sudah disediakan template (monorepo, Docker Compose)',
     ]);
     expect(runner.prompts[1]).toContain(
-      '- T-000 adalah setup yang sudah disediakan template (monorepo, Docker Compose)',
+      '- T-001 adalah setup yang sudah disediakan template (monorepo, Docker Compose)',
     );
   });
 

@@ -109,6 +109,8 @@ describe('bagian per tahap', () => {
       '## Struktur repo',
       '## Memulai proyek dan log task',
       '## Script dan perintah root',
+      '## Database',
+      '## Kontrak dan client Dart',
       '## Menghapus fitur contoh notes',
     ]);
     expect(sectionProblems(TEMPLATE_CONVENTIONS)).toEqual([]);

@@ -243,11 +243,19 @@ function taskListGym() {
     });
   });
   const newId = new Map(tasks.map((t, i) => [t.oldId, `T-${String(i + 1).padStart(3, '0')}`]));
+  // Tabel erDiagram PRD gym selain `users` (disediakan template). TASKS rujukan membuat semuanya di
+  // task skema pertama; task db lain (repository) tidak membuat tabel.
+  const erDiagram = prd.match(/```mermaid\n(erDiagram[\s\S]*?)```/)?.[1] ?? '';
+  const tables = [...erDiagram.matchAll(/^\s+([A-Za-z_]+) \{/gm)]
+    .map((m) => m[1])
+    .filter((t) => t.toLowerCase() !== 'users');
+  const firstDb = tasks.findIndex((t) => t.layer === 'db');
   const output = {
-    tasks: tasks.map(({ oldId, depends_on, ...t }) => ({
+    tasks: tasks.map(({ oldId, depends_on, ...t }, i) => ({
       id: newId.get(oldId),
       ...t,
       depends_on: depends_on.map((d) => newId.get(d)),
+      ...(t.layer === 'db' ? { tables: i === firstDb ? tables : [] } : {}),
     })),
   };
   const { envelope } = tasksGym();
@@ -260,6 +268,7 @@ function taskListGym() {
       changes: [
         'TASKS Markdown diubah menjadi daftar task JSON tahap 7a: judul, fase, layer, depends_on, dan refs apa adanya',
         'id dinomori ulang berurutan (T-001 …) dan depends_on mengikuti id baru',
+        'tables (prompt 7a versi 3): task db pertama membuat semua tabel erDiagram PRD selain users, task db lain []',
         'task "Fase 4 — Pengerasan dan Rilis" (tidak ada di struktur fitur tahap 4) dipindah ke fase 3',
         'feature: fitur dari baris "Fitur: F-xx" FR pertama yang dirujuk (fasenya tidak lebih lambat dari task); task tanpa FR mendapat fitur pertama fasenya; task hapus notes null',
         'usage, total_cost_usd, dan duration_ms masih dari pemanggilan tahap 7 lama (TASKS utuh)',

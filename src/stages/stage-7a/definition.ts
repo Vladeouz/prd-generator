@@ -13,7 +13,7 @@ import { type StageDefinition, StageFailedError } from '../run-stage.ts';
 import { featureDraft } from '../stage-4/features.ts';
 import { reachedStage } from '../stage-5/definition.ts';
 import type { Stage6Options } from '../stage-6/definition.ts';
-import { TASK_LAYERS } from '../task-rules.ts';
+import { PLAN_LAYERS, TEMPLATE_TABLES } from '../task-rules.ts';
 import { type Stage7aContext, type Stage7aOutput, validateStage7a } from './validate.ts';
 
 /** Ringkasan PRD terbaru proyek; null bila PRD atau struktur fitur belum ada. */
@@ -35,6 +35,7 @@ export function stage7aContext(digest: PrdDigest): Stage7aContext {
     nfrIds: digest.nfrs.map((nfr) => nfr.id),
     features,
     phases: digest.phases.map((p) => p.phase),
+    tables: digest.tables,
   };
 }
 
@@ -61,7 +62,8 @@ export function stage7aDefinition({
       return renderPrompt(prompt, {
         digest: formatPrdDigest(digest),
         conventions: sections,
-        layers: TASK_LAYERS.join(', '),
+        layers: PLAN_LAYERS.join(', '),
+        templateTables: TEMPLATE_TABLES.join(', '),
       });
     },
     parse: (result) => extractJson(result) as Stage7aOutput,

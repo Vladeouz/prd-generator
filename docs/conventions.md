@@ -166,6 +166,12 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
   - daftar task JSON `{ tasks: [{ id, title, phase, feature, layer, depends_on, refs }] }`;
   - prompt berisi ringkasan PRD (`prdDigest` + `formatPrdDigest`, `src/projects/prd-digest.ts`: kode dan judul FR/NFR, endpoint tanpa `**` dan query string, tabel erDiagram, fase dan fitur tahap 4, fitur rekomendasi yang diterima), bukan PRD utuh, ditambah bagian konvensi `stage7a`;
   - `validateStage7a` memeriksa aturan FR-08 untuk daftar task. Fase harus berasal dari tahap 4, dan task tidak boleh sebelum fase fiturnya. Hanya task hapus notes yang boleh tanpa fitur dan refs;
+  - aturan dari uji nyata T-018 (prompt versi 3), agar agent proyek turunan tidak perlu memutuskan konvensi sendiri:
+    - setiap task selain yang pertama punya `depends_on`;
+    - tidak ada layer `contract` (`PLAN_LAYERS`): `pnpm contract:generate` dikerjakan di task yang mengubah route atau skema Zod, sesuai bagian "Kontrak dan client Dart" template;
+    - task `db` menyebut `tables` yang dibuatnya ([] bila hanya mengubah tabel). Setiap tabel erDiagram PRD dibuat tepat satu task, kecuali `TEMPLATE_TABLES` (`users`). Tabel dibuat di fase fitur pemiliknya, bukan semuanya di fase 0;
+    - konvensi `stage7a` membawa bagian `## Database` dan `## Kontrak dan client Dart`;
+    - regresi: `verification/t018-stage7a.json` (daftar nyata uji T-018) harus ditolak;
   - aturan bersama dengan 7b dan validator TASKS.md ada di `src/stages/task-rules.ts`: `TASK_LAYERS`, `templateSetupOf`, `isNotesRemoval`, `MAX_TASKS`;
   - fixture `derived/stage7a-gym.json` dibangun `build-derived-fixtures.mjs` dari TASKS rujukan;
   - definisi dijalankan dalam job tahap 7 (lihat Job tahap 7).
