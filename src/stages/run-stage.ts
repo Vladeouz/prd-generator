@@ -188,8 +188,10 @@ export type RunStageDeps = {
   onAttempt?: (attempt: number) => void;
   /** Potongan stream dari runner (D-12), diteruskan apa adanya. */
   onProgress?: ClaudeRunOptions['onProgress'];
-  /** Langkah ke-`step` dari `totalSteps` dimulai, untuk tahap berlangkah (tahap 7: 7a lalu 7b per fase). */
+  /** Langkah ke-`step` dari `totalSteps` dimulai, untuk tahap berlangkah (tahap 7: 7a lalu detail fase). */
   onStep?: (step: number, totalSteps: number) => void;
+  /** Detail fase tahap 7 yang berjalan bersamaan (T-033): `done` selesai dan `failed` gagal dari `total`. */
+  onPhases?: (done: number, total: number, failed: number) => void;
   /** Model dan effort per profil; bawaan dari env saat tahap dijalankan (`claudeProfile`). */
   profiles?: (profile: ClaudeProfile) => ClaudeProfileConfig;
 };

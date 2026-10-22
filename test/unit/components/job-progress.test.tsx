@@ -28,6 +28,19 @@ describe('progressSummary', () => {
       'Langkah 2 dari 4 · 1.200 karakter diterima',
     );
   });
+
+  it('detail fase bersamaan: fase selesai dari n, dengan jumlah yang gagal (T-033)', () => {
+    const base = { chars: 3_400, preview: 'x', attempt: 1, step: 2, totalSteps: 2 };
+    expect(progressSummary({ ...base, phasesDone: 3, phasesTotal: 5 })).toBe(
+      'Langkah 2 dari 2 · Fase selesai: 3 dari 5 · 3.400 karakter diterima',
+    );
+    expect(progressSummary({ ...base, phasesDone: 3, phasesFailed: 1, phasesTotal: 5 })).toBe(
+      'Langkah 2 dari 2 · Fase selesai: 3 dari 5 (1 gagal) · 3.400 karakter diterima',
+    );
+    expect(progressSummary({ ...base, chars: 0, phasesDone: 0, phasesTotal: 5 })).toBe(
+      'Langkah 2 dari 2 · Fase selesai: 0 dari 5 · Menunggu Claude Code mulai menjawab…',
+    );
+  });
 });
 
 describe('stepFraction', () => {
@@ -35,6 +48,10 @@ describe('stepFraction', () => {
     expect(stepFraction(null)).toBeUndefined();
     expect(stepFraction({ chars: 5, preview: '', attempt: 1 })).toBeUndefined();
     expect(stepFraction({ chars: 5, preview: '', attempt: 1, step: 3, totalSteps: 4 })).toBe(0.5);
+    // Langkah detail fase: fase yang selesai atau gagal ikut mengisi langkah itu.
+    const phases = { chars: 5, preview: '', attempt: 1, step: 2, totalSteps: 2, phasesTotal: 4 };
+    expect(stepFraction({ ...phases, phasesDone: 0 })).toBe(0.5);
+    expect(stepFraction({ ...phases, phasesDone: 2, phasesFailed: 1 })).toBe(0.875);
   });
 });
 

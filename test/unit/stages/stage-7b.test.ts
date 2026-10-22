@@ -235,6 +235,34 @@ describe('validateStage7b: aturan dari uji nyata T-018', () => {
     expect(edit({ done_when: ['`pnpm --filter api test -- require-role` lulus'] })).toEqual([dash]);
   });
 
+  it('`pnpm check` hanya dalam kalimat larangan diterima; perintah menjalankannya tetap ditolak', () => {
+    const { id } = first();
+    const check = `${id} done_when menyebut \`pnpm check\`; aplikasi menambahkannya sendiri`;
+    for (const allowed of [
+      'pnpm check lain tidak dipakai; jalankan flutter test test/features/reservations',
+      'Jangan jalankan `pnpm check` di sini, cukup `pnpm --filter api test:int seed-admin`',
+      'Test unit lulus tanpa pnpm check (aplikasi menambahkannya)',
+      '`pnpm check` bukan bagian kriteria ini. Test unit cancel-reservation lulus',
+    ]) {
+      expect(edit({ done_when: [allowed] }), allowed).toEqual([]);
+    }
+    for (const rejected of [
+      '`pnpm check` hijau',
+      'Test unit lulus; `pnpm check` hijau',
+      // Larangan di kalimat lain tidak membenarkan perintah `pnpm check` di kalimat ini.
+      'Tidak ada query N+1. `pnpm check` lulus',
+    ]) {
+      expect(edit({ done_when: [rejected] }), rejected).toEqual([check]);
+    }
+  });
+
+  it('detail 7b nyata uji ulang T-018 fase 4 percobaan 2 diterima tanpa error (T-033)', () => {
+    const fixture = loadClaudeFixture('verification/t018-ulang-stage7b-fase-4-attempt2');
+    const output = JSON.parse(fixture.result.slice(fixture.result.indexOf('{')));
+    const list = JSON.parse(loadClaudeFixture('verification/t018-ulang-stage7a').result);
+    expect(validateStage7b(output, phaseTasks(list, 4)).errors).toEqual([]);
+  });
+
   it('detail 7b nyata uji T-018 ditolak dengan alasan yang tepat', () => {
     const t018 = (phase: number) =>
       JSON.parse(loadClaudeFixture(`verification/t018-stage7b-fase-${phase}`).result);
@@ -258,12 +286,24 @@ describe('validateStage7b: aturan dari uji nyata T-018', () => {
 });
 
 describe('prompts/stage-7b.md', () => {
-  it('versi 2; konvensi di awal (awalan sama antarfase), task fase, dan bagian PRD yang dirujuk', () => {
+  it('versi 3; konvensi di awal (awalan sama antarfase), task fase, dan bagian PRD yang dirujuk', () => {
     const prompt = loadPrompt('stage-7b');
-    expect(prompt.version).toBe('2');
+    expect(prompt.version).toBe('3');
     expect(prompt.body).toContain('PATH SAJA tanpa spasi, tanda kurung, atau backtick');
     expect(prompt.body).toContain('"file_notes"');
     expect(prompt.body).toContain('Perintah test dengan filter ditulis TANPA `--`');
+    // Contoh perintah test berfilter yang benar per jenis test, dan contoh yang salah (T-033).
+    expect(prompt.body).toContain('unit test API: `pnpm --filter api test create-reservation`');
+    expect(prompt.body).toContain(
+      'integration test API: `pnpm --filter api test:int reservations`',
+    );
+    expect(prompt.body).toContain(
+      'test Flutter, dijalankan di `apps/app`: `flutter test test/features/reservations`',
+    );
+    expect(prompt.body).toContain(
+      'Contoh yang SALAH: `pnpm --filter api test:int -- reservations`',
+    );
+    expect(prompt.body).toContain('JANGAN menyebut `pnpm check` sama sekali');
     expect(prompt.body).toContain('`apps/api/src/db/schema/<tabel>.ts`, bukan `schema.ts`');
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
       'conventions',
@@ -274,7 +314,6 @@ describe('prompts/stage-7b.md', () => {
       'prd',
     ]);
     expect(prompt.body.startsWith('KONVENSI PROYEK')).toBe(true);
-    expect(prompt.body).toContain('JANGAN menulis `pnpm check`');
     expect(prompt.body).toContain('JANGAN menulis langkah persiapan');
   });
 });

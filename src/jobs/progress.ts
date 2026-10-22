@@ -10,7 +10,10 @@ import type { ClaudeProgress } from '../claude/types.ts';
 /** Panjang cuplikan teks terakhir yang dikirim ke UI. */
 export const PREVIEW_CHARS = 400;
 
-/** Isi event `progress` (PRD bagian 5): `step`/`totalSteps` untuk tahap berlangkah (7b). */
+/**
+ * Isi event `progress` (PRD bagian 5): `step`/`totalSteps` untuk tahap berlangkah (tahap 7), dan
+ * `phases*` untuk detail fase yang berjalan bersamaan.
+ */
 export type JobProgress = {
   /** Karakter teks yang sudah diterima di pemanggilan yang sedang berjalan. */
   chars: number;
@@ -22,6 +25,13 @@ export type JobProgress = {
   thinkingTokens?: number;
   /** Percobaan ke-berapa (D-08); teks dihitung ulang dari awal di setiap percobaan. */
   attempt: number;
+  /**
+   * Detail fase tahap 7 yang berjalan bersamaan (T-033): selesai, gagal, dan jumlah fase. Selama itu
+   * `chars` dan `thinkingTokens` adalah jumlah semua fase.
+   */
+  phasesDone?: number;
+  phasesFailed?: number;
+  phasesTotal?: number;
 };
 
 export type ProgressEvent = { type: 'progress'; progress: JobProgress } | { type: 'done' };
@@ -54,6 +64,12 @@ export class ProgressStore {
   /** Langkah baru dimulai (tahap 7: 7a lalu 7b per fase): teks dihitung dari nol. */
   startStep(jobId: string, step: number, totalSteps: number) {
     this.startAttempt(jobId, 1, { step, totalSteps });
+  }
+
+  /** Jumlah detail fase yang selesai dan gagal dari `total` (tahap 7); teks dan langkah dipertahankan. */
+  setPhases(jobId: string, done: number, total: number, failed = 0) {
+    const current = this.get(jobId) ?? { chars: 0, preview: '', attempt: 1 };
+    this.set(jobId, { ...current, phasesDone: done, phasesFailed: failed, phasesTotal: total });
   }
 
   /** Menerapkan satu potongan dari runner (`onProgress`). */

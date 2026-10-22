@@ -189,6 +189,8 @@ export class JobQueue {
         onAttempt: (attempt: number) => this.progress.startAttempt(id, attempt),
         onProgress: (item: ClaudeProgress) => this.progress.report(id, item),
         onStep: (step: number, totalSteps: number) => this.progress.startStep(id, step, totalSteps),
+        onPhases: (done: number, total: number, failed: number) =>
+          this.progress.setPhases(id, done, total, failed),
       };
       // Tahap berlangkah (tahap 7) menjalankan beberapa pemanggilan sendiri; tahap lain satu runStage.
       if ('execute' in definition) await definition.execute(deps, projectId);

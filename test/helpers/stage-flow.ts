@@ -2,8 +2,12 @@
 // nyata sampai tahap tertentu, dengan semua pertanyaan dilewati (jawaban default).
 import { eq } from 'drizzle-orm';
 import { expect } from 'vitest';
-import { FakeClaudeRunner, loadClaudeFixture } from '../../src/claude/fake-runner.ts';
-import type { ClaudeResult } from '../../src/claude/types.ts';
+import {
+  FakeClaudeRunner,
+  type FakeResponse,
+  loadClaudeFixture,
+} from '../../src/claude/fake-runner.ts';
+import type { ClaudeResult, ClaudeRunError, ClaudeRunner } from '../../src/claude/types.ts';
 import type { Clock } from '../../src/core/clock.ts';
 import { claudeProfile } from '../../src/core/config/claude.ts';
 import type { Db } from '../../src/core/db/client.ts';
@@ -30,24 +34,74 @@ export const GYM_FIXTURES = {
   stage7a: () => loadClaudeFixture('derived/stage7a-gym'),
   /** Detail task 7b satu fase (turunan TASKS nyata). */
   stage7b: (phase: number) => loadClaudeFixture(`derived/stage7b-gym-fase-${phase}`),
-  /** Satu job tahap 7 lengkap: 7a lalu 7b fase 0–3, berurutan. */
+  /** Fixture satu job tahap 7 lengkap: 7a lalu 7b fase 0–3 (untuk menjumlahkan token dan biaya). */
   stage7: () => [
     loadClaudeFixture('derived/stage7a-gym'),
     ...[0, 1, 2, 3].map((phase) => loadClaudeFixture(`derived/stage7b-gym-fase-${phase}`)),
   ],
+  /**
+   * Respons runner untuk satu job tahap 7 lengkap: 7a, lalu detail fase 0–3 yang dipilih dari fase
+   * di prompt, karena detail fase berjalan bersamaan (T-033).
+   */
+  stage7Job: (): FakeResponse[] => [
+    loadClaudeFixture('derived/stage7a-gym'),
+    ...phaseResponses({
+      0: [loadClaudeFixture('derived/stage7b-gym-fase-0')],
+      1: [loadClaudeFixture('derived/stage7b-gym-fase-1')],
+      2: [loadClaudeFixture('derived/stage7b-gym-fase-2')],
+      3: [loadClaudeFixture('derived/stage7b-gym-fase-3')],
+    }),
+  ],
 };
+
+/** Nomor fase dari prompt 7b ("… untuk fase 2 (…)"), atau null untuk prompt lain. */
+export function promptPhase(prompt: string): number | null {
+  const match = /Kamu adalah tahap "Detail Task"[^\n]*?untuk fase (\d+)/.exec(prompt);
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * Respons 7b yang dipilih dari fase di prompt, bukan dari urutan pemanggilan: detail fase berjalan
+ * bersamaan (T-033), dan urutan mulainya bergantung pada pembacaan template yang async.
+ * `responses[fase]` dipakai berurutan per fase (percobaan 1, lalu 2).
+ */
+export function phaseResponses(
+  responses: Record<number, (ClaudeResult | ClaudeRunError)[]>,
+): FakeResponse[] {
+  const queues = new Map(
+    Object.entries(responses).map(([phase, list]) => [Number(phase), [...list]]),
+  );
+  const count = [...queues.values()].reduce((sum, list) => sum + list.length, 0);
+  return Array.from({ length: count }, () => (prompt: string) => {
+    const phase = promptPhase(prompt);
+    const next = phase === null ? undefined : queues.get(phase)?.shift();
+    if (!next) throw new Error(`phaseResponses: tidak ada respons untuk fase ${phase}.`);
+    return next;
+  });
+}
 
 export function createFlow(
   db: Db,
   clock: Clock,
-  responses: ClaudeResult[],
-  options: { templateDir?: string; profiles?: JobQueueDeps['profiles'] } = {},
+  responses: FakeResponse[],
+  options: {
+    templateDir?: string;
+    profiles?: JobQueueDeps['profiles'];
+    /** Membungkus runner palsu, misalnya untuk menahan pemanggilan tertentu. */
+    wrapRunner?: (runner: FakeClaudeRunner) => ClaudeRunner;
+  } = {},
 ) {
   const runner = new FakeClaudeRunner(responses);
   const stages = createStageRegistry({ templateDir: () => options.templateDir });
   // Bawaan: env kosong, agar `.env` pengembang tidak memengaruhi test (bawaan profil D-14).
   const profiles = options.profiles ?? ((profile) => claudeProfile(profile, {}));
-  const queue = new JobQueue({ db, runner, clock, stages, profiles });
+  const queue = new JobQueue({
+    db,
+    runner: options.wrapRunner?.(runner) ?? runner,
+    clock,
+    stages,
+    profiles,
+  });
   return {
     db,
     clock,

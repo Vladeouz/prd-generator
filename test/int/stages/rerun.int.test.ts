@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { FakeResponse } from '../../../src/claude/fake-runner.ts';
 import type { ClaudeResult } from '../../../src/claude/types.ts';
 import type { Clock } from '../../../src/core/clock.ts';
 import { decisions, documents, stageRuns } from '../../../src/core/db/schema.ts';
@@ -37,17 +38,20 @@ afterEach(() => {
   template.remove();
 });
 
-const FULL = () => [
+const BEFORE_TASKS = () => [
   F.stage2(),
   F.stage3(),
   F.stage4(),
   F.stage5(),
   F.stage6(),
   F.review2(),
-  ...F.stage7(),
 ];
-const flowWith = (...after: ClaudeResult[]) =>
-  createFlow(t.db, clock, [...FULL(), ...after], { templateDir: template.dir });
+/** Fixture semua pemanggilan sampai TASKS (untuk menjumlahkan token dan biaya). */
+const FULL = () => [...BEFORE_TASKS(), ...F.stage7()];
+const flowWith = (...after: FakeResponse[]) =>
+  createFlow(t.db, clock, [...BEFORE_TASKS(), ...F.stage7Job(), ...after], {
+    templateDir: template.dir,
+  });
 
 /** Proyek gym sampai TASKS selesai: review kedua diputuskan tanpa perbaikan. */
 async function projectWithTasks(flow: Flow) {
@@ -140,7 +144,7 @@ describe('menjalankan ulang sebuah tahap', () => {
   });
 
   it('tahap 7 dijalankan ulang setelah lengkap: 7a dan semua fase dibuat ulang, TASKS versi berikutnya', async () => {
-    const flow = flowWith(...F.stage7());
+    const flow = flowWith(...F.stage7Job());
     await projectWithTasks(flow);
     await runStage(flow, 'stage7');
     expect(currentStages()).toHaveLength(11);
@@ -221,25 +225,54 @@ describe('pemakaian token dan perkiraan (FR-10)', () => {
       basis: 'test',
       samples: 0,
     });
-    const flow = flowWith(...F.stage7());
+    const flow = flowWith(...F.stage7Job());
     await projectWithTasks(flow);
     await runStage(flow, 'stage7');
-    // Perkiraan satu job: rata-rata 7a + rata-rata 7b × jumlah fase (dua job: 2 run 7a, 8 run 7b).
+    // Perkiraan satu job (dua job: 2 run 7a, 8 run 7b): token rata-rata 7a + rata-rata 7b × jumlah
+    // fase; durasi rata-rata 7a + fase terlama, karena detail fase berjalan bersamaan (T-033).
     const [list, detail] = [F.stage7a(), F.stage7b(0)];
     expect(stageEstimate({ db: t.db }, 'stage7', 4)).toEqual({
-      durationMs: list.durationMs + detail.durationMs * 4,
+      durationMs: list.durationMs + detail.durationMs,
       inputTokens: list.inputTokens + detail.inputTokens * 4,
       outputTokens: list.outputTokens + detail.outputTokens * 4,
       basis: 'average',
       samples: 10,
     });
     expect(stageEstimate({ db: t.db }, 'stage7', 2).durationMs).toBe(
-      list.durationMs + detail.durationMs * 2,
+      list.durationMs + detail.durationMs,
+    );
+  });
+
+  it('durasi tahap 7: fase terlama (rata-rata per fase), bukan jumlah fase (T-033)', async () => {
+    const flow = flowWith();
+    await projectWithTasks(flow);
+    const list = F.stage7a();
+    const base = t.db
+      .select()
+      .from(stageRuns)
+      .where(and(eq(stageRuns.stage, 'stage7b'), eq(stageRuns.scope, '1')))
+      .get() as typeof stageRuns.$inferSelect;
+    // Fase 1 punya dua run lain: rata-ratanya (169.820 + 400.000 + 430.180) / 3 = 333.333.
+    t.db
+      .insert(stageRuns)
+      .values([
+        { ...base, id: 'fase1-b', durationMs: 400_000, isCurrent: 0 },
+        { ...base, id: 'fase1-c', durationMs: 430_180, isCurrent: 0 },
+      ])
+      .run();
+    const settings = currentEstimateSettings();
+    const longest = Math.round((169_820 + 400_000 + 430_180) / 3);
+    expect(stageEstimate({ db: t.db }, 'stage7', 4, settings).durationMs).toBe(
+      list.durationMs + longest,
+    );
+    // Dengan batas 2 pemanggilan serentak, 4 fase berjalan dalam 2 gelombang.
+    expect(stageEstimate({ db: t.db }, 'stage7', 4, settings, 2).durationMs).toBe(
+      list.durationMs + longest * 2,
     );
   });
 
   it('perkiraan hanya dari run dengan versi prompt yang sedang dipakai (uji T-018)', async () => {
-    const flow = flowWith(...F.stage7());
+    const flow = flowWith(...F.stage7Job());
     await projectWithTasks(flow);
     await runStage(flow, 'stage7');
     const settings = currentEstimateSettings();
@@ -284,7 +317,7 @@ describe('pemakaian token dan perkiraan (FR-10)', () => {
   });
 
   it('perkiraan hanya dari run dengan model dan effort yang sedang dipakai (T-035)', async () => {
-    const flow = flowWith(...F.stage7());
+    const flow = flowWith(...F.stage7Job());
     await projectWithTasks(flow);
     const settings = currentEstimateSettings();
     expect(settings.stage6).toMatchObject({ model: 'sonnet', effort: 'low' });
