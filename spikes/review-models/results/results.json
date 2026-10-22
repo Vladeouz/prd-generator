@@ -1,0 +1,688 @@
+{
+  "stage5-sonnet-low-1": {
+    "stage": "stage5",
+    "config": "sonnet-low",
+    "model": "sonnet",
+    "effort": "low",
+    "promptVersion": "2",
+    "status": "ok",
+    "initModel": "claude-sonnet-5-5",
+    "inputTokens": 7178,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 7176,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 4027,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 7176,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 4027,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 7176,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 7176
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "outputTokens": 4027,
+    "costUsd": 0.068978,
+    "durationMs": 27199,
+    "resultChars": 8623,
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "findings": 8,
+    "adminClaimHint": [],
+    "command": "claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1 --model sonnet --effort low --system-prompt \"Kamu adalah generator dokumen non-interaktif. Ikuti instruksi di pesan user persis. Jangan memakai tool. Balas hanya dengan output yang diminta.\" --tools \"\" --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence",
+    "thinkingEstimate": 0
+  },
+  "review2-sonnet-low-1": {
+    "stage": "review2",
+    "config": "sonnet-low",
+    "model": "sonnet",
+    "effort": "low",
+    "promptVersion": "3",
+    "status": "ok",
+    "initModel": "claude-sonnet-5-5",
+    "inputTokens": 23693,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 23691,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 4136,
+      "output_tokens_details": {
+        "thinking_tokens": 1310
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 23691,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 4136,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 23691,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 23691
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "outputTokens": 4136,
+    "costUsd": 0.136128,
+    "durationMs": 31088,
+    "resultChars": 6255,
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "findings": 4,
+    "adminClaimHint": [
+      "RV2-01",
+      "RV2-03"
+    ],
+    "command": "claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1 --model sonnet --effort low --system-prompt \"Kamu adalah generator dokumen non-interaktif. Ikuti instruksi di pesan user persis. Jangan memakai tool. Balas hanya dengan output yang diminta.\" --tools \"\" --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence",
+    "thinkingEstimate": 1300
+  },
+  "stage5-sonnet-medium-1": {
+    "stage": "stage5",
+    "config": "sonnet-medium",
+    "model": "sonnet",
+    "effort": "medium",
+    "promptVersion": "2",
+    "status": "ok",
+    "initModel": "claude-sonnet-5-5",
+    "inputTokens": 7177,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 386,
+      "cache_read_input_tokens": 6789,
+      "output_tokens": 5378,
+      "output_tokens_details": {
+        "thinking_tokens": 1557
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 386,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 5378,
+          "cache_read_input_tokens": 6789,
+          "cache_creation_input_tokens": 386,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 386
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "outputTokens": 5378,
+    "costUsd": 0.0560069,
+    "durationMs": 37530,
+    "resultChars": 8182,
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "findings": 7,
+    "adminClaimHint": [
+      "RV-04"
+    ],
+    "command": "claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1 --model sonnet --effort medium --system-prompt \"Kamu adalah generator dokumen non-interaktif. Ikuti instruksi di pesan user persis. Jangan memakai tool. Balas hanya dengan output yang diminta.\" --tools \"\" --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence",
+    "thinkingEstimate": 1400
+  },
+  "review2-sonnet-medium-1": {
+    "stage": "review2",
+    "config": "sonnet-medium",
+    "model": "sonnet",
+    "effort": "medium",
+    "promptVersion": "3",
+    "status": "ok",
+    "initModel": "claude-sonnet-5-5",
+    "inputTokens": 23694,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 388,
+      "cache_read_input_tokens": 23304,
+      "output_tokens": 3316,
+      "output_tokens_details": {
+        "thinking_tokens": 1733
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 388,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 3316,
+          "cache_read_input_tokens": 23304,
+          "cache_creation_input_tokens": 388,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 388
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "outputTokens": 3316,
+    "costUsd": 0.03704639999999999,
+    "durationMs": 27133,
+    "resultChars": 3509,
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "findings": 2,
+    "adminClaimHint": [
+      "RV2-01"
+    ],
+    "command": "claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1 --model sonnet --effort medium --system-prompt \"Kamu adalah generator dokumen non-interaktif. Ikuti instruksi di pesan user persis. Jangan memakai tool. Balas hanya dengan output yang diminta.\" --tools \"\" --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence",
+    "thinkingEstimate": 1600
+  },
+  "stage5-opus-medium-1": {
+    "stage": "stage5",
+    "config": "opus-medium",
+    "model": "opus",
+    "effort": "medium",
+    "promptVersion": "2",
+    "status": "ok",
+    "initModel": "claude-opus-5-5",
+    "inputTokens": 7175,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 7173,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 5959,
+      "output_tokens_details": {
+        "thinking_tokens": 1185
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 7173,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 5959,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 7173,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 7173
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "outputTokens": 5959,
+    "costUsd": 0.17657199999999998,
+    "durationMs": 53862,
+    "resultChars": 10181,
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "findings": 7,
+    "adminClaimHint": [
+      "RV-02",
+      "RV-03"
+    ],
+    "command": "claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1 --model opus --effort medium --system-prompt \"Kamu adalah generator dokumen non-interaktif. Ikuti instruksi di pesan user persis. Jangan memakai tool. Balas hanya dengan output yang diminta.\" --tools \"\" --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence",
+    "thinkingEstimate": 1150
+  },
+  "review2-opus-medium-1": {
+    "stage": "review2",
+    "config": "opus-medium",
+    "model": "opus",
+    "effort": "medium",
+    "promptVersion": "3",
+    "status": "ok",
+    "initModel": "claude-opus-5-5",
+    "inputTokens": 23688,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 23686,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 6588,
+      "output_tokens_details": {
+        "thinking_tokens": 2756
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 23686,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 6588,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 23686,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 23686
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "outputTokens": 6588,
+    "costUsd": 0.321256,
+    "durationMs": 63375,
+    "resultChars": 8420,
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "findings": 6,
+    "adminClaimHint": [
+      "RV2-01"
+    ],
+    "command": "claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1 --model opus --effort medium --system-prompt \"Kamu adalah generator dokumen non-interaktif. Ikuti instruksi di pesan user persis. Jangan memakai tool. Balas hanya dengan output yang diminta.\" --tools \"\" --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence",
+    "thinkingEstimate": 2700
+  },
+  "stage5-sonnet-low-2": {
+    "stage": "stage5",
+    "config": "sonnet-low",
+    "model": "sonnet",
+    "effort": "low",
+    "promptVersion": "2",
+    "status": "ok",
+    "initModel": "claude-sonnet-5-5",
+    "inputTokens": 7178,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 387,
+      "cache_read_input_tokens": 6789,
+      "output_tokens": 3447,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 387,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 3447,
+          "cache_read_input_tokens": 6789,
+          "cache_creation_input_tokens": 387,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 387
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "outputTokens": 3447,
+    "costUsd": 0.0367009,
+    "durationMs": 24439,
+    "resultChars": 7434,
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "findings": 8,
+    "adminClaimHint": [
+      "RV-03",
+      "RV-05"
+    ],
+    "command": "claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1 --model sonnet --effort low --system-prompt \"Kamu adalah generator dokumen non-interaktif. Ikuti instruksi di pesan user persis. Jangan memakai tool. Balas hanya dengan output yang diminta.\" --tools \"\" --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence",
+    "thinkingEstimate": 0
+  },
+  "review2-sonnet-low-2": {
+    "stage": "review2",
+    "config": "sonnet-low",
+    "model": "sonnet",
+    "effort": "low",
+    "promptVersion": "3",
+    "status": "ok",
+    "initModel": "claude-sonnet-5-5",
+    "inputTokens": 23694,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 388,
+      "cache_read_input_tokens": 23304,
+      "output_tokens": 3392,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 388,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 3392,
+          "cache_read_input_tokens": 23304,
+          "cache_creation_input_tokens": 388,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 388
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "outputTokens": 3392,
+    "costUsd": 0.03780639999999999,
+    "durationMs": 24921,
+    "resultChars": 7442,
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "findings": 5,
+    "adminClaimHint": [
+      "RV2-01"
+    ],
+    "command": "claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1 --model sonnet --effort low --system-prompt \"Kamu adalah generator dokumen non-interaktif. Ikuti instruksi di pesan user persis. Jangan memakai tool. Balas hanya dengan output yang diminta.\" --tools \"\" --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence",
+    "thinkingEstimate": 0
+  },
+  "stage5-sonnet-medium-2": {
+    "stage": "stage5",
+    "config": "sonnet-medium",
+    "model": "sonnet",
+    "effort": "medium",
+    "promptVersion": "2",
+    "status": "ok",
+    "initModel": "claude-sonnet-5-5",
+    "inputTokens": 7177,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 386,
+      "cache_read_input_tokens": 6789,
+      "output_tokens": 3647,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 386,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 3647,
+          "cache_read_input_tokens": 6789,
+          "cache_creation_input_tokens": 386,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 386
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "outputTokens": 3647,
+    "costUsd": 0.0386969,
+    "durationMs": 25079,
+    "resultChars": 7777,
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "findings": 8,
+    "adminClaimHint": [
+      "RV-04"
+    ],
+    "command": "claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1 --model sonnet --effort medium --system-prompt \"Kamu adalah generator dokumen non-interaktif. Ikuti instruksi di pesan user persis. Jangan memakai tool. Balas hanya dengan output yang diminta.\" --tools \"\" --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence",
+    "thinkingEstimate": 0
+  },
+  "review2-sonnet-medium-2": {
+    "stage": "review2",
+    "config": "sonnet-medium",
+    "model": "sonnet",
+    "effort": "medium",
+    "promptVersion": "3",
+    "status": "ok",
+    "initModel": "claude-sonnet-5-5",
+    "inputTokens": 23694,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 388,
+      "cache_read_input_tokens": 23304,
+      "output_tokens": 4330,
+      "output_tokens_details": {
+        "thinking_tokens": 1601
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 388,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 4330,
+          "cache_read_input_tokens": 23304,
+          "cache_creation_input_tokens": 388,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 388
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "outputTokens": 4330,
+    "costUsd": 0.04718639999999999,
+    "durationMs": 32366,
+    "resultChars": 6005,
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "findings": 4,
+    "adminClaimHint": [
+      "RV2-01"
+    ],
+    "command": "claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1 --model sonnet --effort medium --system-prompt \"Kamu adalah generator dokumen non-interaktif. Ikuti instruksi di pesan user persis. Jangan memakai tool. Balas hanya dengan output yang diminta.\" --tools \"\" --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence",
+    "thinkingEstimate": 1500
+  },
+  "stage5-opus-medium-2": {
+    "stage": "stage5",
+    "config": "opus-medium",
+    "model": "opus",
+    "effort": "medium",
+    "promptVersion": "2",
+    "status": "ok",
+    "initModel": "claude-opus-5-5",
+    "inputTokens": 7174,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 383,
+      "cache_read_input_tokens": 6789,
+      "output_tokens": 7310,
+      "output_tokens_details": {
+        "thinking_tokens": 2119
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 383,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 7310,
+          "cache_read_input_tokens": 6789,
+          "cache_creation_input_tokens": 383,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 383
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "outputTokens": 7310,
+    "costUsd": 0.1506298,
+    "durationMs": 67313,
+    "resultChars": 11222,
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "findings": 8,
+    "adminClaimHint": [
+      "RV-01",
+      "RV-03"
+    ],
+    "command": "claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1 --model opus --effort medium --system-prompt \"Kamu adalah generator dokumen non-interaktif. Ikuti instruksi di pesan user persis. Jangan memakai tool. Balas hanya dengan output yang diminta.\" --tools \"\" --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence",
+    "thinkingEstimate": 2050
+  },
+  "review2-opus-medium-2": {
+    "stage": "review2",
+    "config": "opus-medium",
+    "model": "opus",
+    "effort": "medium",
+    "promptVersion": "3",
+    "status": "ok",
+    "initModel": "claude-opus-5-5",
+    "inputTokens": 23689,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 383,
+      "cache_read_input_tokens": 23304,
+      "output_tokens": 6574,
+      "output_tokens_details": {
+        "thinking_tokens": 2700
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 383,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 6574,
+          "cache_read_input_tokens": 23304,
+          "cache_creation_input_tokens": 383,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 383
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "outputTokens": 6574,
+    "costUsd": 0.1392128,
+    "durationMs": 69298,
+    "resultChars": 8611,
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "findings": 6,
+    "adminClaimHint": [
+      "RV2-01"
+    ],
+    "command": "claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1 --model opus --effort medium --system-prompt \"Kamu adalah generator dokumen non-interaktif. Ikuti instruksi di pesan user persis. Jangan memakai tool. Balas hanya dengan output yang diminta.\" --tools \"\" --strict-mcp-config --setting-sources project --disable-slash-commands --no-session-persistence",
+    "thinkingEstimate": 2650
+  }
+}

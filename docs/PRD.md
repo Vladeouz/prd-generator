@@ -112,7 +112,7 @@ Terbukti di uji sebelumnya dan wajib diikuti:
 
 Efisiensi (D-09 sampai D-12, D-14). Nama flag persis ditetapkan spike T-022 dari `claude --help` versi terpasang, lalu dicatat di `docs/conventions.md`:
 
-- Model dan effort mengikuti profil tahap (D-14): profil `standard` dari env `CLAUDE_MODEL` dan `CLAUDE_EFFORT` (bawaan `sonnet` dan `low`), profil `reasoning` dari `CLAUDE_MODEL_REASONING` dan `CLAUDE_EFFORT_REASONING` (bawaan dari spike T-034). Extended thinking tidak bisa dimatikan di Sonnet 5.5; effort rendah menguranginya (spike T-022).
+- Model dan effort mengikuti profil tahap (D-14): profil `standard` dari env `CLAUDE_MODEL` dan `CLAUDE_EFFORT` (bawaan `sonnet` dan `low`), profil `reasoning` dari `CLAUDE_MODEL_REASONING` dan `CLAUDE_EFFORT_REASONING` (bawaan `opus` dan `medium`, spike T-034). Extended thinking tidak bisa dimatikan di Sonnet 5.5; effort rendah menguranginya (spike T-022).
 - Overhead Claude Code dikurangi: system prompt sendiri yang pendek, tanpa tool, tanpa server MCP dan pengaturan dari folder user.
 - Output memakai format stream (`--output-format stream-json`), sehingga potongan teks diteruskan ke UI selama pemanggilan berjalan.
 
@@ -368,12 +368,12 @@ Acceptance criteria:
 | D-06 | Konvensi proyek dibaca dari `TEMPLATE_DIR` | Satu sumber kebenaran; generator ikut berubah saat template berubah |
 | D-07 | Test memakai runner palsu dengan fixture output nyata | Tanpa kuota, deterministik, tetapi realistis |
 | D-08 | Satu kali percobaan ulang dengan daftar error | Pola yang terbukti di uji end-to-end |
-| D-09 | Model Sonnet dengan `--effort low` untuk tahap penulisan (profil `standard`, D-14); tahap review memakai profil `reasoning`. Bisa diganti lewat env `CLAUDE_MODEL` dan `CLAUDE_EFFORT`. Extended thinking tidak bisa dimatikan di Sonnet 5.5, jadi dikurangi lewat effort | Uji T-012 dengan model bawaan (kelas Opus) dan thinking: tahap 6 ±9 menit, satu proyek ±$12. Spike T-022: Sonnet + `--effort low` mengurangi thinking ±48% tanpa penurunan kualitas PRD yang terlihat |
+| D-09 | Model Sonnet dengan `--effort low` untuk tahap penulisan (profil `standard`, D-14); review kedua memakai profil `reasoning`. Bisa diganti lewat env `CLAUDE_MODEL` dan `CLAUDE_EFFORT`. Extended thinking tidak bisa dimatikan di Sonnet 5.5, jadi dikurangi lewat effort | Uji T-012 dengan model bawaan (kelas Opus) dan thinking: tahap 6 ±9 menit, satu proyek ±$12. Spike T-022: Sonnet + `--effort low` mengurangi thinking ±48% tanpa penurunan kualitas PRD yang terlihat |
 | D-10 | Prompt hanya membawa bagian `docs/conventions.md` yang relevan per tahap, dan PRD merujuk konvensi tanpa menyalinnya | Seluruh file (±77 KB) ikut di tahap 6 dan 7, dan PRD membengkak ke ±95 KB. D-06 tetap berlaku: sumbernya tetap `TEMPLATE_DIR` |
 | D-11 | Tahap 7 dua langkah: daftar task (7a) lalu detail per fase (7b); `TASKS.md` dan bagian bakunya disusun aplikasi | Satu pemanggilan besar ±108k token input dan gagal validasi format berulang (4 panggilan di uji T-012) |
 | D-12 | Output Claude Code di-stream ke UI lewat SSE dari job di memori (D-03) | Progres sebelumnya hanya perkiraan waktu |
 | D-13 | Flowchart fitur dengan React Flow dari data tersimpan | Gambaran struktur seperti referensi tanpa token tambahan |
-| D-14 | Model dan effort per profil tahap. `standard` (tahap 2–4, 6, 7a, 7b): Sonnet `--effort low` sesuai D-09. `reasoning` (tahap 5 dan review 2): model dan effort bawaan ditetapkan spike T-034. Semua bisa diganti lewat env | Tahap penulisan tidak terlihat turun kualitasnya dengan effort rendah (T-022), sedangkan tahap review meloloskan celah klaim admin di uji T-018 (temuan 11). Output review kecil (±3k token), jadi effort atau model yang lebih kuat hanya menambah ±$0,2–0,4 per proyek |
+| D-14 | Model dan effort per profil tahap. `standard` (tahap 2–7b kecuali review 2): Sonnet `--effort low` sesuai D-09. `reasoning` (review 2): Opus `--effort medium` (spike T-034). Semua bisa diganti lewat env | Tahap penulisan tidak terlihat turun kualitasnya dengan effort rendah (T-022). Spike T-034: celah klaim admin uji T-018 (temuan 11) kini tertangkap review 2 di semua konfigurasi berkat prompt versi 3 (T-031), tetapi Opus `medium` memberi temuan review 2 yang semuanya valid dan lebih dalam, dengan tambahan ±$0,19 dan ±38 dtk per proyek. Di tahap 5 keunggulannya kecil, dan celah seperti temuan 11 baru muncul di PRD, sehingga tahap 5 tetap `standard` |
 
 ### Open Questions
 
