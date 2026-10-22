@@ -4,7 +4,9 @@
 // - id `RV2-xx`;
 // - setiap opsi punya `changes_prd`: true bila memilihnya membuat PRD ditulis ulang; setiap temuan
 //   wajib punya minimal satu opsi perbaikan dan satu opsi tanpa perubahan;
-// - setiap celah dari `endpointGaps` (PRD yang direview) wajib menjadi temuan `ui_endpoint`.
+// - setiap celah dari `endpointGaps` (PRD yang direview) wajib menjadi temuan `ui_endpoint`;
+// - `passed_checks` di luar kategori hanya peringatan (uji T-018: kalimat bebas memicu percobaan
+//   ulang yang tidak perlu).
 import { latestDocument } from '../../projects/documents.ts';
 import type { StageContext, StageValidation } from '../run-stage.ts';
 import type { ReviewOption, Severity } from '../stage-5/validate.ts';
@@ -38,6 +40,7 @@ export function validateReview2Output(output: Review2Output, gaps: EndpointGap[]
   const { errors, warnings = [] } = validateReview(output, {
     categories: REVIEW2_CATEGORIES,
     idPrefix: 'RV2',
+    unknownPassedChecks: 'warning',
   });
   const findings = (Array.isArray(output?.findings) ? output.findings : []).filter(isRecord);
   findings.forEach((f, i) => {
