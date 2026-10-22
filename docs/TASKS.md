@@ -161,7 +161,7 @@ Temuan uji nyata pertama T-018 (ide reservasi massage) yang membuat agent proyek
   - files: `prompts/stage-5.md`, `prompts/review-2.md`, `src/stages/stage-5/**`, `src/stages/review-2/**`, modul validator review bersama, `test/fixtures/claude/**`, `test/unit/stages/**`, `test/int/stages/**`
   - done when: prompt tahap 5 (versi naik) memuat daftar fase tahap 4 dan melarang opsi yang merujuk fase lain; validator tahap 5 menolak opsi atau rekomendasi yang menyebut "fase N" yang tidak ada di tahap 4 (output nyata tahap 5 uji T-018 ditolak karena "fase 4"); prompt review 2 (versi naik) menyebut daftar nilai `passed_checks` yang diizinkan, dan nilai yang tidak dikenal menjadi peringatan, bukan error (output nyata percobaan 1 review 2 uji T-018 lolos dengan peringatan); prompt review 2 meminta pemeriksaan klaim peran atau identitas (misalnya peran dari email yang belum diverifikasi) sebagai temuan `business_rule`; fixture dan test diperbarui; `pnpm check` hijau
 
-- [ ] T-032 Perkiraan durasi dari pemanggilan dengan prompt terbaru
+- [x] T-032 Perkiraan durasi dari pemanggilan dengan prompt terbaru
   - layer: app · depends_on: T-027 · refs: FR-10 (temuan 5)
   - files: `src/projects/usage.ts`, `test/int/stages/rerun.int.test.ts` atau test perkiraan yang ada, `test/unit/projects/**`
   - done when: `stageEstimate` hanya merata-rata pemanggilan dengan versi prompt yang sama dengan prompt saat ini (tahap 7: versi 7a dan 7b masing-masing); bila belum ada, dipakai `TEST_ESTIMATES`; dibuktikan integration test bahwa run dengan versi prompt lama tidak memengaruhi perkiraan; `pnpm check` hijau
