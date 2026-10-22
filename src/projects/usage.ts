@@ -3,6 +3,7 @@
 import { and, eq, isNotNull } from 'drizzle-orm';
 import type { Db } from '../core/db/client.ts';
 import { type STAGES, stageRuns } from '../core/db/schema.ts';
+import { loadPrompt } from '../stages/prompt.ts';
 import { stageOfRun } from '../stages/run-stage.ts';
 
 type Stage = (typeof STAGES)[number];
@@ -108,20 +109,40 @@ function averageOf(rows: EstimateRow[]) {
   };
 }
 
+type EstimateRunStage = 'stage6' | 'stage7a' | 'stage7b';
+
+/** File prompt per run yang diperkirakan; versinya menentukan run mana yang dirata-rata. */
+const ESTIMATE_PROMPTS: Record<EstimateRunStage, string> = {
+  stage6: 'stage-6',
+  stage7a: 'stage-7a',
+  stage7b: 'stage-7b',
+};
+
+/** Versi prompt yang sedang dipakai per run (dibaca dari `prompts/`). */
+export const currentPromptVersions = (): Record<EstimateRunStage, string> => ({
+  stage6: loadPrompt(ESTIMATE_PROMPTS.stage6).version,
+  stage7a: loadPrompt(ESTIMATE_PROMPTS.stage7a).version,
+  stage7b: loadPrompt(ESTIMATE_PROMPTS.stage7b).version,
+});
+
 /**
- * Perkiraan menjalankan tahap 6 atau 7 (FR-10) dari semua pemanggilan sebelumnya di semua proyek
- * yang mencatat durasi dan token (termasuk yang gagal validasi, karena pemanggilannya tetap
- * terjadi), atau angka awal bila belum ada.
+ * Perkiraan menjalankan tahap 6 atau 7 (FR-10) dari pemanggilan sebelumnya di semua proyek dengan
+ * versi prompt yang sedang dipakai (`versions`), yang mencatat durasi dan token (termasuk yang
+ * gagal validasi, karena pemanggilannya tetap terjadi), atau angka awal bila belum ada. Run versi
+ * lama tidak dihitung: di uji T-018, rata-rata yang ikut menghitung run sebelum efisiensi T-023/T-025
+ * menyebut "sekitar 8 menit" untuk tahap 6 yang selesai dalam 65 detik.
  * - Tahap 6: rata-rata satu pemanggilan.
  * - Tahap 7 (D-11): rata-rata pemanggilan 7a ditambah rata-rata pemanggilan 7b per fase dikali
- *   `phases`. Run tahap 7 lama hasil migrasi (`stage7b` tanpa scope) tidak dihitung.
+ *   `phases`, masing-masing dengan versi prompt-nya sendiri. Run tahap 7 lama hasil migrasi
+ *   (`stage7b` tanpa scope) tidak dihitung.
  */
 export function stageEstimate(
   { db }: { db: Db },
   stage: 'stage6' | 'stage7',
   phases = 4,
+  versions: Record<EstimateRunStage, string> = currentPromptVersions(),
 ): StageEstimate {
-  const rowsOf = (runStage: 'stage6' | 'stage7a' | 'stage7b') =>
+  const rowsOf = (runStage: EstimateRunStage) =>
     db
       .select({
         durationMs: stageRuns.durationMs,
@@ -132,6 +153,7 @@ export function stageEstimate(
       .where(
         and(
           eq(stageRuns.stage, runStage),
+          eq(stageRuns.promptVersion, versions[runStage]),
           runStage === 'stage7b' ? isNotNull(stageRuns.scope) : undefined,
           isNotNull(stageRuns.durationMs),
           isNotNull(stageRuns.outputTokens),
