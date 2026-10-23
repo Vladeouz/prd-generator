@@ -1,5 +1,7 @@
 // Job tahap 7 (T-027, D-11, T-033): 7a lalu detail 7b semua fase bersamaan dalam satu job, lalu
 // TASKS.md disusun aplikasi.
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { and, eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FakeClaudeRunner, FakeResponse } from '../../../src/claude/fake-runner.ts';
@@ -34,7 +36,9 @@ import {
 import {
   createTemplateRepo,
   EXPECTED_SECTIONS,
+  TEMPLATE_FILES,
   TEMPLATE_SECTIONS,
+  TEMPLATE_UNTRACKED_FILE,
   type TemplateRepo,
 } from '../../helpers/template-repo.ts';
 
@@ -182,7 +186,13 @@ describe('job tahap 7: 7a lalu detail semua fase bersamaan', () => {
       else expect(prompt).not.toContain(`### ${fr}: `);
     }
     expect(prompt).not.toContain('## 5. API Contract');
-    // Konvensi sama persis di awal setiap prompt 7b (awalan yang bisa dibaca dari cache).
+    // Daftar file template (D-15) setelah konvensi: hanya file kode yang di-commit, tanpa notes.
+    expect(prompt).toContain(
+      `FILE YANG SUDAH ADA DI REPO TEMPLATE (kode dan test aplikasi, tanpa fitur contoh notes yang dihapus salah satu task):\n"""\n${[...TEMPLATE_FILES].sort().join('\n')}\n"""`,
+    );
+    expect(prompt).not.toContain('notes.route.ts');
+    expect(prompt).not.toContain(TEMPLATE_UNTRACKED_FILE);
+    // Konvensi dan daftar file sama persis di awal setiap prompt 7b (awalan yang bisa dibaca dari cache).
     const prefix = (p: string) => p.slice(0, p.indexOf('Kamu adalah tahap'));
     expect(new Set(prompts.slice(1).map(prefix)).size).toBe(1);
 
@@ -280,6 +290,20 @@ describe('job tahap 7: 7a lalu detail semua fase bersamaan', () => {
     expect(job?.error).toContain('Repo template belum valid, jadi daftar task belum bisa dibuat');
     expect(stage7Prompts(flow)).toHaveLength(0);
     expect(tasksDocuments()).toEqual([]);
+  });
+
+  it('daftar file template tidak bisa dibaca: job gagal sebelum 7a memanggil claude (D-15)', async () => {
+    const flow = flowWith([]);
+    await projectReadyForTasks(flow);
+    // `git rev-parse HEAD` tetap berhasil (template valid), tetapi `git ls-files` gagal.
+    writeFileSync(join(template.dir, '.git', 'index'), 'rusak');
+    const response = await flow.jobsApi.run('p1', 'stage7');
+    const job = await flow.queue.waitFor((await response.json()).id);
+    expect(job?.status).toBe('failed');
+    expect(job?.error).toContain('Daftar file repo template tidak bisa dibaca (git ls-files)');
+    expect(job?.error).toContain('Periksa TEMPLATE_DIR di halaman Pengaturan');
+    expect(stage7Prompts(flow)).toHaveLength(0);
+    expect(stage7Runs()).toEqual([]);
   });
 });
 

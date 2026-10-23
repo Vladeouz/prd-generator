@@ -1,0 +1,78 @@
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import {
+  duplicatedTemplateFile,
+  isGenerated,
+  isNotesExample,
+} from '../../../src/template/files.ts';
+
+/** Daftar file template nyata (fixture verifikasi T-036, hasil `templateFiles()`). */
+const REAL = (
+  JSON.parse(
+    readFileSync('test/fixtures/claude/verification/t036-template-files.json', 'utf8'),
+  ) as { files: string[] }
+).files;
+
+describe('isNotesExample dan isGenerated', () => {
+  it.each([
+    'apps/api/src/db/schema/notes.ts',
+    'apps/api/src/features/notes/http/notes.route.ts',
+    'apps/api/test/int/notes/notes-schema.int.test.ts',
+    'apps/app/lib/features/notes/notes_dependencies.dart',
+    'apps/app/test/features/notes/data/note_mapper_test.dart',
+  ])('%s → fitur contoh notes', (path) => {
+    expect(isNotesExample(path)).toBe(true);
+  });
+
+  it.each([
+    'apps/api/src/features/users/http/me.route.ts',
+    'apps/api/test/helpers/factories.ts',
+    'apps/app/lib/core/widgets/load_more_footer.dart',
+    'apps/api/src/features/notifications/http/notifications.route.ts',
+  ])('%s → bukan fitur contoh notes', (path) => {
+    expect(isNotesExample(path)).toBe(false);
+  });
+
+  it('file hasil generate Dart dikenali', () => {
+    expect(isGenerated('apps/app/lib/core/config/app_config.g.dart')).toBe(true);
+    expect(isGenerated('apps/app/lib/x.freezed.dart')).toBe(true);
+    expect(isGenerated('apps/app/lib/main.dart')).toBe(false);
+  });
+});
+
+describe('duplicatedTemplateFile (D-15)', () => {
+  it('daftar template nyata: tanpa file notes, dengan file users', () => {
+    expect(REAL.some(isNotesExample)).toBe(false);
+    expect(REAL).toContain('apps/api/src/features/users/http/me.route.ts');
+    expect(REAL).toContain('apps/api/test/unit/features/users/http/me.route.test.ts');
+  });
+
+  it('file baru dengan peran yang sama di folder template → file template-nya', () => {
+    expect(duplicatedTemplateFile('apps/api/src/features/users/http/users.route.ts', REAL)).toBe(
+      'apps/api/src/features/users/http/me.route.ts',
+    );
+    expect(
+      duplicatedTemplateFile('apps/api/test/unit/features/users/http/users.route.test.ts', REAL),
+    ).toBe('apps/api/test/unit/features/users/http/me.route.test.ts');
+    expect(
+      duplicatedTemplateFile(
+        'apps/api/src/features/users/infrastructure/pg-user-repository.ts',
+        REAL,
+      ),
+    ).toBe('apps/api/src/features/users/infrastructure/drizzle-user-repository.ts');
+  });
+
+  it.each([
+    // File template itu sendiri.
+    'apps/api/src/features/users/http/me.route.ts',
+    // Fitur baru (folder belum ada di template).
+    'apps/api/src/features/reservations/http/reservations.route.ts',
+    // Peran lain di folder template.
+    'apps/api/src/features/users/usecases/update-profile.ts',
+    'apps/api/test/unit/features/users/fake-user-repository.ts',
+    // Folder notes tidak ada di daftar, jadi fitur baru boleh memakai pola yang sama.
+    'apps/api/src/features/notes/http/notes-v2.route.ts',
+  ])('%s → bukan duplikat', (path) => {
+    expect(duplicatedTemplateFile(path, REAL)).toBeNull();
+  });
+});

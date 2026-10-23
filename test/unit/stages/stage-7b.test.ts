@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadClaudeFixture } from '../../../src/claude/fake-runner.ts';
 import {
@@ -18,6 +19,14 @@ import {
   validateStage7b,
 } from '../../../src/stages/stage-7b/validate.ts';
 
+/** Daftar file template nyata (fixture verifikasi T-036, hasil `templateFiles()`). */
+const TEMPLATE_FILES = (
+  JSON.parse(
+    readFileSync('test/fixtures/claude/verification/t036-template-files.json', 'utf8'),
+  ) as {
+    files: string[];
+  }
+).files;
 const list = () => JSON.parse(loadClaudeFixture('derived/stage7a-gym').result) as Stage7aOutput;
 const detail = (phase: number) =>
   JSON.parse(loadClaudeFixture(`derived/stage7b-gym-fase-${phase}`).result) as Stage7bOutput;
@@ -263,6 +272,49 @@ describe('validateStage7b: aturan dari uji nyata T-018', () => {
     expect(validateStage7b(output, phaseTasks(list, 4)).errors).toEqual([]);
   });
 
+  it('file baru yang menduplikasi file template ditolak; detail 7b nyata uji ulang T-018 fase 0 (T-036)', () => {
+    const fixture = loadClaudeFixture('verification/t018-ulang-stage7b-fase-0');
+    const output = JSON.parse(fixture.result.slice(fixture.result.indexOf('{')));
+    const list = JSON.parse(loadClaudeFixture('verification/t018-ulang-stage7a').result);
+    expect(validateStage7b(output, phaseTasks(list, 0), TEMPLATE_FILES).errors).toEqual([
+      'T-002 files apps/api/src/features/users/http/users.route.ts adalah file baru dengan peran yang sama dengan file template apps/api/src/features/users/http/me.route.ts; ubah file template itu',
+      'T-002 files apps/api/test/unit/features/users/http/users.route.test.ts adalah file baru dengan peran yang sama dengan file template apps/api/test/unit/features/users/http/me.route.test.ts; ubah file template itu',
+    ]);
+    // Tanpa daftar file template, aturan ini tidak berlaku (output yang sama lolos).
+    expect(validateStage7b(output, phaseTasks(list, 0)).errors).toEqual([]);
+  });
+
+  it('fixture 7b gym dan uji ulang lain tidak terkena aturan file template (T-036)', () => {
+    for (const phase of [0, 1, 2, 3]) {
+      expect(
+        validateStage7b(detail(phase), phaseTasks(list(), phase), TEMPLATE_FILES).errors,
+      ).toEqual([]);
+    }
+    const fixture = loadClaudeFixture('verification/t018-ulang-stage7b-fase-4-attempt2');
+    const output = JSON.parse(fixture.result.slice(fixture.result.indexOf('{')));
+    const ulang = JSON.parse(loadClaudeFixture('verification/t018-ulang-stage7a').result);
+    expect(validateStage7b(output, phaseTasks(ulang, 4), TEMPLATE_FILES).errors).toEqual([]);
+  });
+
+  it('unit test API yang menguji request HTTP dan status respons ditolak; dokumen OpenAPI dan integration test diterima (T-036)', () => {
+    const { id } = first();
+    const level = `${id} done_when menguji request HTTP dan status respons lewat unit test API; perilaku route diuji di integration test (\`pnpm --filter api test:int <filter>\`, konvensi Test API)`;
+    for (const rejected of [
+      'pnpm --filter api test me: PATCH /v1/me dengan phone tidak valid → 422',
+      '`pnpm --filter api test reservations` lulus: POST /v1/reservations tanpa login mengembalikan 401',
+    ]) {
+      expect(edit({ done_when: [rejected] }), rejected).toEqual([level]);
+    }
+    for (const allowed of [
+      'pnpm --filter api test:int me: PATCH /v1/me dengan phone tidak valid → 422',
+      'pnpm --filter api test users: dokumen OpenAPI memuat PATCH /v1/me dengan operationId updateMe, respons 200/401/422',
+      'pnpm --filter api test update-profile: fullName di-trim, field null tidak mengubah nilai lama',
+      'pnpm --filter api test logger: nomor telepon dan token tidak ada di output captureLogger().raw()',
+    ]) {
+      expect(edit({ done_when: [allowed] }), allowed).toEqual([]);
+    }
+  });
+
   it('detail 7b nyata uji T-018 ditolak dengan alasan yang tepat', () => {
     const t018 = (phase: number) =>
       JSON.parse(loadClaudeFixture(`verification/t018-stage7b-fase-${phase}`).result);
@@ -286,9 +338,17 @@ describe('validateStage7b: aturan dari uji nyata T-018', () => {
 });
 
 describe('prompts/stage-7b.md', () => {
-  it('versi 3; konvensi di awal (awalan sama antarfase), task fase, dan bagian PRD yang dirujuk', () => {
+  it('versi 4; konvensi dan file template di awal (awalan sama antarfase), task fase, dan bagian PRD yang dirujuk', () => {
     const prompt = loadPrompt('stage-7b');
-    expect(prompt.version).toBe('3');
+    expect(prompt.version).toBe('4');
+    // File template dan aturannya (D-15, T-036).
+    expect(prompt.body).toContain('FILE YANG SUDAH ADA DI REPO TEMPLATE');
+    expect(prompt.body).toContain(
+      'JANGAN membuat file baru dengan peran yang sama di folder yang sama',
+    );
+    // Level test sesuai konvensi Test API (T-036).
+    expect(prompt.body).toContain('Level test mengikuti konvensi Test API');
+    expect(prompt.body).toContain('isi log dari request itu, diuji di integration test');
     expect(prompt.body).toContain('PATH SAJA tanpa spasi, tanda kurung, atau backtick');
     expect(prompt.body).toContain('"file_notes"');
     expect(prompt.body).toContain('Perintah test dengan filter ditulis TANPA `--`');
@@ -307,6 +367,7 @@ describe('prompts/stage-7b.md', () => {
     expect(prompt.body).toContain('`apps/api/src/db/schema/<tabel>.ts`, bukan `schema.ts`');
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
       'conventions',
+      'templateFiles',
       'phase',
       'phaseName',
       'phase',
