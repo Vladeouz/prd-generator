@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { and, eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadClaudeFixture } from '../../../src/claude/fake-runner.ts';
@@ -6,6 +7,7 @@ import type { Clock } from '../../../src/core/clock.ts';
 import { decisions, documents, stageRuns } from '../../../src/core/db/schema.ts';
 import type { Job } from '../../../src/jobs/job-queue.ts';
 import { createStageRegistry } from '../../../src/stages/registry.ts';
+import { review2Definition } from '../../../src/stages/review-2/definition.ts';
 import type { Review2Output } from '../../../src/stages/review-2/validate.ts';
 import { decisionHandlers } from '../../../src/stages/stage-5/decision-handlers.ts';
 import { createTestDb, type TestDb } from '../../helpers/db.ts';
@@ -104,6 +106,35 @@ describe('menjalankan review kedua', () => {
     expect((await response.json()).error.message).toBe('Tulis PRD dulu sebelum review kedua.');
   });
 
+  it('PRD nyata uji ulang T-018: prompt memuat konvensi kontrak dan kalimat `null` untuk menghapus (T-037)', async () => {
+    const flow = flowWith(prdWithoutItemGet());
+    await projectWithPrd(flow);
+    // PRD yang menjadi dasar T-002 proyek uji, sebagai versi PRD terbaru proyek.
+    const prd = readFileSync('test/fixtures/claude/verification/t018-ulang-prd.md', 'utf8');
+    t.db
+      .insert(documents)
+      .values({
+        id: 'prd-ulang',
+        projectId: 'p1',
+        kind: 'prd',
+        version: prdVersions().length + 1,
+        content: prd,
+        createdAt: clock(),
+      })
+      .run();
+
+    const prompt = await review2Definition({ templateDir: () => template.dir }).buildPrompt({
+      db: t.db,
+      projectId: 'p1',
+    });
+    expect(prompt).toContain(`"""\n${EXPECTED_SECTIONS.review2}\n"""`);
+    expect(prompt).toContain(TEMPLATE_SECTIONS.contract);
+    expect(prompt).toContain('`phone` sesuai format atau `null` untuk menghapus');
+    expect(prompt).toContain(
+      'aturan body request dan nullability di API Contract yang tidak bisa dikirim client',
+    );
+  });
+
   it('prompt berisi PRD terbaru dan celah rute UI tanpa endpoint; temuan RV2-xx tersimpan', async () => {
     const flow = flowWith(prdWithoutItemGet(), review2());
     await projectWithPrd(flow);
@@ -131,7 +162,7 @@ describe('menjalankan review kedua', () => {
       .from(stageRuns)
       .where(and(eq(stageRuns.projectId, 'p1'), eq(stageRuns.stage, 'review2')))
       .get();
-    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '3', isCurrent: 1 });
+    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '4', isCurrent: 1 });
     expect(JSON.parse(run?.outputJson as string).findings[0]).toMatchObject({
       id: 'RV2-01',
       category: 'ui_endpoint',

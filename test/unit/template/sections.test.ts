@@ -81,14 +81,16 @@ describe('selectSections', () => {
 });
 
 describe('bagian per tahap', () => {
-  it('daftar heading dari spike T-022', () => {
-    expect(CONVENTION_SECTIONS.stage6).toHaveLength(8);
+  it('daftar heading dari spike T-022, ditambah konvensi kontrak di tahap 6 dan review kedua (T-037)', () => {
+    expect(CONVENTION_SECTIONS.stage6).toHaveLength(9);
+    expect(CONVENTION_SECTIONS.stage6.at(-1)).toBe('## Kontrak dan client Dart');
     expect(CONVENTION_SECTIONS.review2).toEqual([
       '## Autentikasi',
       '## Pagination',
       '## Database',
       '## Format error',
       '## Clean Architecture API',
+      '## Kontrak dan client Dart',
     ]);
   });
 
@@ -121,6 +123,13 @@ describe('bagian per tahap', () => {
     expect(sectionProblems(without)).toEqual([
       missingSectionsMessage('stage6', ['## Job (pg-boss)']),
     ]);
+    // Heading kontrak dibutuhkan tahap 6, review kedua, 7a, dan 7b (T-037).
+    const noContract = TEMPLATE_CONVENTIONS.replace(TEMPLATE_SECTIONS.contract, '## Kontrak');
+    expect(sectionProblems(noContract)).toEqual(
+      (['stage6', 'review2', 'stage7a', 'stage7b'] as const).map((stage) =>
+        missingSectionsMessage(stage, ['## Kontrak dan client Dart']),
+      ),
+    );
     expect(missingSectionsMessage('review2', ['## Database', '## Pagination'])).toBe(
       'Bagian `## Database`, `## Pagination` tidak ada di `docs/conventions.md` template, padahal dibutuhkan review kedua. Perbarui salinan template atau sesuaikan daftar heading di `src/template/sections.ts`.',
     );

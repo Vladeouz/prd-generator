@@ -97,7 +97,7 @@ describe('menjalankan tahap 6', () => {
       .from(stageRuns)
       .where(and(eq(stageRuns.projectId, 'p1'), eq(stageRuns.stage, 'stage6')))
       .get();
-    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '2', isCurrent: 1 });
+    expect(run).toMatchObject({ status: 'succeeded', promptVersion: '3', isCurrent: 1 });
   });
 
   it('PRD tersimpan: bagian 1–7 dari AI, bagian 8 dari data dengan teks keputusan yang sama persis', async () => {
