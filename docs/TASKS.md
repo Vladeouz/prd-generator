@@ -203,7 +203,7 @@ Temuan sesi Claude Code uji ulang T-018 (proyek "Reservasi Massage 2"): T-001 pr
 
 Dua temuan di luar task dari log T-037 (bagian Kendala). Keduanya membuat hasil gagal karena hal di luar logika aplikasi, dan perlu beres sebelum uji nyata T-018.
 
-- [ ] T-038 Runner CLI: hapus folder sementara tanpa menimpa hasil atau error
+- [x] T-038 Runner CLI: hapus folder sementara tanpa menimpa hasil atau error
   - layer: claude · depends_on: T-037 · refs: FR-02, D-07 (temuan T-037: `rmSync` di `finally` melempar `EPERM` setelah `taskkill` dan menimpa `TIMEOUT`; kemungkinan juga kegagalan sekali di T-035)
   - files: `src/claude/cli-runner.ts`, `test/unit/claude/**`, `test/int/claude/cli-runner.int.test.ts`
   - done when: penghapusan folder sementara memakai percobaan ulang singkat (`rmSync` dengan `maxRetries` dan `retryDelay`), dan bila tetap gagal, error hapus hanya dicatat lewat logger (menyebut path folder) tanpa menimpa hasil atau error pemanggilan; unit test dengan `spawnFn` palsu dan fungsi hapus yang dibuat gagal membuktikan tiga kasus: pemanggilan berhasil tetap mengembalikan hasilnya, batas waktu tetap `ClaudeRunError` `TIMEOUT`, dan exit code bukan 0 tetap error aslinya; mutation check (kembalikan `rmSync` tanpa penanganan) membuat test itu gagal, lalu dikembalikan manual; integration test "melewati batas waktu → TIMEOUT" dijalankan 10 kali berturut-turut di Windows tanpa `EPERM` (hasil dicatat di log); `pnpm check` hijau

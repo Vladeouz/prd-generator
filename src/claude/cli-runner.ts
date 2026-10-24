@@ -6,7 +6,8 @@
 // - `--model` dan `--effort` per pemanggilan dari profil tahap (D-09, D-14, `ClaudeRunOptions`), tanpa
 //   tool, server MCP, pengaturan user, skill, dan sesi tersimpan, dengan system prompt pendek sendiri;
 // - Windows: satu string dengan `shell: true` (menghindari DEP0190); platform lain: array argumen;
-// - dijalankan di folder sementara kosong yang dihapus setelahnya;
+// - dijalankan di folder sementara kosong yang dihapus setelahnya; gagal hapus hanya dicatat, tidak
+//   menimpa hasil atau error pemanggilan (T-038);
 // - batas waktu bawaan 15 menit.
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -96,6 +97,24 @@ export function isRealClaudeCommand(command: string): boolean {
   return /^claude(\.(cmd|exe|ps1|bat))?$/i.test(basename(path.replaceAll('\\', '/')));
 }
 
+/**
+ * Percobaan ulang `rmSync` untuk EPERM/EBUSY: di Windows, proses yang baru dimatikan `taskkill`
+ * kadang masih memegang folder kerjanya sesaat (temuan T-037). Jeda naik linear: 100, 200, … ms.
+ */
+export const TEMP_DIR_REMOVE_OPTIONS = {
+  recursive: true,
+  force: true,
+  maxRetries: 5,
+  retryDelay: 100,
+} as const;
+
+/** Menghapus folder sementara pemanggilan. */
+export function removeTempDir(path: string) {
+  rmSync(path, TEMP_DIR_REMOVE_OPTIONS);
+}
+
+export type RunnerLogger = { warn: (message: string) => void };
+
 export type CliRunnerOptions = {
   /** Program yang dipanggil; bawaan `claude`. Test memakai script Node palsu. */
   command?: string;
@@ -110,6 +129,10 @@ export type CliRunnerOptions = {
   /** Variabel lingkungan tambahan untuk proses anak. */
   env?: Record<string, string>;
   spawnFn?: typeof spawn;
+  /** Penghapus folder sementara; bawaan `removeTempDir`. Test memakai fungsi yang dibuat gagal. */
+  removeDir?: (path: string) => void;
+  /** Tujuan catatan gagal hapus folder sementara; bawaan `console`. */
+  logger?: RunnerLogger;
 };
 
 /**
@@ -138,6 +161,8 @@ export class CliClaudeRunner implements ClaudeRunner {
   private readonly platform: NodeJS.Platform;
   private readonly env: Record<string, string>;
   private readonly spawnFn: typeof spawn;
+  private readonly removeDir: (path: string) => void;
+  private readonly logger: RunnerLogger;
 
   constructor(options: CliRunnerOptions = {}) {
     this.command = options.command ?? CLAUDE_COMMAND;
@@ -147,6 +172,8 @@ export class CliClaudeRunner implements ClaudeRunner {
     this.platform = options.platform ?? process.platform;
     this.env = options.env ?? {};
     this.spawnFn = options.spawnFn ?? spawn;
+    this.removeDir = options.removeDir ?? removeTempDir;
+    this.logger = options.logger ?? console;
   }
 
   async run(prompt: string, options: ClaudeRunOptions = {}): Promise<ClaudeResult> {
@@ -182,7 +209,17 @@ export class CliClaudeRunner implements ClaudeRunner {
         options.onProgress,
       );
     } finally {
-      rmSync(cwd, { recursive: true, force: true });
+      this.cleanup(cwd);
+    }
+  }
+
+  /** Error di `finally` akan menimpa hasil atau error pemanggilan, jadi gagal hapus hanya dicatat. */
+  private cleanup(cwd: string) {
+    try {
+      this.removeDir(cwd);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Folder sementara Claude Code tidak bisa dihapus: ${cwd} (${reason})`);
     }
   }
 
