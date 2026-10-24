@@ -18,7 +18,7 @@ Library dipin ke versi pasti (tanpa `^` atau `~`) saat pertama dipasang, lalu di
 | --- | --- | --- |
 | Node.js | 24 (`.nvmrc`), `engines.node` `>=24 <25` | T-001 |
 | pnpm | 12.6.0 (`packageManager`) | T-001 |
-| `next` | 16.4.0 | T-001 |
+| `next` | 16.4.2 (dari 16.4.0; menutup GHSA-p3m5-59mp-jv5r, GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr) | T-001, T-039 |
 | `react`, `react-dom` | 19.3.0 | T-001 |
 | `typescript` | 7.0.2 | T-001 |
 | `@types/node` | 24.19.2 (mengikuti Node 24) | T-001 |
