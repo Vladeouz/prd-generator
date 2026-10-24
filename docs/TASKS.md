@@ -199,10 +199,24 @@ Temuan sesi Claude Code uji ulang T-018 (proyek "Reservasi Massage 2"): T-001 pr
   - files: `src/template/sections.ts`, `prompts/stage-6.md`, `prompts/review-2.md`, `test/helpers/template-repo.ts`, `test/fixtures/claude/**`, `test/unit/stages/**`, `test/unit/template/**`, `test/int/stages/**`, `docs/conventions.md`
   - done when: konvensi `stage6` dan `review2` membawa bagian `## Kontrak dan client Dart` template (D-10); prompt tahap 6 (versi naik) meminta aturan body request di API Contract mengikuti konvensi itu: field opsional bernilai `null` tidak dikirim client Dart, jadi menghapus nilai field opsional tidak memakai `null` di body (misalnya string kosong atau endpoint tersendiri); prompt review 2 (versi naik) meminta pemeriksaan aturan body dan nullability di PRD terhadap konvensi kontrak sebagai temuan `ui_endpoint` atau `data_model`; PRD nyata uji ulang T-018 (memuat "`null` untuk menghapus") disimpan sebagai fixture verifikasi, dan prompt review 2 yang dibuat darinya memuat bagian kontrak beserta kalimat PRD itu; heading kontrak yang hilang dari template menggagalkan tahap 6 dan review 2 sebelum `claude` dipanggil dan tampil di halaman pengaturan (sudah berlaku untuk heading lain); fixture dan test diperbarui; ukuran prompt tahap 6 dan review 2 dicatat di log (tambahan ±3 rb karakter); `pnpm check` hijau
 
+## Fase 3e — Stabilitas runner dan `pnpm check`
+
+Dua temuan di luar task dari log T-037 (bagian Kendala). Keduanya membuat hasil gagal karena hal di luar logika aplikasi, dan perlu beres sebelum uji nyata T-018.
+
+- [ ] T-038 Runner CLI: hapus folder sementara tanpa menimpa hasil atau error
+  - layer: claude · depends_on: T-037 · refs: FR-02, D-07 (temuan T-037: `rmSync` di `finally` melempar `EPERM` setelah `taskkill` dan menimpa `TIMEOUT`; kemungkinan juga kegagalan sekali di T-035)
+  - files: `src/claude/cli-runner.ts`, `test/unit/claude/**`, `test/int/claude/cli-runner.int.test.ts`
+  - done when: penghapusan folder sementara memakai percobaan ulang singkat (`rmSync` dengan `maxRetries` dan `retryDelay`), dan bila tetap gagal, error hapus hanya dicatat lewat logger (menyebut path folder) tanpa menimpa hasil atau error pemanggilan; unit test dengan `spawnFn` palsu dan fungsi hapus yang dibuat gagal membuktikan tiga kasus: pemanggilan berhasil tetap mengembalikan hasilnya, batas waktu tetap `ClaudeRunError` `TIMEOUT`, dan exit code bukan 0 tetap error aslinya; mutation check (kembalikan `rmSync` tanpa penanganan) membuat test itu gagal, lalu dikembalikan manual; integration test "melewati batas waktu → TIMEOUT" dijalankan 10 kali berturut-turut di Windows tanpa `EPERM` (hasil dicatat di log); `pnpm check` hijau
+
+- [ ] T-039 Upgrade Next.js dari 16.4.0 ke versi yang sudah ditambal
+  - layer: infra · depends_on: T-037 · refs: NFR-05, bagian 3 PRD (Stack) (temuan T-036 dan T-037: `next build` dan `pnpm dev` berhenti berselang-seling dengan `SecurityFatalError` dari CLI Next.js 16.4.0, sehingga `pnpm check` gagal tanpa test yang gagal)
+  - files: `package.json`, `pnpm-lock.yaml`, `docs/conventions.md` (tabel versi), file yang perlu disesuaikan bila ada perubahan API Next.js (disebut di log beserta alasannya)
+  - done when: versi tujuan dipilih dari sumber resmi (advisory keamanan Next.js di GitHub atau blog nextjs.org), dengan tautan dan nomor advisory dicatat di log; versi itu patch atau minor dalam 16.x yang menutup advisory tersebut, dipin persis tanpa `^`, dan lolos `minimumReleaseAge` pnpm (bila belum lolos, berhenti dan laporkan ke user, jangan dilewati); upgrade dilakukan dengan `pnpm add` versi persis, bukan `next upgrade` dari pesan CLI; `pnpm install --frozen-lockfile` exit 0; tabel versi di `docs/conventions.md` diperbarui; `pnpm build` dan `pnpm dev` (halaman beranda 200 di `127.0.0.1`) berjalan tanpa `SecurityFatalError`; `pnpm check` dijalankan 5 kali berturut-turut, semuanya hijau dan tanpa `SecurityFatalError` di `.check-logs/` (hasil dicatat di log); **(manual)** user membuka beranda, satu halaman proyek, dan pengaturan di Chrome setelah upgrade, dan memastikan tampilannya tidak berubah; `pnpm check` hijau
+
 ## Fase 4 — Uji nyata dan penyelesaian
 
 - [ ] T-018 Uji nyata: dari ide sampai Claude Code
-  - layer: test · depends_on: T-027, T-028, T-029, T-030, T-031, T-032, T-035, T-036, T-037 · refs: semua FR, NFR-06
+  - layer: test · depends_on: T-027, T-028, T-029, T-030, T-031, T-032, T-035, T-036, T-037, T-038, T-039 · refs: semua FR, NFR-06
   - files: `docs/logs/T-018.md`
   - done when: **(manual)** user menjalankan satu ide nyata pilihannya dari tahap 1 sampai export dengan `claude` sungguhan; total durasi dan token tercatat di log dan dibandingkan dengan NFR-06; hasil ekspor diberikan ke Claude Code di proyek baru dari template, dan dua task pertama selesai tanpa keputusan konvensi di log-nya; temuan yang perlu diperbaiki dicatat sebagai usulan task
 
