@@ -14,7 +14,7 @@ const env = e2eEnvironment(process.env.PRD_E2E_DIR as string);
  * Menjalankan tahap lewat tombolnya (dengan konfirmasi bila ada) sampai banner job hilang.
  * `preview`: label tahap; memastikan progres nyata dan cuplikan teks stream tampil selama job masih
  * berjalan. `reload`: halaman dimuat ulang di tengah job, dan progres terkini harus tampil lagi.
- * `steps`: jumlah langkah tahap berlangkah (tahap 7: 7a + 7b per fase); "Langkah i dari n" harus
+ * `steps`: jumlah langkah tahap berlangkah (tahap 7: 7a lalu detail fase); "Langkah i dari n" harus
  * tampil selama berjalan.
  */
 async function runStage(
@@ -151,8 +151,8 @@ test('dari input ide sampai export, dengan satu percobaan ulang', async ({ page,
   await runStage(page, 'stage7', 'Jalankan penulisan tasks', true, {
     preview: 'Penulisan TASKS',
     reload: true,
-    // Daftar task (7a) lalu detail fase 0–3 (7b), D-11.
-    steps: 5,
+    // Langkah 1: daftar task (7a); langkah 2: detail fase 0–3 bersamaan (7b, D-11, T-033).
+    steps: 2,
   });
 
   // Flowchart setelah tahap 7: task di bawah fiturnya, dengan done when dari 7b.

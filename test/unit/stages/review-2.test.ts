@@ -148,7 +148,7 @@ describe('validateReview2Output', () => {
 describe('prompts/review-2.md', () => {
   it('punya versi dan placeholder celah, kategori, konvensi terpilih, dan PRD', () => {
     const prompt = loadPrompt('review-2');
-    expect(prompt.version).toBe('3');
+    expect(prompt.version).toBe('4');
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
       'gaps',
       'categories',
@@ -158,5 +158,9 @@ describe('prompts/review-2.md', () => {
     ]);
     expect(prompt.body).toContain('Jangan menulis kalimat atau penjelasan di "passed_checks"');
     expect(prompt.body).toContain('klaim peran atau identitas');
+    // Body request dan nullability terhadap konvensi kontrak (T-037).
+    expect(prompt.body).toContain(
+      'aturan body request dan nullability di API Contract yang tidak bisa dikirim client',
+    );
   });
 });

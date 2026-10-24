@@ -110,9 +110,9 @@ Terbukti di uji sebelumnya dan wajib diikuti:
 - Envelope akhir berisi `result`, `usage`, `total_cost_usd`, `is_error`; `usage` dan durasi disimpan.
 - Batas waktu per pemanggilan: 15 menit.
 
-Efisiensi (D-09 sampai D-12). Nama flag persis ditetapkan spike T-022 dari `claude --help` versi terpasang, lalu dicatat di `docs/conventions.md`:
+Efisiensi (D-09 sampai D-12, D-14). Nama flag persis ditetapkan spike T-022 dari `claude --help` versi terpasang, lalu dicatat di `docs/conventions.md`:
 
-- Model dari env `CLAUDE_MODEL` (bawaan `sonnet`) dengan `--effort low`. Extended thinking tidak bisa dimatikan di Sonnet 5.5; effort rendah menguranginya (spike T-022).
+- Model dan effort mengikuti profil tahap (D-14): profil `standard` dari env `CLAUDE_MODEL` dan `CLAUDE_EFFORT` (bawaan `sonnet` dan `low`), profil `reasoning` dari `CLAUDE_MODEL_REASONING` dan `CLAUDE_EFFORT_REASONING` (bawaan `opus` dan `medium`, spike T-034). Extended thinking tidak bisa dimatikan di Sonnet 5.5; effort rendah menguranginya (spike T-022).
 - Overhead Claude Code dikurangi: system prompt sendiri yang pendek, tanpa tool, tanpa server MCP dan pengaturan dari folder user.
 - Output memakai format stream (`--output-format stream-json`), sehingga potongan teks diteruskan ke UI selama pemanggilan berjalan.
 
@@ -149,6 +149,8 @@ erDiagram
         text scope "nullable"
         integer attempt
         text prompt_version
+        text model "nullable"
+        text effort "nullable"
         text status
         text output_raw "nullable"
         text output_json "nullable"
@@ -242,7 +244,7 @@ Route handler internal di `src/app/api/`, dipanggil oleh UI. Semua body dan quer
 | GET /api/projects/{id}/graph | — | `200 { nodes, edges }` untuk flowchart: proyek, fase, fitur yang diterima, sub-fitur, dan task bila tahap 7a selesai |
 | GET /api/projects/{id}/documents/{kind} | query `download=1` opsional | `200` Markdown |
 | POST /api/projects/{id}/export | `{ targetDir }` | `200 { written: string[] }`; `422` bila folder bukan proyek turunan template; `409` bila PRD di folder itu bukan placeholder dan `overwrite` tidak `true` |
-| GET /api/settings | — | `200 { templateDir, templateCommit, claudeAvailable }` |
+| GET /api/settings | — | `200 { templateDir, templateCommit, claudeAvailable, claudeProfiles }` (`claudeProfiles`: profil, model, effort, variabel env, tahap, dan masalahnya; D-14) |
 
 Menjalankan ulang sebuah tahap menandai output tahap-tahap sesudahnya tidak berlaku (`is_current = 0`) dan menghapus dokumen yang bergantung padanya.
 
@@ -304,6 +306,7 @@ Acceptance criteria:
 - [ ] Given output AI, When divalidasi, Then PRD merujuk `docs/conventions.md` tanpa menyalin isinya (tidak ada paragraf atau blok kode konvensi yang disalin persis), dan ukuran di atas batas NFR-06 tampil sebagai peringatan, bukan kegagalan.
 - [ ] Given keputusan, jawaban bertanda tebakan, dan asumsi tersimpan, When PRD disusun, Then bagian 8 *Assumptions & Decisions* dan *Open Questions* ditulis oleh aplikasi dari data itu, bukan oleh AI.
 - [ ] Given PRD selesai, When review kedua dijalankan, Then temuan tentang data model, aturan bisnis tanpa constraint, dan rute UI tanpa endpoint pendukung ditampilkan sebagai keputusan `RV2-xx`; bila user memilih perbaikan, PRD dibuat ulang satu kali dengan keputusan itu.
+- [ ] Given tahap 6 dan review kedua, When prompt dibuat, Then berisi konvensi kontrak dan client Dart template, sehingga aturan body request dan nullability di API Contract sesuai cara client mengirim data (misalnya field opsional bernilai `null` tidak dikirim), dan review kedua memeriksa PRD terhadapnya.
 
 ### FR-08: TASKS (tahap 7)
 
@@ -313,6 +316,7 @@ Acceptance criteria:
 - [ ] Given tahap 7a, When prompt dibuat, Then berisi ringkasan PRD yang disusun aplikasi (kode dan judul `FR-xx`, daftar endpoint, nama tabel, fase dan fitur dari tahap 4), bukan PRD utuh.
 - [ ] Given output tahap 7a, When divalidasi, Then setiap task punya judul, fase, fitur tahap 4 yang dirujuk, `layer`, `depends_on` yang hanya merujuk task sebelumnya, dan `refs` yang ada di PRD; setiap `FR-xx` dirujuk minimal satu task; tidak ada judul duplikat; tidak ada task setup yang sudah disediakan template (monorepo, Biome, Docker Compose, emulator, pipeline kontrak); ada satu task penghapusan fitur contoh notes setelah fitur pertama.
 - [ ] Given tahap 7b, When dijalankan, Then setiap fase dipanggil terpisah dengan task fase itu dan hanya bagian PRD yang dirujuk task-nya; setiap task mendapat `files` dan *done when*; percobaan ulang (D-08) berlaku per fase; menjalankan ulang tahap 7 hanya mengulang fase yang belum punya hasil valid.
+- [ ] Given tahap 7b, When prompt dibuat, Then berisi daftar file sumber dan test yang sudah ada di template (D-15); task yang mengubah fitur template memakai file template dengan nama yang sama, dan perintah test di *done when* memakai level test sesuai konvensi Test API template (perilaku route berlogin atau dengan database di integration test).
 - [ ] Given `docs/TASKS.md` disusun aplikasi, When divalidasi, Then setiap *done when* diakhiri `pnpm check` hijau, dan setiap task dengan kriteria manual punya langkah persiapan `.env`, layanan Docker, dan perintah Flutter web dengan `--web-browser-flag=--incognito`; bagian baku ini ditambahkan aplikasi, bukan ditulis AI.
 
 ### FR-09: Export
@@ -327,6 +331,7 @@ Acceptance criteria:
 
 Acceptance criteria:
 - [ ] Given setiap pemanggilan, When selesai, Then token input, token output, perkiraan biaya, dan durasi tersimpan dan tampil per tahap dan total per proyek.
+- [ ] Given setiap pemanggilan, When dicatat, Then model dan effort yang dipakai tersimpan di `stage_runs` dan tampil per tahap; perkiraan durasi hanya merata-rata pemanggilan dengan versi prompt, model, dan effort yang sama dengan pengaturan saat ini.
 - [ ] Given tahap 6 atau 7 akan dijalankan, When user menekan tombol, Then muncul konfirmasi dengan perkiraan durasi dan pemakaian token berdasarkan rata-rata pemanggilan sebelumnya (atau angka uji bila belum ada).
 
 ### FR-11: Pengaturan template
@@ -334,6 +339,7 @@ Acceptance criteria:
 Acceptance criteria:
 - [ ] Given `TEMPLATE_DIR` tidak valid, When aplikasi dibuka, Then halaman pengaturan menampilkan masalahnya dan tahap 6–7 tidak bisa dijalankan.
 - [ ] Given `TEMPLATE_DIR` valid, When dibuka, Then commit template yang dipakai tampil.
+- [ ] Given halaman pengaturan, When dibuka, Then model dan effort setiap profil (`standard`, `reasoning`) beserta tahap yang memakainya tampil; nilai effort di luar `low`, `medium`, `high`, `xhigh`, `max` atau model yang tidak valid ditampilkan sebagai masalah, dan tahap yang memakai profil itu tidak bisa dijalankan.
 
 ### FR-12: Flowchart fitur
 
@@ -348,7 +354,7 @@ Acceptance criteria:
 - **NFR-01 Lokal:** server hanya mendengarkan `127.0.0.1`; path ekspor divalidasi sebagai path absolut dan tidak pernah dibentuk dari teks output AI.
 - **NFR-02 Tanpa kuota di test:** `pnpm check` tidak pernah memanggil `claude` sungguhan; dibuktikan dengan runner yang gagal keras bila perintah sungguhan dipanggil saat `NODE_ENV=test`.
 - **NFR-03 Lintas platform:** semua script dan perintah README berjalan di Windows (CMD, PowerShell, Git Bash).
-- **NFR-04 Keterlacakan:** setiap dokumen bisa ditelusuri ke versi prompt, output mentah, dan commit template yang menghasilkannya.
+- **NFR-04 Keterlacakan:** setiap dokumen bisa ditelusuri ke versi prompt, model dan effort, output mentah, dan commit template yang menghasilkannya.
 - **NFR-05 Waktu verifikasi:** `pnpm check` selesai di bawah 5 menit.
 - **NFR-06 Efisiensi:** untuk ide uji gym dari T-012: tahap 6 selesai ≤ 4 menit, tahap 7 (7a + 7b) ≤ 5 menit, PRD ±45 KB (target di prompt; validator memberi peringatan di atas 50 KB), dan perkiraan biaya satu proyek dari tahap 2 sampai 7 ≤ 25% dari baseline T-012. Angka tahap 6 dan ukuran PRD disesuaikan dari hasil spike T-022 dengan persetujuan user.
 
@@ -364,11 +370,13 @@ Acceptance criteria:
 | D-06 | Konvensi proyek dibaca dari `TEMPLATE_DIR` | Satu sumber kebenaran; generator ikut berubah saat template berubah |
 | D-07 | Test memakai runner palsu dengan fixture output nyata | Tanpa kuota, deterministik, tetapi realistis |
 | D-08 | Satu kali percobaan ulang dengan daftar error | Pola yang terbukti di uji end-to-end |
-| D-09 | Model Sonnet di semua tahap dengan `--effort low`; bisa diganti lewat env `CLAUDE_MODEL`. Extended thinking tidak bisa dimatikan di Sonnet 5.5, jadi dikurangi lewat effort | Uji T-012 dengan model bawaan (kelas Opus) dan thinking: tahap 6 ±9 menit, satu proyek ±$12. Spike T-022: Sonnet + `--effort low` mengurangi thinking ±48% tanpa penurunan kualitas PRD yang terlihat |
+| D-09 | Model Sonnet dengan `--effort low` untuk tahap penulisan (profil `standard`, D-14); review kedua memakai profil `reasoning`. Bisa diganti lewat env `CLAUDE_MODEL` dan `CLAUDE_EFFORT`. Extended thinking tidak bisa dimatikan di Sonnet 5.5, jadi dikurangi lewat effort | Uji T-012 dengan model bawaan (kelas Opus) dan thinking: tahap 6 ±9 menit, satu proyek ±$12. Spike T-022: Sonnet + `--effort low` mengurangi thinking ±48% tanpa penurunan kualitas PRD yang terlihat |
 | D-10 | Prompt hanya membawa bagian `docs/conventions.md` yang relevan per tahap, dan PRD merujuk konvensi tanpa menyalinnya | Seluruh file (±77 KB) ikut di tahap 6 dan 7, dan PRD membengkak ke ±95 KB. D-06 tetap berlaku: sumbernya tetap `TEMPLATE_DIR` |
 | D-11 | Tahap 7 dua langkah: daftar task (7a) lalu detail per fase (7b); `TASKS.md` dan bagian bakunya disusun aplikasi | Satu pemanggilan besar ±108k token input dan gagal validasi format berulang (4 panggilan di uji T-012) |
 | D-12 | Output Claude Code di-stream ke UI lewat SSE dari job di memori (D-03) | Progres sebelumnya hanya perkiraan waktu |
 | D-13 | Flowchart fitur dengan React Flow dari data tersimpan | Gambaran struktur seperti referensi tanpa token tambahan |
+| D-14 | Model dan effort per profil tahap. `standard` (tahap 2–7b kecuali review 2): Sonnet `--effort low` sesuai D-09. `reasoning` (review 2): Opus `--effort medium` (spike T-034). Semua bisa diganti lewat env | Tahap penulisan tidak terlihat turun kualitasnya dengan effort rendah (T-022). Spike T-034: celah klaim admin uji T-018 (temuan 11) kini tertangkap review 2 di semua konfigurasi berkat prompt versi 3 (T-031), tetapi Opus `medium` memberi temuan review 2 yang semuanya valid dan lebih dalam, dengan tambahan ±$0,19 dan ±38 dtk per proyek. Di tahap 5 keunggulannya kecil, dan celah seperti temuan 11 baru muncul di PRD, sehingga tahap 5 tetap `standard` |
+| D-15 | Prompt 7b membawa daftar file sumber dan test yang sudah ada di template, dibaca dari `TEMPLATE_DIR` (tanpa fitur contoh notes dan file hasil generate), bukan hanya konvensinya | Uji ulang T-018: TASKS menyebut `users.route.ts` padahal template sudah punya `me.route.ts`, sehingga agent proyek turunan harus mengganti nama file dan mengubah konvensi template. Konvensi hanya menyebut sebagian file sebagai contoh. Sumbernya tetap `TEMPLATE_DIR` (D-06) |
 
 ### Open Questions
 

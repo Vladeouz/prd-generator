@@ -6,12 +6,22 @@ import { ProgressBar } from './ui/progress-bar.tsx';
 
 const number = new Intl.NumberFormat('id-ID');
 
-/** Keterangan progres, misalnya "Langkah 2 dari 4 · 12.345 karakter diterima". */
+/** Detail fase tahap 7 yang berjalan bersamaan, misalnya "Fase selesai: 2 dari 5 (1 gagal) · ". */
+function phasesText(progress: JobProgress | null): string {
+  if (!progress?.phasesTotal) return '';
+  const failed = progress.phasesFailed ? ` (${progress.phasesFailed} gagal)` : '';
+  return `Fase selesai: ${progress.phasesDone ?? 0} dari ${progress.phasesTotal}${failed} · `;
+}
+
+/**
+ * Keterangan progres, misalnya "Langkah 2 dari 2 · Fase selesai: 3 dari 5 · 12.345 karakter
+ * diterima".
+ */
 export function progressSummary(progress: JobProgress | null): string {
   const step =
-    progress?.step && progress.totalSteps
+    (progress?.step && progress.totalSteps
       ? `Langkah ${progress.step} dari ${progress.totalSteps} · `
-      : '';
+      : '') + phasesText(progress);
   if (!progress) return `${step}Menunggu Claude Code mulai menjawab…`;
   if (progress.chars > 0) return `${step}${number.format(progress.chars)} karakter diterima`;
   if (progress.thinkingTokens) {
@@ -20,10 +30,16 @@ export function progressSummary(progress: JobProgress | null): string {
   return `${step}Menunggu Claude Code mulai menjawab…`;
 }
 
-/** Bilah progres: bernilai bila jumlah langkah diketahui (tahap 7b), selain itu tidak tentu. */
+/**
+ * Bilah progres: bernilai bila jumlah langkah diketahui (tahap 7), selain itu tidak tentu. Di
+ * langkah detail fase, fase yang sudah selesai atau gagal ikut mengisi langkah itu.
+ */
 export function stepFraction(progress: JobProgress | null): number | undefined {
   if (!progress?.step || !progress.totalSteps) return undefined;
-  return (progress.step - 1) / progress.totalSteps;
+  const phases = progress.phasesTotal
+    ? ((progress.phasesDone ?? 0) + (progress.phasesFailed ?? 0)) / progress.phasesTotal
+    : 0;
+  return (progress.step - 1 + phases) / progress.totalSteps;
 }
 
 type Props = { label: string; progress: JobProgress | null };

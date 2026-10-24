@@ -6,13 +6,19 @@
 // Aturan:
 // - setiap task fase itu (dari 7a) muncul tepat sekali, tanpa task lain;
 // - `files` berisi minimal satu path, tanpa file setup yang sudah disediakan template;
-// - `done_when` berisi minimal satu kriteria, tanpa `pnpm check` (ditambahkan aplikasi);
+// - `done_when` berisi minimal satu kriteria, tanpa perintah `pnpm check` (ditambahkan aplikasi);
+//   menyebutnya dalam kalimat larangan diterima (T-033);
 // - `manual` (opsional) berisi kriteria dan langkah spesifik task itu, tanpa langkah persiapan baku.
 // Tambahan dari uji nyata T-018 (prompt versi 2):
 // - `files` berisi path saja; keterangan di `file_notes` (path → keterangan), agar path bisa disalin;
 // - path skema mengikuti konvensi Database template (satu file per tabel di `schema/`);
 // - perintah test tanpa `--` sebelum filter: pnpm meneruskan `--` ke vitest sehingga filternya tidak
 //   berlaku dan semua test dijalankan (terbukti di proyek uji T-018).
+// Tambahan dari uji ulang T-018 (prompt versi 4, T-036):
+// - file baru dengan peran yang sama dengan file template di folder yang sama ditolak (D-15);
+// - kriteria unit test API yang menguji request HTTP beserta status responsnya ditolak, karena
+//   perilaku route diuji di integration test (konvensi Test API).
+import { duplicatedTemplateFile } from '../../template/files.ts';
 import type { StageValidation } from '../run-stage.ts';
 import type { Stage7aTask } from '../stage-7a/validate.ts';
 import { templateSetupOf } from '../task-rules.ts';
@@ -52,9 +58,51 @@ const isTextArray = (value: unknown): value is string[] =>
   value.every((item) => typeof item === 'string' && item.trim() !== '');
 
 const PNPM_CHECK = /pnpm check/i;
+const NEGATION = /\b(tidak|jangan|bukan|tanpa)\b/i;
+
+/**
+ * True bila kriteria menyebut `pnpm check` sebagai sesuatu yang dijalankan, bukan hanya dalam
+ * kalimat larangan ("pnpm check lain tidak dipakai; jalankan flutter test …", uji ulang T-018 fase 4
+ * percobaan 2). Diperiksa per anak kalimat (dipisah `;`, `,`, akhir kalimat, atau baris baru), agar
+ * larangan di anak kalimat lain tidak membenarkan perintah `pnpm check`.
+ */
+export function requiresPnpmCheck(criterion: string): boolean {
+  return criterion
+    .split(/[;,\n]|\.(?:\s|$)/)
+    .some((clause) => PNPM_CHECK.test(clause) && !NEGATION.test(clause));
+}
 const PREPARATION = /\.env\b|docker compose|flutter run/i;
 
-export function validateStage7b(output: unknown, phaseTasks: Stage7aTask[]): StageValidation {
+const API_UNIT_TEST = /pnpm --filter api test(?=[\s`]|$)/;
+const HTTP_REQUEST = /\b(GET|POST|PUT|PATCH|DELETE)\s+\/v1\//;
+const STATUS_CODE = /\b[1-5]\d{2}\b/;
+const OPENAPI_DOC = /OpenAPI|operationId|dokumen/i;
+
+/**
+ * True bila kriteria unit test API (`pnpm --filter api test <filter>`, bukan `test:int`) menguji
+ * request HTTP ke `/v1/…` beserta status responsnya. Menurut konvensi Test API template, perilaku
+ * route yang butuh login atau database diuji di integration test; unit test route hanya memeriksa
+ * DTO dan dokumen OpenAPI (uji ulang T-018, keputusan 3 T-002).
+ */
+export function unitTestsHttpBehavior(criterion: string): boolean {
+  return (
+    API_UNIT_TEST.test(criterion) &&
+    HTTP_REQUEST.test(criterion) &&
+    STATUS_CODE.test(criterion) &&
+    !OPENAPI_DOC.test(criterion)
+  );
+}
+
+/**
+ * `templateFiles`: file sumber dan test yang sudah ada di template (D-15, `templateFiles()` di
+ * `src/template/files.ts`); file baru yang menduplikasi peran file template di folder yang sama
+ * ditolak.
+ */
+export function validateStage7b(
+  output: unknown,
+  phaseTasks: Stage7aTask[],
+  templateFiles: readonly string[] = [],
+): StageValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
   const raw = isRecord(output) ? output.tasks : undefined;
@@ -96,6 +144,12 @@ export function validateStage7b(output: unknown, phaseTasks: Stage7aTask[]): Sta
             errors.push(`${id} files ${path} bertentangan dengan konvensi template: ${correct}`);
           }
         }
+        const existing = duplicatedTemplateFile(path, templateFiles);
+        if (existing) {
+          errors.push(
+            `${id} files ${path} adalah file baru dengan peran yang sama dengan file template ${existing}; ubah file template itu`,
+          );
+        }
       }
       const notes = item.file_notes;
       if (notes !== undefined && notes !== null) {
@@ -114,12 +168,17 @@ export function validateStage7b(output: unknown, phaseTasks: Stage7aTask[]): Sta
     if (!isTextArray(item.done_when)) {
       errors.push(`${id} tanpa done_when`);
     } else {
-      if (item.done_when.some((c) => PNPM_CHECK.test(c))) {
+      if (item.done_when.some(requiresPnpmCheck)) {
         errors.push(`${id} done_when menyebut \`pnpm check\`; aplikasi menambahkannya sendiri`);
       }
       if (item.done_when.some((c) => TEST_DASH.test(c))) {
         errors.push(
           `${id} done_when memakai \`--\` sebelum filter test; tulis \`pnpm --filter api test:int <filter>\` (dengan \`--\` filternya tidak berlaku)`,
+        );
+      }
+      if (item.done_when.some(unitTestsHttpBehavior)) {
+        errors.push(
+          `${id} done_when menguji request HTTP dan status respons lewat unit test API; perilaku route diuji di integration test (\`pnpm --filter api test:int <filter>\`, konvensi Test API)`,
         );
       }
       if (item.done_when.join(' ').length < 30) warnings.push(`${id} done_when terlalu singkat`);

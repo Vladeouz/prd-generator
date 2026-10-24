@@ -35,13 +35,16 @@ const EXPECTED_ARGS = [
   '--disable-slash-commands',
   '--no-session-persistence',
 ];
+const SONNET_LOW = { model: 'sonnet', effort: 'low' };
 
 describe('claudeArgs', () => {
-  it('model, effort low, pengurang overhead, dan stream-json; tanpa flag yang tidak berpengaruh', () => {
-    expect(claudeArgs('sonnet')).toEqual(EXPECTED_ARGS);
-    expect(claudeArgs('claude-opus-5-5')).toContain('claude-opus-5-5');
+  it('model, effort, pengurang overhead, dan stream-json; tanpa flag yang tidak berpengaruh', () => {
+    expect(claudeArgs(SONNET_LOW)).toEqual(EXPECTED_ARGS);
+    expect(claudeArgs({ model: 'claude-opus-5-5', effort: 'medium' })).toEqual(
+      EXPECTED_ARGS.with(8, 'claude-opus-5-5').with(10, 'medium'),
+    );
     for (const unused of ['--safe-mode', '--settings', '--bare', '--output-format=json']) {
-      expect(claudeArgs('sonnet')).not.toContain(unused);
+      expect(claudeArgs(SONNET_LOW)).not.toContain(unused);
     }
   });
 
@@ -52,7 +55,7 @@ describe('claudeArgs', () => {
 
 describe('spawnSpec', () => {
   it('Windows: satu string dengan shell; argumen kosong dan berspasi diberi tanda kutip', () => {
-    expect(spawnSpec('claude', 'win32', 'sonnet')).toEqual({
+    expect(spawnSpec('claude', 'win32', SONNET_LOW)).toEqual({
       file:
         'claude -p --output-format stream-json --verbose --include-partial-messages --max-turns 1 ' +
         `--model sonnet --effort low --system-prompt "${CLAUDE_SYSTEM_PROMPT}" --tools "" ` +
@@ -63,15 +66,23 @@ describe('spawnSpec', () => {
   });
 
   it.each(['linux', 'darwin'] as const)('%s: array argumen tanpa shell', (platform) => {
-    expect(spawnSpec('claude', platform, 'sonnet')).toEqual({
+    expect(spawnSpec('claude', platform, SONNET_LOW)).toEqual({
       file: 'claude',
       args: EXPECTED_ARGS,
       shell: false,
     });
   });
 
-  it('model bawaan sonnet', () => {
-    expect(spawnSpec('claude', 'linux').args).toEqual(EXPECTED_ARGS);
+  it('Windows: model dan effort profil reasoning disusun ke string perintah', () => {
+    expect(spawnSpec('claude', 'win32', { model: 'opus', effort: 'medium' }).file).toContain(
+      ' --model opus --effort medium --system-prompt ',
+    );
+  });
+
+  it('non-Windows: model dan effort profil reasoning disusun ke array argumen', () => {
+    expect(spawnSpec('claude', 'linux', { model: 'opus', effort: 'medium' }).args).toEqual(
+      EXPECTED_ARGS.with(8, 'opus').with(10, 'medium'),
+    );
   });
 });
 
@@ -157,7 +168,7 @@ describe('CliClaudeRunner', () => {
     });
     await runner.run('prompt rahasia');
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.file).toBe(spawnSpec('fake-claude', 'win32').file);
+    expect(calls[0]?.file).toBe(spawnSpec('fake-claude', 'win32', SONNET_LOW).file);
     expect(calls[0]?.argsOrOptions).toMatchObject({ shell: true, windowsHide: true });
     expect(calls[0]?.options).toBeUndefined();
     expect(stdin.join('')).toBe('prompt rahasia');
@@ -195,29 +206,54 @@ describe('CliClaudeRunner', () => {
     ]);
   });
 
-  it('model dipakai di argumen', async () => {
+  it('tanpa model dan effort per pemanggilan: bawaan profil standard', async () => {
     const calls: SpawnCall[] = [];
     const runner = new CliClaudeRunner({
       command: 'fake-claude',
-      model: 'claude-opus-5-5',
       platform: 'linux',
       spawnFn: fakeSpawn(calls, []),
     });
     await runner.run('x');
-    expect(calls[0]?.argsOrOptions).toEqual(claudeArgs('claude-opus-5-5'));
+    expect(calls[0]?.argsOrOptions).toEqual(EXPECTED_ARGS);
   });
 
-  it.each(['son net', 'sonnet & calc', ''])(
-    'CLAUDE_MODEL tidak valid (%j) → INVALID_CONFIG tanpa menjalankan proses',
-    async (model) => {
+  it.each(['win32', 'linux'] as const)(
+    '%s: model dan effort per pemanggilan menggantikan bawaan runner',
+    async (platform) => {
       const calls: SpawnCall[] = [];
       const runner = new CliClaudeRunner({
         command: 'fake-claude',
-        model,
+        model: 'sonnet',
+        effort: 'low',
+        platform,
+        spawnFn: fakeSpawn(calls, []),
+      });
+      await runner.run('x', { model: 'opus', effort: 'medium' });
+      await runner.run('y');
+      const reasoning = spawnSpec('fake-claude', platform, { model: 'opus', effort: 'medium' });
+      const standard = spawnSpec('fake-claude', platform, SONNET_LOW);
+      expect(calls.map((call) => (platform === 'win32' ? call.file : call.argsOrOptions))).toEqual(
+        platform === 'win32' ? [reasoning.file, standard.file] : [reasoning.args, standard.args],
+      );
+    },
+  );
+
+  it.each([
+    { model: 'son net' },
+    { model: 'sonnet & calc' },
+    { model: '' },
+    { effort: 'sedang' },
+    { effort: 'low & calc' },
+  ])(
+    'model atau effort tidak valid (%j) → INVALID_CONFIG tanpa menjalankan proses',
+    async (call) => {
+      const calls: SpawnCall[] = [];
+      const runner = new CliClaudeRunner({
+        command: 'fake-claude',
         platform: 'win32',
         spawnFn: fakeSpawn(calls, []),
       });
-      await expect(runner.run('x')).rejects.toMatchObject({ code: 'INVALID_CONFIG' });
+      await expect(runner.run('x', call)).rejects.toMatchObject({ code: 'INVALID_CONFIG' });
       expect(calls).toHaveLength(0);
     },
   );

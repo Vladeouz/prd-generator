@@ -1,8 +1,9 @@
-// Repo template buatan untuk test: folder sementara berisi kedua file penanda, sudah di-commit.
+// Repo template buatan untuk test: folder sementara berisi kedua file penanda dan file kode (D-15),
+// sudah di-commit.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 /**
  * Bagian konvensi buatan, dengan CRLF, Unicode, spasi di akhir, sub-heading, dan heading palsu di
@@ -78,8 +79,9 @@ export const EXPECTED_SECTIONS = {
     S.database,
     S.errors,
     S.architecture,
+    S.contract,
   ].join('\n\n'),
-  review2: [S.auth, S.pagination, S.database, S.errors, S.architecture].join('\n\n'),
+  review2: [S.auth, S.pagination, S.database, S.errors, S.architecture, S.contract].join('\n\n'),
   stage7a: [S.structure, S.tasks, S.scripts, S.database, S.contract, S.notes].join('\n\n'),
   stage7b: [
     S.structure,
@@ -91,6 +93,32 @@ export const EXPECTED_SECTIONS = {
     S.flutter,
   ].join('\n\n'),
 };
+
+/**
+ * File kode di repo template palsu (di-commit). `TEMPLATE_FILES` adalah yang harus terbaca
+ * `templateFiles()` (D-15); `TEMPLATE_OTHER_FILES` di-commit tetapi tidak dibawa: fitur contoh notes,
+ * file hasil generate, dan file di luar folder kode aplikasi.
+ */
+export const TEMPLATE_FILES = [
+  'apps/api/src/app.ts',
+  'apps/api/src/db/schema/users.ts',
+  'apps/api/src/features/users/http/me.route.ts',
+  'apps/api/src/features/users/infrastructure/drizzle-user-repository.ts',
+  'apps/api/test/int/users/me.int.test.ts',
+  'apps/api/test/unit/features/users/http/me.route.test.ts',
+  'apps/app/lib/main.dart',
+  'apps/app/test/core/l10n/failure_messages_test.dart',
+];
+export const TEMPLATE_OTHER_FILES = [
+  'apps/api/src/db/schema/notes.ts',
+  'apps/api/src/features/notes/http/notes.route.ts',
+  'apps/api/test/int/notes/notes.int.test.ts',
+  'apps/app/lib/features/notes/notes_dependencies.dart',
+  'apps/app/lib/core/config/app_config.g.dart',
+  'packages/contract/openapi.json',
+];
+/** File yang ada di folder kode tetapi belum di-commit: tidak dibawa. */
+export const TEMPLATE_UNTRACKED_FILE = 'apps/api/src/belum-di-commit.ts';
 
 export type TemplateRepo = { dir: string; commit: string; remove(): void };
 
@@ -105,10 +133,15 @@ export function createTemplateRepo(conventions = TEMPLATE_CONVENTIONS): Template
   mkdirSync(join(dir, 'scripts'));
   writeFileSync(join(dir, 'docs', 'conventions.md'), conventions);
   writeFileSync(join(dir, 'scripts', 'init-project.mjs'), '// init\n');
+  for (const file of [...TEMPLATE_FILES, ...TEMPLATE_OTHER_FILES]) {
+    mkdirSync(dirname(join(dir, file)), { recursive: true });
+    writeFileSync(join(dir, file), '// isi\n');
+  }
   git('init', '-q');
   git('config', 'core.autocrlf', 'false');
   git('add', '.');
   git('commit', '-q', '-m', 'awal');
+  writeFileSync(join(dir, TEMPLATE_UNTRACKED_FILE), '// belum di-commit\n');
   return {
     dir,
     commit: git('rev-parse', 'HEAD'),

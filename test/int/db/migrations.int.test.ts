@@ -174,6 +174,54 @@ describe('migrasi 0002 (stage7a, stage7b, scope; T-026)', () => {
   });
 });
 
+describe('migrasi 0003 (stage_runs.model dan effort; T-035)', () => {
+  it('run lama tetap utuh dengan model dan effort null; membuka ulang tidak mengubah apa pun', () => {
+    const path = join(tempDir(), 'sebelum-t035.db');
+    const folder = join(tempDir(), 'drizzle');
+    cpSync(MIGRATIONS_FOLDER, folder, { recursive: true });
+    const journalPath = join(folder, 'meta', '_journal.json');
+    const journal = JSON.parse(readFileSync(journalPath, 'utf8'));
+    journal.entries = journal.entries.filter((entry: { idx: number }) => entry.idx <= 2);
+    writeFileSync(journalPath, JSON.stringify(journal));
+    const sqlite = new Database(path);
+    migrate(drizzle(sqlite), { migrationsFolder: folder });
+    const now = '2026-10-22T00:00:00.000Z';
+    sqlite
+      .prepare(
+        "insert into projects (id, name, idea, current_stage, created_at, updated_at) values ('p1', 'Uji', 'Ide', 'stage6', ?, ?)",
+      )
+      .run(now, now);
+    sqlite
+      .prepare(
+        "insert into stage_runs (id, project_id, stage, attempt, prompt_version, status, duration_ms, is_current, created_at) values ('r5', 'p1', 'stage5', 1, '2', 'succeeded', 23000, 1, ?)",
+      )
+      .run(now);
+    sqlite.close();
+
+    const select =
+      'select id, stage, prompt_version, duration_ms, is_current, model, effort from stage_runs';
+    const expected = [
+      {
+        id: 'r5',
+        stage: 'stage5',
+        prompt_version: '2',
+        duration_ms: 23000,
+        is_current: 1,
+        model: null,
+        effort: null,
+      },
+    ];
+    const first = openDatabase(path);
+    expect(first.$client.prepare(select).all()).toEqual(expected);
+    first.$client.close();
+    const before = schemaOf(path);
+    const second = openDatabase(path);
+    expect(second.$client.prepare(select).all()).toEqual(expected);
+    second.$client.close();
+    expect(schemaOf(path)).toEqual(before);
+  });
+});
+
 describe('database utama', () => {
   it('getDb() menolak dipakai saat NODE_ENV=test', () => {
     const existedBefore = existsSync(MAIN_DATABASE_PATH);

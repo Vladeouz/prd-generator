@@ -3,7 +3,6 @@
 // yang juga memanggil `markInterrupted()` sekali per proses.
 import { CliClaudeRunner } from '../claude/cli-runner.ts';
 import { systemClock } from '../core/clock.ts';
-import { claudeModel } from '../core/config/claude.ts';
 import { getDb } from '../core/db/client.ts';
 import { createStageRegistry } from '../stages/registry.ts';
 import { JobQueue } from './job-queue.ts';
@@ -29,11 +28,9 @@ export function getJobQueue(): JobQueue {
       new JobQueue({
         db: getDb(),
         // CLAUDE_COMMAND (opsional) mengganti perintah `claude`, misalnya script palsu untuk uji UI.
-        // CLAUDE_MODEL (opsional, bawaan sonnet) memilih model (D-09).
-        runner: new CliClaudeRunner({
-          command: process.env.CLAUDE_COMMAND || undefined,
-          model: claudeModel(),
-        }),
+        // Model dan effort dikirim per pemanggilan oleh `runStage` dari profil tahap (D-14), yang
+        // membaca CLAUDE_MODEL, CLAUDE_EFFORT, CLAUDE_MODEL_REASONING, dan CLAUDE_EFFORT_REASONING.
+        runner: new CliClaudeRunner({ command: process.env.CLAUDE_COMMAND || undefined }),
         clock: systemClock,
         stages: {},
       }),

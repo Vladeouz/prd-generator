@@ -63,7 +63,15 @@ describe('StreamReader', () => {
       costUsd: 0.7082,
       durationMs: 393_200,
       rawEnvelope: JSON.stringify(result),
+      initModel: 'claude-sonnet-5-5',
     });
+  });
+
+  it('initModel null bila stream tidak punya event init (T-035)', () => {
+    const reader = new StreamReader();
+    const stdout = lines(delta('x'), result);
+    reader.push(stdout);
+    expect(reader.finish(stdout, 1).initModel).toBeNull();
   });
 
   it('baris yang terpotong di tengah potongan stdout tetap terbaca utuh', () => {

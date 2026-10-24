@@ -164,12 +164,20 @@ describe('validatePrd: konvensi, ukuran, dan rujukan fitur (T-025)', () => {
 describe('prompt tahap 6 (T-025)', () => {
   it('versi naik, bagian konvensi terpilih dengan larangan menyalin, dan batas ukuran opsi b', () => {
     const prompt = loadPrompt('stage-6');
-    expect(prompt.version).toBe('2');
+    expect(prompt.version).toBe('3');
     expect(prompt.body).toContain('KONVENSI PROYEK (bagian terpilih dari docs/conventions.md');
     expect(prompt.body).toContain('JANGAN menyalin paragraf, tabel, atau blok kodenya ke PRD');
     expect(prompt.body).toContain('seluruh PRD paling banyak 45.000 karakter');
     expect(prompt.body).toContain('path lengkap');
     expect(prompt.body).not.toContain('apa adanya):\n"""');
+  });
+
+  it('body request mengikuti konvensi kontrak: tanpa null untuk menghapus field opsional (T-037)', () => {
+    const prompt = loadPrompt('stage-6');
+    expect(prompt.body).toContain('mengikuti konvensi bagian "Kontrak dan client Dart"');
+    expect(prompt.body).toContain(
+      'jangan memakai `null` di body untuk menghapus atau mengosongkan nilai field opsional',
+    );
   });
 });
 
@@ -263,7 +271,7 @@ describe('composePrd', () => {
 describe('prompts/stage-6.md', () => {
   it('punya versi, placeholder, dan hanya meminta bagian 1–7', () => {
     const prompt = loadPrompt('stage-6');
-    expect(prompt.version).toBe('2');
+    expect(prompt.version).toBe('3');
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
       'decisions',
       'conventions',

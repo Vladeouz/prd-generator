@@ -16,6 +16,11 @@ export type ClaudeResult = {
   durationMs: number;
   /** Event `result` mentah (envelope JSON), untuk keterlacakan. */
   rawEnvelope: string;
+  /**
+   * Model yang dilaporkan Claude Code di event `system`/`init` stream (nama lengkap, misalnya
+   * `claude-opus-5-5`); tidak ada untuk envelope `--output-format json` dan runner palsu.
+   */
+  initModel?: string | null;
 };
 
 /**
@@ -27,6 +32,10 @@ export type ClaudeProgress =
   | { kind: 'thinking'; estimatedTokens: number };
 
 export type ClaudeRunOptions = {
+  /** `--model` pemanggilan ini (profil tahap, D-14); bawaan runner bila kosong. */
+  model?: string;
+  /** `--effort` pemanggilan ini (profil tahap, D-14); bawaan runner bila kosong. */
+  effort?: string;
   /** Batas waktu pemanggilan ini; bawaan runner bila kosong. */
   timeoutMs?: number;
   /** Dipanggil untuk setiap potongan stream; error di dalamnya diabaikan. */
