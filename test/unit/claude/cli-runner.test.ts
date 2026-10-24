@@ -1,5 +1,7 @@
 import type { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import { rmSync } from 'node:fs';
+import { basename } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 import {
@@ -257,4 +259,107 @@ describe('CliClaudeRunner', () => {
       expect(calls).toHaveLength(0);
     },
   );
+});
+
+/** spawn palsu yang tidak pernah selesai (sampai `kill`) atau langsung keluar dengan kode tertentu. */
+function scriptedSpawn(behavior: 'hang' | { exitCode: number; stderr: string }, killed: string[]) {
+  return (() => {
+    const child = Object.assign(new EventEmitter(), {
+      pid: 123,
+      exitCode: null,
+      stdin: new PassThrough(),
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+      kill: (signal: string) => {
+        killed.push(signal);
+        return true;
+      },
+    });
+    child.stdin.resume();
+    if (behavior !== 'hang') {
+      child.stdin.on('finish', () => {
+        child.stderr.end(behavior.stderr);
+        child.stdout.end();
+        child.stderr.on('end', () => child.emit('close', behavior.exitCode));
+      });
+    }
+    return child;
+  }) as unknown as typeof spawn;
+}
+
+describe('CliClaudeRunner: folder sementara yang gagal dihapus (T-038)', () => {
+  /** Menghapus folder sungguhan (agar tidak tertinggal), lalu gagal seperti EPERM di Windows. */
+  function failingRemove(removed: string[]) {
+    return (path: string) => {
+      removed.push(path);
+      rmSync(path, { recursive: true, force: true });
+      throw Object.assign(new Error(`EPERM: operation not permitted, rmdir '${path}'`), {
+        code: 'EPERM',
+      });
+    };
+  }
+
+  function setup(spawnFn: typeof spawn) {
+    const removed: string[] = [];
+    const warnings: string[] = [];
+    const runner = new CliClaudeRunner({
+      command: 'fake-claude',
+      platform: 'linux',
+      spawnFn,
+      removeDir: failingRemove(removed),
+      logger: { warn: (message) => warnings.push(message) },
+    });
+    return { runner, removed, warnings };
+  }
+
+  function expectLogged(removed: string[], warnings: string[]) {
+    expect(removed).toHaveLength(1);
+    expect(basename(removed[0] ?? '')).toMatch(/^prd-generator-claude-/);
+    expect(warnings).toEqual([
+      expect.stringContaining(`Folder sementara Claude Code tidak bisa dihapus: ${removed[0]}`),
+    ]);
+    expect(warnings[0]).toContain('EPERM');
+  }
+
+  it('pemanggilan berhasil tetap mengembalikan hasilnya', async () => {
+    const { runner, removed, warnings } = setup(fakeSpawn([], []));
+    const result = await runner.run('x');
+    expect(result.result).toBe('ok');
+    expectLogged(removed, warnings);
+  });
+
+  it('batas waktu tetap ClaudeRunError TIMEOUT', async () => {
+    const killed: string[] = [];
+    const { runner, removed, warnings } = setup(scriptedSpawn('hang', killed));
+    const error = runner.run('x', { timeoutMs: 20 });
+    await expect(error).rejects.toBeInstanceOf(ClaudeRunError);
+    await expect(error).rejects.toMatchObject({ code: 'TIMEOUT' });
+    expect(killed).toEqual(['SIGKILL']);
+    expectLogged(removed, warnings);
+  });
+
+  it('exit code bukan 0 tetap error aslinya', async () => {
+    const { runner, removed, warnings } = setup(
+      scriptedSpawn({ exitCode: 3, stderr: 'kuota habis' }, []),
+    );
+    const error = runner.run('x');
+    await expect(error).rejects.toBeInstanceOf(ClaudeRunError);
+    await expect(error).rejects.toMatchObject({
+      code: 'EXIT_CODE',
+      message: 'Claude Code keluar dengan kode 3: kuota habis',
+    });
+    expectLogged(removed, warnings);
+  });
+
+  it('folder yang terhapus tidak dicatat', async () => {
+    const warnings: string[] = [];
+    const runner = new CliClaudeRunner({
+      command: 'fake-claude',
+      platform: 'linux',
+      spawnFn: fakeSpawn([], []),
+      logger: { warn: (message) => warnings.push(message) },
+    });
+    await runner.run('x');
+    expect(warnings).toEqual([]);
+  });
 });
