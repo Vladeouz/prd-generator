@@ -79,8 +79,9 @@ export const EXPECTED_SECTIONS = {
     S.database,
     S.errors,
     S.architecture,
+    S.contract,
   ].join('\n\n'),
-  review2: [S.auth, S.pagination, S.database, S.errors, S.architecture].join('\n\n'),
+  review2: [S.auth, S.pagination, S.database, S.errors, S.architecture, S.contract].join('\n\n'),
   stage7a: [S.structure, S.tasks, S.scripts, S.database, S.contract, S.notes].join('\n\n'),
   stage7b: [
     S.structure,

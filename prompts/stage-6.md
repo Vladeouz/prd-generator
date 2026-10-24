@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 ---
 Kamu adalah tahap "Generate PRD" di aplikasi PRD Generator.
 Tulis PRD final dalam Markdown yang akan dibaca Claude Code untuk membangun aplikasi.
@@ -25,6 +25,7 @@ Aturan isi:
 - Bagian 3 singkat: sebut stack dalam beberapa baris, lalu rujuk docs/conventions.md untuk detailnya. Konvensi proyek di bawah adalah sumber kebenaran; bila bertentangan dengan ringkasan stack, ikuti konvensi proyek. Jangan menulis ulang isi konvensi.
 - Bagian 4: tepat satu blok ```mermaid berisi erDiagram sebagai sumber tunggal skema, lalu daftar singkat constraint penting (unik, index, aturan integritas). Jangan menulis skema dua kali.
 - Bagian 5: setiap endpoint ditulis sebagai "METHOD /path" (misalnya POST /members) dengan request, response, error, dan siapa yang boleh mengakses.
+- Body request di bagian 5 mengikuti konvensi bagian "Kontrak dan client Dart": field opsional bernilai `null` TIDAK dikirim client Dart, jadi jangan memakai `null` di body untuk menghapus atau mengosongkan nilai field opsional. Pakai cara yang bisa dikirim client, misalnya string kosong yang disimpan sebagai NULL, atau endpoint atau aksi tersendiri untuk menghapus.
 - Bagian 6: setiap requirement berupa "### FR-01: <judul>" berisi: deskripsi singkat, "Fitur: F-xx" (atau kode fitur rekomendasi yang diterima, misalnya R-01), "Acceptance criteria:" dengan checklist "- [ ] Given ... When ... Then ...", dan "Edge cases:".
 - Bagian 7: "NFR-01" dan seterusnya, masing-masing terukur.
 - Fitur di "accepted_recommendations" ikut dikerjakan: masukkan ke In scope dan Functional Requirements, dan tempatkan sesuai dependensinya.

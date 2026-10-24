@@ -5,6 +5,9 @@
 
 /** Heading persis (satu baris) per tahap; setiap heading dibawa beserta sub-heading-nya. */
 export const CONVENTION_SECTIONS = {
+  // PRD dan review kedua membawa konvensi kontrak (T-037): aturan body request dan nullability di
+  // API Contract harus sesuai cara client Dart mengirim data (uji ulang T-018: "`null` untuk
+  // menghapus", padahal field opsional bernilai `null` tidak dikirim client).
   stage6: [
     '## Struktur repo',
     '## Job (pg-boss)',
@@ -14,6 +17,7 @@ export const CONVENTION_SECTIONS = {
     '## Database',
     '## Format error',
     '## Clean Architecture API',
+    '## Kontrak dan client Dart',
   ],
   review2: [
     '## Autentikasi',
@@ -21,6 +25,7 @@ export const CONVENTION_SECTIONS = {
     '## Database',
     '## Format error',
     '## Clean Architecture API',
+    '## Kontrak dan client Dart',
   ],
   // Daftar task: apa yang sudah disediakan template (agar tidak dibuat ulang), cara kerja task dan
   // `pnpm check`, prosedur menghapus fitur contoh notes, serta aturan skema dan kontrak yang
