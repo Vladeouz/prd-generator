@@ -9,6 +9,7 @@
 import { delimiter, resolve } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 import { e2eEnvironment, prepareE2eEnvironment } from './test/e2e/environment.ts';
+import { CLAUDE_PROFILE_VARS } from './test/helpers/claude-profile-env.ts';
 
 const PORT = 3517;
 const FAKE_CLI = resolve('test/helpers/fake-claude-cli.mjs');
@@ -48,6 +49,10 @@ export default defineConfig({
     stderr: 'pipe',
     env: {
       NEXT_TELEMETRY_DISABLED: '1',
+      // Profil Claude tidak diwarisi dari shell (T-040). Kosong berarti PROFILE_DEFAULTS, dan karena
+      // sudah terdefinisi, Next.js juga tidak mengisinya dari `.env`. Test yang butuh nilai lain
+      // menimpanya di bawah baris ini.
+      ...Object.fromEntries(CLAUDE_PROFILE_VARS.map((name) => [name, ''])),
       DATABASE_PATH: env.databasePath,
       TEMPLATE_DIR: env.templateDir,
       // Bentuk perintah sama dengan test runner CLI: satu string untuk cmd.exe di Windows.

@@ -7,6 +7,21 @@ import {
   PROFILE_DEFAULTS,
   STAGE_PROFILES,
 } from '../../../src/core/config/claude.ts';
+import { CLAUDE_PROFILE_VARS } from '../../helpers/claude-profile-env.ts';
+
+describe('profil Claude dari shell tidak terbaca test (T-040)', () => {
+  it('setupFiles menghapus keempat variabel, jadi claudeProfile() tanpa env memakai bawaan', () => {
+    expect(CLAUDE_PROFILE_VARS).toEqual([
+      'CLAUDE_MODEL',
+      'CLAUDE_EFFORT',
+      'CLAUDE_MODEL_REASONING',
+      'CLAUDE_EFFORT_REASONING',
+    ]);
+    for (const name of CLAUDE_PROFILE_VARS) expect(process.env).not.toHaveProperty(name);
+    expect(claudeProfile('standard')).toMatchObject(PROFILE_DEFAULTS.standard);
+    expect(claudeProfile('reasoning')).toMatchObject(PROFILE_DEFAULTS.reasoning);
+  });
+});
 
 describe('claudeProfile', () => {
   it('bawaan D-09 dan T-034 bila env kosong atau hanya spasi', () => {
