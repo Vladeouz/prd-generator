@@ -153,9 +153,19 @@ describe('CliClaudeRunner dengan perintah palsu', () => {
     dirs.push(dir);
     const pidFile = join(dir, 'pid');
 
-    const error = await failure(runner('hang', { FAKE_CLAUDE_PID_FILE: pidFile }, 1500).run('x'));
+    // Gagal hapus folder sementara (EPERM setelah taskkill, T-038) dicatat lewat logger, bukan dilempar.
+    const warnings: string[] = [];
+    const error = await failure(
+      new CliClaudeRunner({
+        command: COMMAND,
+        env: { FAKE_CLAUDE_MODE: 'hang', FAKE_CLAUDE_PID_FILE: pidFile },
+        timeoutMs: 1500,
+        logger: { warn: (message) => warnings.push(message) },
+      }).run('x'),
+    );
 
     expect(error.code).toBe('TIMEOUT');
+    expect(warnings).toEqual([]);
     expect(error.message).toContain('batas waktu');
     const pid = Number(readFileSync(pidFile, 'utf8'));
     for (let i = 0; i < 20 && isAlive(pid); i++) await sleep(100);

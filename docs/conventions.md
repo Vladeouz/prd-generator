@@ -18,7 +18,7 @@ Library dipin ke versi pasti (tanpa `^` atau `~`) saat pertama dipasang, lalu di
 | --- | --- | --- |
 | Node.js | 24 (`.nvmrc`), `engines.node` `>=24 <25` | T-001 |
 | pnpm | 12.6.0 (`packageManager`) | T-001 |
-| `next` | 16.4.0 | T-001 |
+| `next` | 16.4.2 (dari 16.4.0; menutup GHSA-p3m5-59mp-jv5r, GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr) | T-001, T-039 |
 | `react`, `react-dom` | 19.3.0 | T-001 |
 | `typescript` | 7.0.2 | T-001 |
 | `@types/node` | 24.19.2 (mengikuti Node 24) | T-001 |
@@ -326,6 +326,11 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 - Unit test di `test/unit/**`, mengikuti struktur folder sumber (`scripts/lib/prereq-checks.mjs` → `test/unit/scripts/prereq-checks.test.ts`). Test yang butuh file memakai folder sementara (`mkdtempSync`) dan menghapusnya di `afterEach`.
 - Interaksi komponen klien (klik, state) diuji dengan DOM sungguhan lewat `happy-dom`: tambahkan `// @vitest-environment happy-dom` di baris pertama file test, render dengan `createRoot` dan `act` dari React, dan stub `fetch` dengan `vi.stubGlobal`. Contoh: `test/unit/projects/run-confirmation.test.tsx`. Test tampilan statis tetap memakai `renderToStaticMarkup`.
 - Teks UI dan pesan untuk user dalam Bahasa Indonesia.
+- **Test tidak membaca profil Claude dari shell** (T-040). Shell sesi Claude Code membawa `CLAUDE_EFFORT`, yang dulu membuat test perkiraan FR-10 merah:
+  - `setupFiles` unit dan integration test (`test/helpers/vitest-setup.ts`) menghapus `CLAUDE_MODEL`, `CLAUDE_EFFORT`, `CLAUDE_MODEL_REASONING`, dan `CLAUDE_EFFORT_REASONING` dari `process.env`, jadi `claudeProfile()` dan `currentEstimateSettings()` tanpa argumen selalu memakai `PROFILE_DEFAULTS`. Daftar variabelnya `CLAUDE_PROFILE_VARS` (`test/helpers/claude-profile-env.ts`, diturunkan dari `PROFILE_ENV`);
+  - `playwright.config.ts` mengisi keempatnya dengan string kosong di `webServer.env` (kosong berarti bawaan, dan Next.js tidak mengisinya lagi dari `.env`). Test yang butuh nilai lain menimpanya di sana;
+  - test yang menguji nilai env memberi env eksplisit: `claudeProfile(profile, env)`, `JobQueueDeps.profiles`, atau `env` proses anak;
+  - `pnpm check` cukup dijalankan langsung, tanpa `env -u`.
 - Test end-to-end (`test/e2e/`, Playwright):
   - `playwright.config.ts` menjalankan `pnpm build && pnpm start --port 3517` dengan lingkungan dari `test/e2e/environment.ts`: folder sementara OS berisi database (`DATABASE_PATH`), repo template buatan (`TEMPLATE_DIR`), folder proyek turunan template (repo Git) sebagai tujuan export, dan penanda runner palsu. Database utama tidak pernah dipakai. Folder sisa run sebelumnya dihapus saat run berikutnya dimulai;
   - lingkungan dibuat sekali di proses utama Playwright; worker membaca path-nya dari `PRD_E2E_DIR` lewat `e2eEnvironment(dir)`;
