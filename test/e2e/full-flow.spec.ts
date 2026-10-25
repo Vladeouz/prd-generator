@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, type Page, test } from '@playwright/test';
 import Database from 'better-sqlite3';
+import { PROFILE_DEFAULTS } from '../../src/core/config/claude.ts';
 import { e2eEnvironment } from './environment.ts';
 
 const env = e2eEnvironment(process.env.PRD_E2E_DIR as string);
@@ -136,6 +137,15 @@ test('dari input ide sampai export, dengan satu percobaan ulang', async ({ page,
   // Tahap 6: PRD (dengan konfirmasi), lalu review kedua.
   await runStage(page, 'stage6', 'Jalankan penulisan prd', true, { preview: 'Penulisan PRD' });
   await runStage(page, 'review2', 'Jalankan review kedua');
+  // Server tidak mewarisi profil Claude dari shell (T-040): kedua profil memakai bawaan.
+  const profileOf = (stage: string) =>
+    query<{ model: string; effort: string }>(
+      'select model, effort from stage_runs where project_id = ? and stage = ? and is_current = 1',
+      projectId,
+      stage,
+    );
+  expect(profileOf('stage6')).toEqual([PROFILE_DEFAULTS.standard]);
+  expect(profileOf('review2')).toEqual([PROFILE_DEFAULTS.reasoning]);
   // Rekomendasi fixture review kedua memuat satu perbaikan PRD: PRD ditulis ulang tepat sekali.
   await save(page, 'Simpan keputusan');
   await page.getByRole('button', { name: 'Ya, simpan dan tulis ulang PRD' }).click();

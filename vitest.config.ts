@@ -6,5 +6,7 @@ export default defineConfig({
   test: {
     include: ['test/unit/**/*.test.{ts,tsx}'],
     environment: 'node',
+    // Profil Claude dari shell dihapus agar test memakai PROFILE_DEFAULTS (T-040).
+    setupFiles: ['test/helpers/vitest-setup.ts'],
   },
 });
