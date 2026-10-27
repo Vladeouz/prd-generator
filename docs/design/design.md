@@ -4,9 +4,9 @@ Sumber: kanvas "PRD Generator — Mockup UI" yang disetujui user (2026-10-13). M
 
 ## Arah
 
-Mirip referensi ngodingpakeai.com dalam rasa dan struktur: tema gelap sebagai bawaan, satu warna aksen, komposer ide di tengah, jawaban berupa chip dengan "Lainnya" dan "Lewati", pembaca PRD dengan daftar isi.
+Struktur dasar: tema gelap sebagai bawaan, satu warna aksen, komposer ide di tengah, jawaban berupa chip dengan "Lainnya" dan "Lewati", dan pembaca PRD dengan daftar isi.
 
-Berbeda dalam identitas dan isi:
+Identitas dan isi khas aplikasi ini:
 
 - grafit gelap dengan aksen biru, ditambah mode terang;
 - Plus Jakarta Sans untuk teks dan JetBrains Mono untuk ID (`FR-01`, `RV-03`, `T-007`), angka token, dan durasi;

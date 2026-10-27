@@ -220,12 +220,31 @@ Dua temuan di luar task dari log T-037 (bagian Kendala). Keduanya membuat hasil 
 
 ## Fase 4 — Uji nyata dan penyelesaian
 
-- [ ] T-018 Uji nyata: dari ide sampai Claude Code
+- [x] T-018 Uji nyata: dari ide sampai Claude Code
   - layer: test · depends_on: T-027, T-028, T-029, T-030, T-031, T-032, T-035, T-036, T-037, T-038, T-039, T-040 · refs: semua FR, NFR-06
   - files: `docs/logs/T-018.md`
-  - done when: **(manual)** user menjalankan satu ide nyata pilihannya dari tahap 1 sampai export dengan `claude` sungguhan; total durasi dan token tercatat di log dan dibandingkan dengan NFR-06; hasil ekspor diberikan ke Claude Code di proyek baru dari template, dan dua task pertama selesai tanpa keputusan konvensi di log-nya; temuan yang perlu diperbaiki dicatat sebagai usulan task
+  - done when: **(manual)** user menjalankan satu ide nyata pilihannya dari tahap 1 sampai export dengan `claude` sungguhan; total durasi dan token tercatat di log dan dibandingkan dengan NFR-06; hasil ekspor diberikan ke Claude Code di proyek baru dari template, dan dua task pertama selesai serta di-merge dengan `pnpm check` hijau; tidak ada keputusan konvensi yang bersumber dari generator yang membuat agent mengerjakan hal yang salah tanpa bertanya; pertentangan yang ditangkap agent dan celah konvensi template dicatat sebagai usulan task; temuan yang perlu diperbaiki dicatat sebagai usulan task (kriteria diubah atas persetujuan user setelah uji ulang ketiga; sebelumnya "dua task pertama selesai tanpa keputusan konvensi di log-nya")
 
 - [ ] T-019 Dokumentasi final dan pembersihan
   - layer: docs · depends_on: T-018 · refs: NFR-04
   - files: `docs/conventions.md`, `README.md`, `CLAUDE.md`, `spikes/` (dihapus)
   - done when: `docs/conventions.md` memuat semua konvensi bagian 3 PRD, versi library yang dipin, cara mengubah prompt (versi naik, fixture diperbarui), dan rujukan ke file contoh; README berisi urutan dari clone sampai aplikasi berjalan dan cara memakainya; `spikes/` dihapus; `pnpm check` hijau
+
+## Fase 5 — Perbaikan dari uji ulang ketiga T-018
+
+Temuan 19–21 di `docs/logs/T-018.md` (uji ulang ketiga). Temuan 22 (celah konvensi template) dikerjakan di repo template, dan temuan 23 (memori WSL) dicatat di README lewat T-019 atau task dokumentasi berikutnya.
+
+- [ ] T-041 Peringatan profil Claude yang berasal dari env proses
+  - layer: app · depends_on: T-018 · refs: D-09, D-14, FR-11, NFR-06 (temuan 19 uji ulang ketiga T-018: server yang dijalankan dari shell sesi Claude Code mewarisi `CLAUDE_EFFORT=medium`, sehingga profil `standard` diam-diam memakai `medium`)
+  - files: `src/core/config/claude.ts`, `src/template/settings.ts`, `src/app/settings/**`, `scripts/lib/prereq-checks.mjs`, `test/unit/**`, `test/int/template/**`, `docs/conventions.md`, `README.md`
+  - done when: aplikasi menentukan sumber nilai setiap variabel profil (`CLAUDE_MODEL`, `CLAUDE_EFFORT`, `CLAUDE_MODEL_REASONING`, `CLAUDE_EFFORT_REASONING`): env proses, `.env`, atau bawaan, dengan membaca file `.env` di root; halaman Pengaturan dan `GET /api/settings` menampilkan sumber itu per profil, dan memberi peringatan (bukan error) bila nilai berasal dari env proses dan berbeda dari `PROFILE_DEFAULTS`, dengan pesan yang menyebut nama variabelnya dan cara menjalankan server tanpa variabel itu; `pnpm prereq` menampilkan peringatan yang sama (status PERINGATAN, bukan gagal); perilaku pemilihan model dan effort tidak berubah (env proses tetap menang atas `.env`, D-14 tidak diubah); unit test untuk ketiga sumber dan kasus peringatan, dengan env dan isi `.env` diberikan eksplisit (T-040); README menyebut cara menjalankan server dari shell Claude Code tanpa mewarisi profilnya; `pnpm check` hijau
+
+- [ ] T-042 Detail 7b membawa API Contract PRD dan tidak menambah field
+  - layer: app · depends_on: T-018 · refs: FR-08, D-10 (temuan 20 uji ulang ketiga T-018: TASKS T-002 menambah `displayName` ke body PATCH `/v1/users/me` padahal API Contract PRD menetapkan `{ phone }`; prompt 7b hanya membawa blok FR dan Data Model PRD)
+  - files: `src/stages/stage-7b/**`, `src/template/sections.ts`, `prompts/stage-7b.md`, `test/fixtures/claude/**`, `test/unit/stages/**`, `test/int/stages/**`, `docs/conventions.md`
+  - done when: cuplikan PRD untuk 7b (`prd-excerpt.ts`) juga membawa baris API Contract untuk endpoint yang disebut blok FR fase itu (atau seluruh tabel API Contract bila pemetaannya tidak bisa ditentukan, dengan ukuran prompt dicatat di log); konvensi `stage7b` membawa bagian `## Autentikasi` template; prompt 7b (versi naik) melarang menambah field request atau respons di luar API Contract PRD, dan meminta pertentangan antara PRD dan konvensi ditulis sebagai catatan di task, bukan diputuskan sendiri; PRD v2 dan detail 7b fase 0 nyata uji ulang ketiga disimpan sebagai fixture verifikasi, dan prompt 7b fase 0 yang dibuat darinya memuat baris `PATCH /v1/users/me` dengan body `{ phone }`; fixture dan test diperbarui; ukuran prompt 7b per fase sebelum dan sesudah dicatat di log; `pnpm check` hijau
+
+- [ ] T-043 Detail 7b mengetahui migrasi dan kolom yang sudah ada di template
+  - layer: app · depends_on: T-042 · refs: FR-08, D-06, D-15 (temuan 21 uji ulang ketiga T-018: `files` T-001 menyebut migrasi `0001_…` padahal template sudah punya 0000–0002, dan meminta menambah `display_name` serta `last_seen_at` yang sudah ada)
+  - files: `src/template/files.ts`, `src/stages/stage-7b/**`, `prompts/stage-7b.md`, `test/helpers/template-repo.ts`, `test/fixtures/claude/**`, `test/unit/stages/**`, `test/unit/template/**`, `test/int/stages/**`, `test/int/template/**`, `docs/conventions.md`
+  - done when: daftar file template untuk 7b juga mencakup file skema `apps/api/src/db/schema/` beserta kolom tabel yang sudah ada (ringkas) dan nama migrasi di `apps/api/drizzle/` (tanpa `meta/`); prompt 7b (versi naik) meminta migrasi baru ditulis dengan nomor berikutnya yang dihitung aplikasi (`apps/api/drizzle/<nomor berikutnya>_<nama>.sql`), dan melarang menambah kolom yang sudah ada di skema template; validator 7b menolak path migrasi dengan nomor yang sudah ada di template, dengan pesan yang menyebut nomor berikutnya; detail 7b fase 0 nyata uji ulang ketiga ditolak karena `0001_users_role_profile.sql` (unit test); **(manual)** dengan `claude` sungguhan, tahap 7 proyek "Reservasi Massage 3" dijalankan ulang: T-001 memakai nomor migrasi berikutnya tanpa menambah kolom yang sudah ada, T-002 tidak menambah `displayName` ke PATCH (T-042), dan durasi, token, serta percobaan ulang dicatat dan dibandingkan dengan uji ulang ketiga (perkiraan ±2 menit, ±$1,5 kuota); `pnpm check` hijau

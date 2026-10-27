@@ -4,7 +4,7 @@
 
 Aplikasi web lokal yang mengubah ide proyek menjadi `docs/PRD.md` dan `docs/TASKS.md` yang siap dikerjakan Claude Code di proyek yang dibuat dari [template starter Profil A](https://github.com/Vladeouz/profil-a-template). Aplikasi berjalan di laptop pengguna dan memanggil Claude Code mode non-interaktif (`claude -p`), sehingga memakai langganan Claude pengguna tanpa API key.
 
-Masalah yang diselesaikan: generator PRD yang ada (referensi ngodingpakeai.com) meloloskan keputusan teknis yang saling bertentangan, menambah fitur diam-diam, dan menulis task tanpa kriteria yang bisa dibuktikan. Uji coba sebelumnya membuktikan bahwa alur bertahap dengan klarifikasi, review kritis otomatis, dan validasi output menghasilkan PRD dan TASKS yang dikerjakan Claude Code secara disiplin.
+Masalah yang diselesaikan: generator PRD pada umumnya meloloskan keputusan teknis yang saling bertentangan, menambah fitur diam-diam, dan menulis task tanpa kriteria yang bisa dibuktikan. Uji coba sebelumnya membuktikan bahwa alur bertahap dengan klarifikasi, review kritis otomatis, dan validasi output menghasilkan PRD dan TASKS yang dikerjakan Claude Code secara disiplin.
 
 Pengguna: satu orang (pemilik aplikasi), di Windows.
 
@@ -374,7 +374,7 @@ Acceptance criteria:
 | D-10 | Prompt hanya membawa bagian `docs/conventions.md` yang relevan per tahap, dan PRD merujuk konvensi tanpa menyalinnya | Seluruh file (±77 KB) ikut di tahap 6 dan 7, dan PRD membengkak ke ±95 KB. D-06 tetap berlaku: sumbernya tetap `TEMPLATE_DIR` |
 | D-11 | Tahap 7 dua langkah: daftar task (7a) lalu detail per fase (7b); `TASKS.md` dan bagian bakunya disusun aplikasi | Satu pemanggilan besar ±108k token input dan gagal validasi format berulang (4 panggilan di uji T-012) |
 | D-12 | Output Claude Code di-stream ke UI lewat SSE dari job di memori (D-03) | Progres sebelumnya hanya perkiraan waktu |
-| D-13 | Flowchart fitur dengan React Flow dari data tersimpan | Gambaran struktur seperti referensi tanpa token tambahan |
+| D-13 | Flowchart fitur dengan React Flow dari data tersimpan | Gambaran struktur fitur yang mudah dipahami tanpa token tambahan |
 | D-14 | Model dan effort per profil tahap. `standard` (tahap 2–7b kecuali review 2): Sonnet `--effort low` sesuai D-09. `reasoning` (review 2): Opus `--effort medium` (spike T-034). Semua bisa diganti lewat env | Tahap penulisan tidak terlihat turun kualitasnya dengan effort rendah (T-022). Spike T-034: celah klaim admin uji T-018 (temuan 11) kini tertangkap review 2 di semua konfigurasi berkat prompt versi 3 (T-031), tetapi Opus `medium` memberi temuan review 2 yang semuanya valid dan lebih dalam, dengan tambahan ±$0,19 dan ±38 dtk per proyek. Di tahap 5 keunggulannya kecil, dan celah seperti temuan 11 baru muncul di PRD, sehingga tahap 5 tetap `standard` |
 | D-15 | Prompt 7b membawa daftar file sumber dan test yang sudah ada di template, dibaca dari `TEMPLATE_DIR` (tanpa fitur contoh notes dan file hasil generate), bukan hanya konvensinya | Uji ulang T-018: TASKS menyebut `users.route.ts` padahal template sudah punya `me.route.ts`, sehingga agent proyek turunan harus mengganti nama file dan mengubah konvensi template. Konvensi hanya menyebut sebagian file sebagai contoh. Sumbernya tetap `TEMPLATE_DIR` (D-06) |
 
