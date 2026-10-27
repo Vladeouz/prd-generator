@@ -10,7 +10,8 @@ const usage = {
   output_tokens: 60_932,
 };
 
-// Bentuk event dari output nyata spike T-022 (spikes/claude-efficiency/results/s6-D.ndjson).
+// Bentuk event dari output nyata spike T-022 (run s6-D; folder spike dihapus di T-019, ringkasan di
+// docs/logs/T-022.md).
 const init = { type: 'system', subtype: 'init', model: 'claude-sonnet-5-5', tools: [] };
 const thinking = (n: number) => ({
   type: 'system',

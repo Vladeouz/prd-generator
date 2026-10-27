@@ -2,7 +2,7 @@
 
 ## Di awal setiap sesi
 
-- Baca `docs/PRD.md`, `docs/conventions.md` (jika sudah ada), dan log task terakhir di `docs/logs/`.
+- Baca `docs/PRD.md`, `docs/conventions.md` (mulai dari tabel ringkasan dan file contoh di awal), dan log task terakhir di `docs/logs/`.
 - Pastikan berada di `master`, working tree bersih (`git status`), dan `master` sama dengan remote (`git pull --ff-only`). Jika ada perubahan yang belum di-commit, laporkan ke user; jangan meng-commit-nya sendiri.
 - Ambil task berikutnya dari `docs/TASKS.md`: task pertama yang belum dicentang dan semua `depends_on`-nya sudah dicentang.
 - Sebelum mulai, periksa apakah sudah ada branch untuk task itu (`git branch -a --list "*t-xxx*"`). Jika ada, jangan mengerjakan ulang; laporkan ke user.
@@ -38,12 +38,12 @@
 
 - Test otomatis TIDAK PERNAH memanggil `claude` sungguhan; selalu pakai runner palsu dengan fixture.
 - Pemanggilan sungguhan hanya untuk kriteria **(manual)**, dijalankan oleh user. Sebutkan perkiraan durasi dan pemakaian token sebelumnya, karena memakai kuota langganan user.
-- Mengubah prompt di `prompts/` wajib menaikkan `version` di front matter-nya dan memperbarui fixture serta test yang terdampak.
+- Mengubah prompt di `prompts/` wajib menaikkan `version` di front matter-nya dan memperbarui fixture serta test yang terdampak (langkah lengkap: bagian "Mengubah prompt" di `docs/conventions.md`).
 
 ## Verifikasi
 
 - Centang task di `docs/TASKS.md` hanya setelah SEMUA kriteria *done when* terbukti. Jalankan ulang seluruh kriteria dari awal sebelum mencentang, bukan hanya bagian yang terakhir diperbaiki.
-- Setelah `pnpm check` tersedia (T-001), perintah itu harus hijau sebelum task apa pun dicentang.
+- `pnpm check` harus hijau sebelum task apa pun dicentang.
 - Jalankan `pnpm check` tanpa pipe ke `tail`, `head`, atau `grep`, dan periksa exit code-nya langsung sebelum commit, merge, atau push.
 - Untuk kriteria bertanda **(manual)**, tuliskan langkah verifikasi yang lengkap dan bisa diikuti sendiri: persiapan (`.env`, `TEMPLATE_DIR`, server yang harus berjalan), perintah persisnya, dan hasil yang harus terlihat. Lalu tunggu konfirmasi user.
 - Jika ada kriteria yang tidak bisa dipenuhi, jangan mencentang. Laporkan penyebabnya dengan jujur.

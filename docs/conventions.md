@@ -1,10 +1,54 @@
 # Konvensi Proyek
 
-Rujukan konvensi untuk manusia dan agent. Melengkapi bagian 3 PRD (`docs/PRD.md`); bila bertentangan, PRD yang berlaku. Konvensi baru ditambahkan di sini bersamaan dengan kode yang pertama memakainya, beserta file contohnya. Dokumen ini masih kerangka (T-001) dan dilengkapi di T-019.
+Rujukan konvensi untuk manusia dan agent. Melengkapi bagian 3 PRD (`docs/PRD.md`); bila bertentangan, PRD yang berlaku. Konvensi baru ditambahkan di sini bersamaan dengan kode yang pertama memakainya, beserta file contohnya. Dilengkapi di T-019 setelah uji nyata T-018: semua konvensi bagian 3 PRD ada di sini, dengan rinciannya di bagian masing-masing.
+
+## Ringkasan konvensi bagian 3 PRD
+
+| Konvensi PRD | Rincian di dokumen ini |
+| --- | --- |
+| Git, log per task, satu task per sesi | [Git](#git) dan `CLAUDE.md` |
+| `pnpm check` wajib hijau sebelum task dicentang | [`pnpm check`](#pnpm-check) |
+| Tidak ada test otomatis yang memanggil `claude` sungguhan | [Claude Code](#claude-code) (NFR-02) dan [Test](#test) |
+| Prompt adalah file berversi, versi dicatat per pemanggilan | [Mengubah prompt](#mengubah-prompt) |
+| Output tahap divalidasi Zod dan validator, percobaan ulang sekali | [Error, jam, dan job](#error-jam-dan-job) dan [Tahap dan prompt](#tahap-dan-prompt) |
+| Teks UI Bahasa Indonesia, "Profil A" tidak tampil | [Tahap dan prompt](#tahap-dan-prompt) dan [Test](#test) |
+| Script otomatisasi Node `.mjs` | [Script dan perintah root](#script-dan-perintah-root) |
+| Timestamp ISO 8601 UTC dari satu sumber jam | [Database](#database) dan [Error, jam, dan job](#error-jam-dan-job) |
+| Pemanggilan Claude Code (stdin, folder sementara, tanpa tool, batas 15 menit) | [Claude Code](#claude-code) |
+| Versi library dipin, `minimumReleaseAge`, `allowBuilds` | [Versi yang dipin](#versi-yang-dipin) |
+| Prasyarat lingkungan | [Prasyarat lingkungan](#prasyarat-lingkungan) |
+
+## File contoh
+
+Saat menambah sesuatu yang sejenis, tiru file ini.
+
+| Kebutuhan | File contoh |
+| --- | --- |
+| Route handler tipis + logika di modul domain | `src/app/api/projects/route.ts`, `src/projects/handlers.ts` |
+| Test route handler | `test/int/projects/projects-api.int.test.ts` |
+| Halaman server + tampilan murni | `src/app/settings/page.tsx`, `src/app/settings/settings-view.tsx` |
+| Definisi tahap (prompt, parse, validasi) | `src/stages/stage-5/definition.ts`, `src/stages/stage-5/validate.ts`, `prompts/stage-5.md` |
+| Tahap yang membaca template | `src/stages/stage-6/definition.ts` |
+| Job berlangkah (tahap 7) | `src/stages/stage-7b/job.ts` |
+| Integration test beberapa tahap dengan runner palsu | `test/int/stages/rerun.int.test.ts`, `test/helpers/stage-flow.ts` |
+| Fixture verifikasi dari uji nyata | `test/fixtures/claude/verification/t018-stage7a.json` |
+| Komponen UI dasar dan test-nya | `src/components/ui/button.tsx`, `test/unit/components/` |
+| Interaksi komponen klien (happy-dom) | `test/unit/projects/run-confirmation.test.tsx` |
+| Konfirmasi di halaman | `src/app/projects/[id]/stage-runner.tsx` |
+| Migrasi database | `drizzle/0003_stage_runs_model_effort.sql` |
+| Script Node lintas platform | `scripts/prereq.mjs`, `scripts/lib/prereq-checks.mjs` |
+| Test end-to-end | `test/e2e/full-flow.spec.ts` |
 
 ## Struktur repo
 
-Lihat pohon folder di bagian 3 PRD. Proyek satu paket pnpm tanpa workspace; `pnpm-workspace.yaml` hanya berisi pengaturan pnpm (`allowBuilds`).
+Pohon folder utama ada di bagian 3 PRD. Proyek satu paket pnpm tanpa workspace; `pnpm-workspace.yaml` hanya berisi pengaturan pnpm (`allowBuilds`). Folder yang tidak ada di pohon PRD:
+
+- `docs/design/`: sumber desain dan mockup (lihat UI dan desain);
+- `src/instrumentation.ts`: menandai job dari proses sebelumnya saat server start;
+- `test/fixtures/claude/`: `derived/` (output nyata yang disesuaikan kontrak baru), `synthetic/` (ditulis tangan), `verification/` (output nyata dari verifikasi manual), beserta script pembangunnya;
+- `data/` (database lokal) dan `.check-logs/` (output `pnpm check` yang gagal): di-ignore Git.
+
+Folder `spikes/` dipakai sementara untuk spike T-002, T-022, dan T-034, lalu dihapus di T-019. Hasilnya dirangkum di log masing-masing task.
 
 ## Prasyarat lingkungan
 
@@ -21,7 +65,7 @@ Library dipin ke versi pasti (tanpa `^` atau `~`) saat pertama dipasang, lalu di
 | `next` | 16.4.2 (dari 16.4.0; menutup GHSA-p3m5-59mp-jv5r, GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr) | T-001, T-039 |
 | `react`, `react-dom` | 19.3.0 | T-001 |
 | `typescript` | 7.0.2 | T-001 |
-| `@types/node` | 24.19.2 (mengikuti Node 24) | T-001 |
+| `@types/node` | 24.19.2 (mengikuti Node 24; sampai T-019 masih tertulis `^24.19.2`) | T-001, T-019 |
 | `@types/react`, `@types/react-dom` | 19.3.0 | T-001 |
 | `tailwindcss`, `@tailwindcss/postcss` | 4.3.3 | T-001 |
 | `@biomejs/biome` | 2.5.15 | T-001 |
@@ -45,7 +89,9 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 
 - Branch `<type>/t-xxx-<ringkas>`, type: `feat`, `fix`, `chore`, `docs`, `test`.
 - Commit `<type>: <ringkasan> (T-xxx)`.
-- Merge ke `master` dilakukan user setelah meninjau hasil.
+- Task selesai (semua *done when* terbukti, `pnpm check` hijau, log ditulis, task dicentang): `git merge --no-ff` ke `master`, lalu `git push`. Task terhenti hanya di-push branch-nya, tidak di-merge. Tanpa `push --force` dan tanpa rebase `master`. Aturan lengkap, termasuk mode fase, ada di `CLAUDE.md`.
+- Satu log per task di `docs/logs/T-xxx.md` (status, ringkasan, verifikasi per kriteria, file, keputusan sendiri, kendala, task berikutnya), di-commit bersama task-nya.
+- Kriteria *done when* dan keputusan di bagian Assumptions & Decisions PRD hanya diubah dengan persetujuan user; perubahannya dicatat di task dan log (contoh: T-018).
 - `.gitattributes` memaksa LF untuk semua file teks, kecuali `*.bat` dan `*.cmd` (CRLF). `.editorconfig` mengikuti aturan yang sama.
 
 ## Script dan perintah root
@@ -145,7 +191,17 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 
 ## Tahap dan prompt
 
-- Prompt per tahap di `prompts/<nama>.md` dengan front matter `version`. `loadPrompt` membacanya, dan `renderPrompt` mengisi `{{nama}}`; placeholder tanpa nilai dan nilai yang tidak dipakai keduanya error (`src/stages/prompt.ts`). Mengubah isi prompt wajib menaikkan `version` serta memperbarui fixture dan test yang terdampak.
+- Prompt per tahap di `prompts/<nama>.md` dengan front matter `version`. `loadPrompt` membacanya, dan `renderPrompt` mengisi `{{nama}}`; placeholder tanpa nilai dan nilai yang tidak dipakai keduanya error (`src/stages/prompt.ts`). Mengubah isi prompt wajib menaikkan `version` serta memperbarui fixture dan test yang terdampak (lihat Mengubah prompt).
+
+### Mengubah prompt
+
+Berlaku untuk isi `prompts/*.md` dan semua yang dirender ke prompt (tabel kebijakan tahap 3, bagian konvensi per tahap, daftar file template, cuplikan PRD):
+
+1. Naikkan `version` di front matter prompt itu. Versi tercatat di `stage_runs.prompt_version` setiap pemanggilan, dan perkiraan FR-10 hanya memakai run dengan versi yang sedang dipakai (kembali ke `TEST_ESTIMATES` sampai ada run baru).
+2. Perbarui test yang memeriksa isi prompt (`test/unit/stages/**`) dan, bila kontrak output berubah, validator beserta test-nya.
+3. Fixture: output nyata lama yang kini tidak sesuai kontrak tetap apa adanya sebagai contoh yang ditolak. Versi yang sesuai kontrak baru dibuat sebagai fixture turunan (`build-derived-fixtures.mjs`, perubahannya di `fixture_derived`). Output nyata dari verifikasi manual disimpan di `verification/` dengan `fixture_source`.
+4. Bila nama tahap di baris pertama prompt berubah atau ada prompt baru, perbarui `FLOW_FIXTURES` (`test/helpers/fake-claude-flow.mjs`); `test/int/claude/fake-flow.int.test.ts` gagal bila tidak.
+5. Catat ukuran prompt sebelum dan sesudah di log task bila isinya bertambah banyak (NFR-06), dan verifikasi dengan `claude` sungguhan hanya lewat kriteria **(manual)**.
 - Satu folder per tahap di `src/stages/stage-N/`: `validate.ts` (kontrak output: `errors` menggagalkan dan memicu percobaan ulang, `warnings` hanya informasi), `definition.ts` (`StageDefinition`), dan modul konteks untuk tahap berikutnya. Definisi didaftarkan di `createStageRegistry()` (`src/stages/registry.ts`), yang dibuat ulang setiap kali `getJobQueue()` dipanggil, sehingga perubahan prompt langsung terpakai tanpa restart.
 - `StageDefinition.notReadyReason` berisi prasyarat tahap; alasannya dikirim sebagai 409. `onSuccess` berjalan di transaksi yang sama dengan pencatatan output, misalnya menghapus jawaban lama dan mengatur `projects.current_stage`. Output yang berlaku dibaca dengan `currentOutput(db, projectId, stage)`; JSON dari teks model dengan `extractJson` (`src/stages/parse.ts`).
 - Pertanyaan klarifikasi (tahap 2 dan 3) divalidasi `validateQuestions` (`src/stages/questions.ts`). Jawaban disimpan lewat `saveAnswers` (`src/stages/answers.ts`). Bentuk `value`: `null` (lewati, pakai default, `source` `default` atau `guess`), string (opsi single atau teks), array (opsi multi), atau `{ lainnya }`. Semua pertanyaan wajib dikirim tepat sekali, dan jawaban lama tahap itu diganti seluruhnya. Tahap yang punya pertanyaan didaftarkan di `QUESTION_STAGES` beserta topik tebakan dan tahap berikutnya.
@@ -249,6 +305,13 @@ pnpm 12 menolak versi yang rilis kurang dari sehari (`minimumReleaseAge`). Bila 
 
 ## Claude Code
 
+- **Dasar pemanggilan** (PRD bagian 3, `src/claude/cli-runner.ts`):
+  - prompt dikirim lewat stdin, tidak pernah lewat argumen;
+  - di Windows perintah dijalankan sebagai satu string dengan `shell: true` (menghindari DEP0190), di platform lain dengan array argumen;
+  - `cwd` adalah folder sementara kosong (`mkdtempSync`, awalan `prd-generator-claude-`), sehingga Claude Code tidak membaca file proyek. Folder dihapus setelah pemanggilan dengan percobaan ulang singkat; bila tetap gagal, error-nya hanya dicatat dan tidak menimpa hasil atau error pemanggilan (T-038);
+  - setiap prompt melarang tool dan baca-tulis file, dan meminta JSON murni (tahap 2–5, 7a, 7b, review kedua) atau Markdown murni (tahap 6);
+  - batas waktu `DEFAULT_TIMEOUT_MS` (15 menit) per pemanggilan, lalu `TIMEOUT`;
+  - dari envelope disimpan `result`, `usage`, `total_cost_usd`, `is_error`, dan durasi.
 - Aplikasi hanya bergantung pada port `ClaudeRunner` (`src/claude/types.ts`). Implementasinya `CliClaudeRunner` (`cli-runner.ts`, perintah sungguhan sesuai PRD bagian 3) dan `FakeClaudeRunner` (`fake-runner.ts`, antrean respons, tidak pernah menjalankan proses).
 - **Bentuk perintah** (spike T-022, `claudeArgs` di `cli-runner.ts`; flag diverifikasi dari `claude --help` 2.1.302):
 
