@@ -225,7 +225,7 @@ Dua temuan di luar task dari log T-037 (bagian Kendala). Keduanya membuat hasil 
   - files: `docs/logs/T-018.md`
   - done when: **(manual)** user menjalankan satu ide nyata pilihannya dari tahap 1 sampai export dengan `claude` sungguhan; total durasi dan token tercatat di log dan dibandingkan dengan NFR-06; hasil ekspor diberikan ke Claude Code di proyek baru dari template, dan dua task pertama selesai serta di-merge dengan `pnpm check` hijau; tidak ada keputusan konvensi yang bersumber dari generator yang membuat agent mengerjakan hal yang salah tanpa bertanya; pertentangan yang ditangkap agent dan celah konvensi template dicatat sebagai usulan task; temuan yang perlu diperbaiki dicatat sebagai usulan task (kriteria diubah atas persetujuan user setelah uji ulang ketiga; sebelumnya "dua task pertama selesai tanpa keputusan konvensi di log-nya")
 
-- [ ] T-019 Dokumentasi final dan pembersihan
+- [x] T-019 Dokumentasi final dan pembersihan
   - layer: docs · depends_on: T-018 · refs: NFR-04
   - files: `docs/conventions.md`, `README.md`, `CLAUDE.md`, `spikes/` (dihapus)
   - done when: `docs/conventions.md` memuat semua konvensi bagian 3 PRD, versi library yang dipin, cara mengubah prompt (versi naik, fixture diperbarui), dan rujukan ke file contoh; README berisi urutan dari clone sampai aplikasi berjalan dan cara memakainya; `spikes/` dihapus; `pnpm check` hijau

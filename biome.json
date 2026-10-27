@@ -12,8 +12,6 @@
       "!docs/reference",
       "!docs/design/mockups",
       "!drizzle/meta",
-      "!spikes/claude-efficiency/results",
-      "!spikes/review-models/results",
       "!test/fixtures/claude/**/*.json"
     ]
   },
