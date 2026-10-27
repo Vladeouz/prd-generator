@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  checkClaudeProfiles,
   checkEnvFile,
   checkNode,
   checkPlaywrightBrowser,
@@ -10,6 +11,7 @@ import {
   FAIL,
   OK,
   readTemplateDir,
+  WARN,
 } from '../../../scripts/lib/prereq-checks.mjs';
 
 let root: string;
@@ -122,5 +124,28 @@ describe('checkPlaywrightBrowser', () => {
       expect(result.status).toBe(FAIL);
       expect(result.fix).toContain('pnpm exec playwright install chromium');
     }
+  });
+});
+
+describe('checkClaudeProfiles (T-041)', () => {
+  it('OK bila profil kosong atau sama dengan .env', () => {
+    expect(checkClaudeProfiles(root, {}).status).toBe(OK);
+    writeFileSync(join(root, '.env'), 'CLAUDE_EFFORT=high\n');
+    expect(checkClaudeProfiles(root, { CLAUDE_EFFORT: 'high' }).status).toBe(OK);
+  });
+
+  it('OK bila nilai env proses sama dengan bawaan', () => {
+    expect(checkClaudeProfiles(root, { CLAUDE_MODEL: 'sonnet', CLAUDE_EFFORT: 'low' }).status).toBe(
+      OK,
+    );
+  });
+
+  it('PERINGATAN, bukan gagal, bila env proses berbeda dari bawaan dan dari .env', () => {
+    writeFileSync(join(root, '.env'), 'CLAUDE_EFFORT=low\n');
+    const result = checkClaudeProfiles(root, { CLAUDE_EFFORT: 'medium', CLAUDE_MODEL: 'opus' });
+    expect(result.status).toBe(WARN);
+    expect(result.detail).toBe('2 nilai dari variabel lingkungan proses');
+    expect(result.fix).toContain('CLAUDE_MODEL=opus berasal dari variabel lingkungan proses');
+    expect(result.fix).toContain('env -u CLAUDE_EFFORT pnpm start');
   });
 });

@@ -67,7 +67,7 @@ describe('SettingsView', () => {
     return html.slice(start, next === -1 ? undefined : next);
   };
   const row = (name: string, value: string) =>
-    `${name}</dt><dd class="font-mono text-[13px] break-all">${value}</dd>`;
+    `${name}</dt><dd class="text-[13px] break-all"><span class="font-mono">${value}</span>`;
 
   it('model dan effort setiap profil beserta tahap yang memakainya (D-14)', () => {
     const html = render({
@@ -108,5 +108,37 @@ describe('SettingsView', () => {
     expect(reasoning).toContain('CLAUDE_EFFORT_REASONING tidak valid: &quot;sedang&quot;');
     expect(reasoning).toContain('Tahap yang memakai profil ini tidak bisa dijalankan');
     expect(profileHtml(html, 'standard')).not.toContain('Bermasalah');
+  });
+
+  it('nilai dari env proses yang berbeda dari bawaan: sumber dan peringatan tampil (T-041)', () => {
+    const env = { CLAUDE_EFFORT: 'medium', CLAUDE_MODEL_REASONING: 'opus' };
+    const profiles = profileSettings((profile) => claudeProfile(profile, env), {
+      env,
+      dotenv: { CLAUDE_MODEL_REASONING: 'opus' },
+    });
+    const html = render({
+      templateDir: null,
+      templateCommit: COMMIT,
+      claudeAvailable: true,
+      claudeVersion: '2.1.311 (Claude Code)',
+      claudeProfiles: profiles,
+      problems: [],
+    });
+    const standard = profileHtml(html, 'standard');
+    expect(standard).toContain('Periksa');
+    expect(standard).toContain(row('CLAUDE_EFFORT', 'medium'));
+    expect(standard).toContain(
+      'data-testid="source-CLAUDE_EFFORT">(variabel lingkungan proses)</span>',
+    );
+    expect(standard).toContain('data-testid="source-CLAUDE_MODEL">(bawaan)</span>');
+    expect(standard).toContain('data-testid="warnings-standard"');
+    expect(standard).toContain('CLAUDE_EFFORT=medium berasal dari variabel lingkungan proses');
+    expect(standard).toContain('env -u CLAUDE_EFFORT pnpm start');
+    expect(standard).not.toContain('role="alert"');
+    // Sama dengan .env: tidak diperingatkan.
+    const reasoning = profileHtml(html, 'reasoning');
+    expect(reasoning).toContain('data-testid="source-CLAUDE_MODEL_REASONING">(.env)</span>');
+    expect(reasoning).toContain('Valid');
+    expect(reasoning).not.toContain('warnings-reasoning');
   });
 });

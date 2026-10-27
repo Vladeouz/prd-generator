@@ -6,9 +6,12 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { parseEnv } from 'node:util';
+import { CLAUDE_PROFILES, profileSourceWarnings } from '../../src/core/config/claude.ts';
 
 export const OK = 'OK';
 export const FAIL = 'GAGAL';
+/** Tidak menggagalkan `pnpm prereq` (exit code tetap 0). */
+export const WARN = 'PERINGATAN';
 
 /** File yang menandai salinan lokal repo template (PRD bagian 3). */
 export const TEMPLATE_MARKERS = ['docs/conventions.md', 'scripts/init-project.mjs'];
@@ -159,6 +162,30 @@ export function checkTemplateDir(root, env = process.env) {
   return { status: OK, detail: `${value} (${at})` };
 }
 
+/**
+ * Profil model dan effort Claude Code (D-14): peringatan bila nilai dari variabel lingkungan proses
+ * (misalnya diwarisi dari shell sesi Claude Code) berbeda dari bawaan (T-041). Nilai yang sama dengan
+ * `.env` tidak diperingatkan.
+ *
+ * @param {string} root
+ * @param {Record<string, string | undefined>} env
+ */
+export function checkClaudeProfiles(root, env = process.env) {
+  const envFile = join(root, '.env');
+  const dotenv = existsSync(envFile) ? parseEnv(readFileSync(envFile, 'utf8')) : {};
+  const warnings = CLAUDE_PROFILES.flatMap((profile) =>
+    profileSourceWarnings(profile, env, dotenv),
+  );
+  if (warnings.length === 0) {
+    return { status: OK, detail: 'dari .env atau bawaan' };
+  }
+  return {
+    status: WARN,
+    detail: `${warnings.length} nilai dari variabel lingkungan proses`,
+    fix: warnings.join(' '),
+  };
+}
+
 /** Path Chromium yang dipakai `@playwright/test` di proyek ini, atau null bila tidak terbaca. */
 export function playwrightChromiumPath(root) {
   const code =
@@ -192,6 +219,7 @@ export function prereqChecks(root) {
     { name: 'Claude Code', run: () => checkClaude(root) },
     { name: 'File .env', run: () => checkEnvFile(root) },
     { name: 'TEMPLATE_DIR', run: () => checkTemplateDir(root) },
+    { name: 'Profil Claude', run: () => checkClaudeProfiles(root) },
     { name: 'Browser Playwright', run: () => checkPlaywrightBrowser(root) },
   ];
 }

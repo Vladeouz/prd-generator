@@ -1,5 +1,8 @@
 // Data halaman pengaturan dan `GET /api/settings` (FR-11).
 import { spawn } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseEnv } from 'node:util';
 import { isRealClaudeCommand } from '../claude/cli-runner.ts';
 import {
   CLAUDE_PROFILES,
@@ -7,6 +10,9 @@ import {
   type ClaudeProfileConfig,
   claudeProfile,
   PROFILE_ENV,
+  type ProfileValueSource,
+  profileSources,
+  profileSourceWarnings,
   STAGE_PROFILES,
 } from '../core/config/claude.ts';
 import { STAGE_LABELS } from '../projects/stage-labels.ts';
@@ -21,7 +27,23 @@ export type ProfileSetting = ClaudeProfileConfig & {
   effortVar: string;
   /** Nama tahap yang memakai profil ini, urut alur. */
   stages: string[];
+  /** Asal nilai model dan effort (T-041). */
+  sources: { model: ProfileValueSource; effort: ProfileValueSource };
+  /** Peringatan nilai dari env proses yang berbeda dari bawaan; tahap tetap bisa dijalankan. */
+  warnings: string[];
 };
+
+/** Env proses dan isi `.env` untuk menentukan asal nilai profil (T-041). */
+export type ProfileEnv = {
+  env: Record<string, string | undefined>;
+  dotenv: Record<string, string | undefined>;
+};
+
+/** Isi `.env` di `root` (bawaan: folder kerja server), atau kosong bila file tidak ada. */
+export function readDotenv(root = process.cwd()): Record<string, string | undefined> {
+  const file = join(root, '.env');
+  return existsSync(file) ? parseEnv(readFileSync(file, 'utf8')) : {};
+}
 
 /** Nama tahap per run di `STAGE_PROFILES`: 7a dan 7b dibedakan. */
 const RUN_STAGE_LABELS: Record<keyof typeof STAGE_PROFILES, string> = {
@@ -37,15 +59,21 @@ const RUN_STAGE_LABELS: Record<keyof typeof STAGE_PROFILES, string> = {
 
 export function profileSettings(
   profiles: (profile: ClaudeProfile) => ClaudeProfileConfig = claudeProfile,
+  profileEnv: ProfileEnv = { env: process.env, dotenv: {} },
 ): ProfileSetting[] {
-  return CLAUDE_PROFILES.map((profile) => ({
-    ...profiles(profile),
-    modelVar: PROFILE_ENV[profile].model,
-    effortVar: PROFILE_ENV[profile].effort,
-    stages: (Object.keys(STAGE_PROFILES) as (keyof typeof STAGE_PROFILES)[])
-      .filter((stage) => STAGE_PROFILES[stage] === profile)
-      .map((stage) => RUN_STAGE_LABELS[stage]),
-  }));
+  return CLAUDE_PROFILES.map((profile) => {
+    const sources = profileSources(profile, profileEnv.env, profileEnv.dotenv);
+    return {
+      ...profiles(profile),
+      modelVar: PROFILE_ENV[profile].model,
+      effortVar: PROFILE_ENV[profile].effort,
+      stages: (Object.keys(STAGE_PROFILES) as (keyof typeof STAGE_PROFILES)[])
+        .filter((stage) => STAGE_PROFILES[stage] === profile)
+        .map((stage) => RUN_STAGE_LABELS[stage]),
+      sources: { model: sources.model.source, effort: sources.effort.source },
+      warnings: profileSourceWarnings(profile, profileEnv.env, profileEnv.dotenv),
+    };
+  });
 }
 
 export type Settings = {
@@ -92,13 +120,16 @@ export function checkClaude(command = 'claude', timeoutMs = 15_000): Promise<Cla
 export type SettingsDeps = {
   templateDir: string | undefined;
   checkClaude: () => Promise<ClaudeAvailability>;
-  /** Bawaan: env proses (`claudeProfile`). */
+  /** Bawaan: `claudeProfile` dengan env dari `profileEnv`. */
   profiles?: (profile: ClaudeProfile) => ClaudeProfileConfig;
+  /** Bawaan: env proses dan `.env` di folder kerja server. */
+  profileEnv?: ProfileEnv;
 };
 
 export async function getSettings(
   deps: SettingsDeps = { templateDir: process.env.TEMPLATE_DIR, checkClaude: () => checkClaude() },
 ): Promise<Settings> {
+  const profileEnv = deps.profileEnv ?? { env: process.env, dotenv: readDotenv() };
   const [template, claude] = await Promise.all([
     readTemplate(deps.templateDir),
     deps.checkClaude(),
@@ -109,6 +140,9 @@ export async function getSettings(
     claudeAvailable: claude.available,
     claudeVersion: claude.version,
     problems: template.ok ? sectionProblems(template.template.conventions) : template.problems,
-    claudeProfiles: profileSettings(deps.profiles),
+    claudeProfiles: profileSettings(
+      deps.profiles ?? ((profile) => claudeProfile(profile, profileEnv.env)),
+      profileEnv,
+    ),
   };
 }

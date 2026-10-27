@@ -52,6 +52,59 @@ export type ClaudeProfileConfig = ClaudeCallConfig & {
   problems: string[];
 };
 
+/**
+ * Asal nilai variabel profil (T-041): `env` (variabel lingkungan proses, misalnya diwarisi dari shell
+ * sesi Claude Code), `dotenv` (sama dengan isi `.env`), atau `default` (kosong, memakai bawaan).
+ */
+export type ProfileValueSource = 'env' | 'dotenv' | 'default';
+
+export type ProfileVarSource = {
+  name: string;
+  value: string;
+  defaultValue: string;
+  source: ProfileValueSource;
+};
+
+/**
+ * Asal nilai model dan effort `profile`. `env` adalah env proses (di server Next.js sudah berisi
+ * `.env`), `dotenv` isi file `.env` di root. Nilai yang sama dengan `.env` dianggap berasal dari
+ * `.env`.
+ */
+export function profileSources(
+  profile: ClaudeProfile,
+  env: Record<string, string | undefined>,
+  dotenv: Record<string, string | undefined>,
+): { model: ProfileVarSource; effort: ProfileVarSource } {
+  const sourceOf = (kind: 'model' | 'effort'): ProfileVarSource => {
+    const name = PROFILE_ENV[profile][kind];
+    const defaultValue = PROFILE_DEFAULTS[profile][kind];
+    const value = env[name]?.trim() ?? '';
+    if (!value) return { name, value: defaultValue, defaultValue, source: 'default' };
+    const source = dotenv[name]?.trim() === value ? 'dotenv' : 'env';
+    return { name, value, defaultValue, source };
+  };
+  return { model: sourceOf('model'), effort: sourceOf('effort') };
+}
+
+/**
+ * Peringatan (bukan error) untuk nilai profil dari env proses yang berbeda dari bawaan: mudah
+ * terlewat, karena shell sesi Claude Code membawa `CLAUDE_EFFORT` miliknya sendiri (temuan 19 uji
+ * T-018).
+ */
+export function profileSourceWarnings(
+  profile: ClaudeProfile,
+  env: Record<string, string | undefined>,
+  dotenv: Record<string, string | undefined>,
+): string[] {
+  const sources = profileSources(profile, env, dotenv);
+  return [sources.model, sources.effort]
+    .filter((variable) => variable.source === 'env' && variable.value !== variable.defaultValue)
+    .map(
+      ({ name, value, defaultValue }) =>
+        `${name}=${value} berasal dari variabel lingkungan proses, bukan dari .env, dan berbeda dari bawaan (${defaultValue}). Bila server dijalankan dari shell Claude Code, nilai ini milik sesi Claude Code: jalankan server dari terminal biasa, atau hapus variabelnya dulu (env -u ${name} pnpm start).`,
+    );
+}
+
 /** Model dan effort `profile` dari env (kosong → bawaan), beserta masalahnya bila tidak valid. */
 export function claudeProfile(
   profile: ClaudeProfile,
