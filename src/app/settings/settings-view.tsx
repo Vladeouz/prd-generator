@@ -1,7 +1,15 @@
 import { AppHeader } from '../../components/ui/app-header.tsx';
 import { Badge } from '../../components/ui/badge.tsx';
 import { Card } from '../../components/ui/card.tsx';
+import type { ProfileValueSource } from '../../core/config/claude.ts';
 import type { Settings } from '../../template/settings.ts';
+
+/** Asal nilai profil (T-041). */
+const SOURCE_TEXT: Record<ProfileValueSource, string> = {
+  env: 'variabel lingkungan proses',
+  dotenv: '.env',
+  default: 'bawaan',
+};
 
 export function SettingsView({ settings }: { settings: Settings }) {
   const valid = settings.problems.length === 0;
@@ -91,6 +99,7 @@ export function SettingsView({ settings }: { settings: Settings }) {
           </h2>
           {settings.claudeProfiles.map((profile) => {
             const ok = profile.problems.length === 0;
+            const warned = ok && profile.warnings.length > 0;
             return (
               <div
                 key={profile.profile}
@@ -101,15 +110,25 @@ export function SettingsView({ settings }: { settings: Settings }) {
                   <h3 className="font-semibold">
                     Profil <span className="font-mono">{profile.profile}</span>
                   </h3>
-                  <Badge tone={ok ? 'success' : 'high'} dot>
-                    {ok ? 'Valid' : 'Bermasalah'}
+                  <Badge tone={!ok ? 'high' : warned ? 'medium' : 'success'} dot>
+                    {!ok ? 'Bermasalah' : warned ? 'Periksa' : 'Valid'}
                   </Badge>
                 </div>
                 <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-[14rem_1fr]">
                   <dt className="font-mono text-[13px] text-ink-muted">{profile.modelVar}</dt>
-                  <dd className="font-mono text-[13px] break-all">{profile.model}</dd>
+                  <dd className="text-[13px] break-all">
+                    <span className="font-mono">{profile.model}</span>{' '}
+                    <span className="text-ink-muted" data-testid={`source-${profile.modelVar}`}>
+                      ({SOURCE_TEXT[profile.sources.model]})
+                    </span>
+                  </dd>
                   <dt className="font-mono text-[13px] text-ink-muted">{profile.effortVar}</dt>
-                  <dd className="font-mono text-[13px] break-all">{profile.effort}</dd>
+                  <dd className="text-[13px] break-all">
+                    <span className="font-mono">{profile.effort}</span>{' '}
+                    <span className="text-ink-muted" data-testid={`source-${profile.effortVar}`}>
+                      ({SOURCE_TEXT[profile.sources.effort]})
+                    </span>
+                  </dd>
                   <dt className="text-ink-muted">Dipakai tahap</dt>
                   <dd>{profile.stages.join(', ')}</dd>
                 </dl>
@@ -126,6 +145,22 @@ export function SettingsView({ settings }: { settings: Settings }) {
                     <p className="mt-3">
                       Tahap yang memakai profil ini tidak bisa dijalankan sampai masalah ini
                       diperbaiki. Ubah `.env`, lalu jalankan ulang server.
+                    </p>
+                  </div>
+                )}
+                {warned && (
+                  <div
+                    className="rounded-control border border-medium bg-medium-soft p-4 text-sm text-ink"
+                    data-testid={`warnings-${profile.profile}`}
+                  >
+                    <ul className="list-disc space-y-1 pl-5">
+                      {profile.warnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                    <p className="mt-3">
+                      Tahap tetap bisa dijalankan dengan nilai ini; biaya dan durasinya bisa berbeda
+                      dari perkiraan.
                     </p>
                   </div>
                 )}

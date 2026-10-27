@@ -5,6 +5,8 @@ import {
   isValidClaudeEffort,
   isValidClaudeModel,
   PROFILE_DEFAULTS,
+  profileSources,
+  profileSourceWarnings,
   STAGE_PROFILES,
 } from '../../../src/core/config/claude.ts';
 import { CLAUDE_PROFILE_VARS } from '../../helpers/claude-profile-env.ts';
@@ -108,4 +110,35 @@ describe('isValidClaudeModel', () => {
       expect(isValidClaudeModel(model)).toBe(false);
     },
   );
+});
+
+describe('asal nilai profil (T-041)', () => {
+  it('bawaan bila kosong, .env bila sama dengan isi .env, env proses bila tidak', () => {
+    expect(profileSources('standard', {}, {})).toEqual({
+      model: { name: 'CLAUDE_MODEL', value: 'sonnet', defaultValue: 'sonnet', source: 'default' },
+      effort: { name: 'CLAUDE_EFFORT', value: 'low', defaultValue: 'low', source: 'default' },
+    });
+    const env = { CLAUDE_MODEL_REASONING: 'sonnet', CLAUDE_EFFORT_REASONING: ' high ' };
+    const sources = profileSources('reasoning', env, { CLAUDE_EFFORT_REASONING: 'high' });
+    expect(sources.model).toMatchObject({ value: 'sonnet', source: 'env' });
+    expect(sources.effort).toMatchObject({ value: 'high', source: 'dotenv' });
+    // .env dengan nilai lain: env proses yang menang dan yang dilaporkan.
+    expect(
+      profileSources('standard', { CLAUDE_EFFORT: 'medium' }, { CLAUDE_EFFORT: 'low' }).effort,
+    ).toMatchObject({ value: 'medium', source: 'env' });
+  });
+
+  it('peringatan hanya untuk env proses yang berbeda dari bawaan', () => {
+    expect(profileSourceWarnings('standard', {}, {})).toEqual([]);
+    expect(profileSourceWarnings('standard', { CLAUDE_EFFORT: 'low' }, {})).toEqual([]);
+    expect(
+      profileSourceWarnings('standard', { CLAUDE_EFFORT: 'medium' }, { CLAUDE_EFFORT: 'medium' }),
+    ).toEqual([]);
+    expect(profileSourceWarnings('standard', { CLAUDE_EFFORT: 'medium' }, {})).toEqual([
+      'CLAUDE_EFFORT=medium berasal dari variabel lingkungan proses, bukan dari .env, dan berbeda dari bawaan (low). Bila server dijalankan dari shell Claude Code, nilai ini milik sesi Claude Code: jalankan server dari terminal biasa, atau hapus variabelnya dulu (env -u CLAUDE_EFFORT pnpm start).',
+    ]);
+    expect(
+      profileSourceWarnings('reasoning', { CLAUDE_MODEL_REASONING: 'sonnet' }, {}),
+    ).toHaveLength(1);
+  });
 });

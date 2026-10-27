@@ -52,7 +52,7 @@ Folder `spikes/` dipakai sementara untuk spike T-002, T-022, dan T-034, lalu dih
 
 ## Prasyarat lingkungan
 
-Diperiksa `pnpm prereq` (`scripts/prereq.mjs`, logikanya di `scripts/lib/prereq-checks.mjs`), yang menampilkan tabel status beserta saran perbaikan dan tidak pernah membuat atau mengubah file. Semua wajib: Node.js 24, pnpm versi `packageManager`, Git, perintah `claude`, file `.env`, `TEMPLATE_DIR` (path absolut ke folder yang berisi `docs/conventions.md` dan `scripts/init-project.mjs`), dan Chromium untuk Playwright (`pnpm exec playwright install chromium`, dibutuhkan test end-to-end). `TEMPLATE_DIR` dari variabel lingkungan proses menang atas `.env`, sama dengan Next.js. Login Claude Code hanya disebut sebagai pengingat. Prasyarat baru ditambahkan ke `prereq-checks.mjs`, test-nya, dan tabel Prasyarat di `README.md`.
+Diperiksa `pnpm prereq` (`scripts/prereq.mjs`, logikanya di `scripts/lib/prereq-checks.mjs`), yang menampilkan tabel status beserta saran perbaikan dan tidak pernah membuat atau mengubah file. Semua wajib: Node.js 24, pnpm versi `packageManager`, Git, perintah `claude`, file `.env`, `TEMPLATE_DIR` (path absolut ke folder yang berisi `docs/conventions.md` dan `scripts/init-project.mjs`), dan Chromium untuk Playwright (`pnpm exec playwright install chromium`, dibutuhkan test end-to-end). "Profil Claude" hanya bisa berstatus `PERINGATAN` (`WARN`), tidak pernah gagal (T-041). `TEMPLATE_DIR` dari variabel lingkungan proses menang atas `.env`, sama dengan Next.js. Login Claude Code hanya disebut sebagai pengingat. Prasyarat baru ditambahkan ke `prereq-checks.mjs`, test-nya, dan tabel Prasyarat di `README.md`.
 
 ## Versi yang dipin
 
@@ -333,6 +333,12 @@ Berlaku untuk isi `prompts/*.md` dan semua yang dirender ke prompt (tabel kebija
   - `runStage` memeriksa profil tahap sebelum prompt dibuat. Bila ada masalah, tahap gagal (`StageFailedError`) tanpa memanggil `claude` dan tanpa baris `stage_runs`. Bila valid, model dan effort dikirim per pemanggilan (`ClaudeRunOptions.model`/`effort`) dan dicatat di `stage_runs.model`/`effort`. Runner tidak menyimpan effort tetap; tanpa opsi per pemanggilan ia memakai bawaan profil `standard`, dan tetap menolak nilai tidak valid dengan `INVALID_CONFIG` sebagai pengaman terakhir.
   - Test memberi profil lewat `JobQueueDeps.profiles`/`RunStageDeps.profiles` (`createFlow` memakai env kosong), bukan lewat `process.env`. `FakeClaudeRunner.calls` mencatat model dan effort per pemanggilan.
   - Halaman Pengaturan dan `GET /api/settings` (`claudeProfiles`) menampilkan model, effort, tahap, dan masalah setiap profil (`profileSettings` di `src/template/settings.ts`). `pnpm claude:smoke` memakai profil `standard`.
+  - **Asal nilai profil** (T-041, temuan 19 uji T-018: shell sesi Claude Code membawa `CLAUDE_EFFORT` miliknya sendiri):
+    - `profileSources(profile, env, dotenv)` menentukan asal setiap variabel: `default` (kosong), `dotenv` (sama dengan isi `.env` di root, dibaca `readDotenv` dengan `parseEnv`), atau `env` (env proses). Di server Next.js, `.env` sudah ada di env proses, jadi nilai yang sama dengan `.env` dianggap dari `.env`;
+    - `profileSourceWarnings` memberi peringatan (bukan masalah) untuk nilai `env` yang berbeda dari `PROFILE_DEFAULTS`. Peringatan menyebut nama variabel dan `env -u <nama> pnpm start`;
+    - halaman Pengaturan menampilkan asal nilai per variabel (`source-<NAMA>`), badge "Periksa", dan panel peringatan (`warnings-<profil>`). `pnpm prereq` memakai fungsi yang sama (`checkClaudeProfiles`, status `PERINGATAN` yang tidak menggagalkan);
+    - pemilihan model dan effort tidak berubah: env proses tetap menang atas `.env` (D-14);
+    - test memberi env dan isi `.env` eksplisit (`SettingsDeps.profileEnv`, `profileSettings(profiles, profileEnv)`).
   - Extended thinking tidak bisa dimatikan di Sonnet 5.5. `--effort low` menguranginya (D-09).
   - Tidak dipakai, karena tidak berpengaruh: `MAX_THINKING_TOKENS=0`, `alwaysThinkingEnabled: false`, dan `--safe-mode`.
   - Tidak dipakai, karena tidak cocok: `--bare`, yang auth-nya hanya API key, bukan langganan.

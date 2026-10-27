@@ -63,7 +63,9 @@ Variabel env proses menang atas `.env`. Shell sesi Claude Code membawa `CLAUDE_E
 env -u CLAUDE_EFFORT -u CLAUDE_MODEL -u CLAUDE_MODEL_REASONING -u CLAUDE_EFFORT_REASONING pnpm start
 ```
 
-Di PowerShell: `Remove-Item Env:CLAUDE_MODEL, Env:CLAUDE_EFFORT, Env:CLAUDE_MODEL_REASONING, Env:CLAUDE_EFFORT_REASONING -ErrorAction SilentlyContinue`, lalu `pnpm start`. Halaman Pengaturan menampilkan profil yang benar-benar dipakai.
+Di PowerShell: `Remove-Item Env:CLAUDE_MODEL, Env:CLAUDE_EFFORT, Env:CLAUDE_MODEL_REASONING, Env:CLAUDE_EFFORT_REASONING -ErrorAction SilentlyContinue`, lalu `pnpm start`.
+
+Halaman Pengaturan menampilkan profil yang benar-benar dipakai beserta asal nilainya (`.env`, bawaan, atau variabel lingkungan proses). Nilai dari variabel lingkungan proses yang berbeda dari bawaan diberi peringatan "Periksa", dan `pnpm prereq` menampilkan peringatan yang sama.
 
 ## Memakai aplikasi
 

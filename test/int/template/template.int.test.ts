@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { claudeProfile } from '../../../src/core/config/claude.ts';
-import { checkClaude, getSettings } from '../../../src/template/settings.ts';
+import { checkClaude, getSettings, readDotenv } from '../../../src/template/settings.ts';
 import { readTemplate } from '../../../src/template/template.ts';
 import { TEMPLATE_CONVENTIONS, TEMPLATE_SECTIONS } from '../../helpers/template-repo.ts';
 
@@ -107,7 +107,7 @@ describe('getSettings', () => {
     const settings = await getSettings({
       templateDir: dir,
       checkClaude: () => checkClaude(FAKE_CLAUDE),
-      profiles: (profile) => claudeProfile(profile, {}),
+      profileEnv: { env: {}, dotenv: {} },
     });
     expect(settings).toEqual({
       templateDir: dir,
@@ -132,6 +132,8 @@ describe('getSettings', () => {
             'TASKS (daftar task)',
             'TASKS (detail per fase)',
           ],
+          sources: { model: 'default', effort: 'default' },
+          warnings: [],
         },
         {
           profile: 'reasoning',
@@ -141,6 +143,8 @@ describe('getSettings', () => {
           modelVar: 'CLAUDE_MODEL_REASONING',
           effortVar: 'CLAUDE_EFFORT_REASONING',
           stages: ['Review kedua'],
+          sources: { model: 'default', effort: 'default' },
+          warnings: [],
         },
       ],
     });
@@ -161,6 +165,31 @@ describe('getSettings', () => {
     ]);
     expect(reasoning?.problems).toHaveLength(1);
     expect(reasoning?.problems[0]).toContain('CLAUDE_MODEL_REASONING tidak valid: "opus 5"');
+  });
+
+  it('asal nilai profil dari env proses dan .env (T-041): peringatan hanya untuk env proses', async () => {
+    makeTemplate(TEMPLATE_CONVENTIONS);
+    writeFileSync(join(dir, '.env'), 'CLAUDE_MODEL_REASONING=opus\nCLAUDE_EFFORT_REASONING=high\n');
+    const settings = await getSettings({
+      templateDir: dir,
+      checkClaude: () => checkClaude(FAKE_CLAUDE),
+      profileEnv: {
+        // Seperti server Next.js: .env sudah masuk env proses, CLAUDE_EFFORT dari shell.
+        env: { CLAUDE_EFFORT: 'medium', CLAUDE_EFFORT_REASONING: 'high', CLAUDE_MODEL: 'sonnet' },
+        dotenv: readDotenv(dir),
+      },
+    });
+    const [standard, reasoning] = settings.claudeProfiles;
+    // Pemilihan model dan effort tidak berubah: env proses tetap dipakai.
+    expect(standard).toMatchObject({ model: 'sonnet', effort: 'medium', problems: [] });
+    expect(standard?.sources).toEqual({ model: 'env', effort: 'env' });
+    // CLAUDE_MODEL sama dengan bawaan: tidak diperingatkan.
+    expect(standard?.warnings).toEqual([
+      expect.stringMatching(/^CLAUDE_EFFORT=medium berasal dari variabel lingkungan proses/),
+    ]);
+    expect(reasoning).toMatchObject({ model: 'opus', effort: 'high', warnings: [] });
+    expect(reasoning?.sources).toEqual({ model: 'default', effort: 'dotenv' });
+    expect(readDotenv(join(dir, 'tidak-ada'))).toEqual({});
   });
 
   it('heading konvensi yang dibutuhkan tidak ada: masalah menyebut heading dan tahapnya', async () => {
