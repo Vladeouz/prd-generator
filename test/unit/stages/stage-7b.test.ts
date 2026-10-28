@@ -11,7 +11,7 @@ import type { Stage4Output } from '../../../src/stages/stage-4/validate.ts';
 import { prdInfo } from '../../../src/stages/stage-6/validate.ts';
 import type { Stage7aOutput, Stage7aTask } from '../../../src/stages/stage-7a/validate.ts';
 import { phaseTasks } from '../../../src/stages/stage-7b/definition.ts';
-import { prdExcerpt } from '../../../src/stages/stage-7b/prd-excerpt.ts';
+import { apiContractSection, prdExcerpt } from '../../../src/stages/stage-7b/prd-excerpt.ts';
 import { nfrIds, parseTasks, validateTasks } from '../../../src/stages/stage-7b/tasks-markdown.ts';
 import {
   type Stage7bOutput,
@@ -190,6 +190,18 @@ describe('prdExcerpt', () => {
     expect(excerpt.length).toBeLessThan(prd.length / 2);
   });
 
+  it('API Contract dibawa utuh oleh apiContractSection, bukan oleh cuplikan per fase (T-042)', () => {
+    const contract = apiContractSection(prd);
+    expect(contract.startsWith('## 5. API Contract')).toBe(true);
+    expect(contract).not.toContain('## 6. Functional Requirements');
+    for (const phase of [0, 1, 2, 3]) {
+      expect(prdExcerpt(prd, phaseTasks(list(), phase))).not.toContain('## 5. API Contract');
+    }
+    expect(apiContractSection('# PRD\n\n## 6. Functional Requirements\n')).toBe(
+      '(PRD tidak punya bagian API Contract)',
+    );
+  });
+
   it('fase dengan task db membawa bagian 4 (Data Model)', () => {
     const phase0 = phaseTasks(list(), 0);
     expect(phase0.some((t) => t.layer === 'db')).toBe(true);
@@ -338,9 +350,13 @@ describe('validateStage7b: aturan dari uji nyata T-018', () => {
 });
 
 describe('prompts/stage-7b.md', () => {
-  it('versi 4; konvensi dan file template di awal (awalan sama antarfase), task fase, dan bagian PRD yang dirujuk', () => {
+  it('versi 5; konvensi, file template, dan API Contract di awal (awalan sama antarfase), task fase, dan bagian PRD yang dirujuk', () => {
     const prompt = loadPrompt('stage-7b');
-    expect(prompt.version).toBe('4');
+    expect(prompt.version).toBe('5');
+    // API Contract PRD utuh dan larangan menambah field di luarnya (T-042).
+    expect(prompt.body).toContain('API CONTRACT DARI PRD (bagian 5, utuh, sama untuk semua fase)');
+    expect(prompt.body).toContain('JANGAN menambah field yang tidak ada di sana');
+    expect(prompt.body).toContain('diawali "Catatan pertentangan:"');
     // File template dan aturannya (D-15, T-036).
     expect(prompt.body).toContain('FILE YANG SUDAH ADA DI REPO TEMPLATE');
     expect(prompt.body).toContain(
@@ -368,6 +384,7 @@ describe('prompts/stage-7b.md', () => {
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
       'conventions',
       'templateFiles',
+      'apiContract',
       'phase',
       'phaseName',
       'phase',

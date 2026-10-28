@@ -85,6 +85,7 @@ export const EXPECTED_SECTIONS = {
   stage7a: [S.structure, S.tasks, S.scripts, S.database, S.contract, S.notes].join('\n\n'),
   stage7b: [
     S.structure,
+    S.auth,
     S.scripts,
     S.database,
     S.architecture,

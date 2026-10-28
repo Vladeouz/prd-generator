@@ -1,6 +1,7 @@
 // Bagian PRD untuk prompt tahap 7b satu fase (FR-08): hanya yang dirujuk task fase itu, bukan PRD
 // utuh. Isinya blok `### FR-xx` dan butir `NFR-xx` yang ada di `refs`, ditambah bagian 4 (Data Model)
 // bila fase itu punya task layer `db`, karena task skema merujuk tabel, bukan FR tertentu.
+// API Contract (bagian 5) dibawa utuh oleh `apiContractSection`, terpisah dari cuplikan ini (T-042).
 import { prdSection } from '../stage-6/validate.ts';
 import type { Stage7aTask } from '../stage-7a/validate.ts';
 
@@ -27,6 +28,19 @@ function nfrItems(prdMd: string): Map<string, string> {
     items.set(id, item.join('\n').trimEnd());
   });
   return items;
+}
+
+/**
+ * Bagian 5 PRD (API Contract) utuh untuk semua fase 7b (T-042). Tanpa itu 7b menebak body request
+ * (uji ulang ketiga T-018: `displayName` ditambahkan ke PATCH `/v1/users/me` yang body-nya
+ * `{ phone }`). Tidak dipilah per fase, karena blok FR tidak menyebut semua endpoint fiturnya
+ * (fase 3 dan 4 uji itu kehilangan confirm, reject, payment, dan device token). Isinya sama untuk
+ * semua fase, jadi diletakkan di awalan prompt yang bisa dibaca dari cache.
+ */
+export function apiContractSection(prdMd: string): string {
+  return (
+    prdSection(prdMd, '## 5. API Contract').trimEnd() || '(PRD tidak punya bagian API Contract)'
+  );
 }
 
 export function prdExcerpt(prdMd: string, tasks: Stage7aTask[]): string {
