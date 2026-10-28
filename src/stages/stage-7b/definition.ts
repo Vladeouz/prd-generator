@@ -6,7 +6,12 @@
 // - Run dicatat sebagai `stage7b` dengan `scope` nomor fase; percobaan ulang (D-08) per fase.
 import { STAGE_PROFILES } from '../../core/config/claude.ts';
 import { latestDocument } from '../../projects/documents.ts';
-import { templateFiles } from '../../template/files.ts';
+import {
+  formatTemplateSchema,
+  type TemplateSchema,
+  templateFiles,
+  templateSchema,
+} from '../../template/files.ts';
 import { readStageConventions } from '../conventions.ts';
 import { extractJson } from '../parse.ts';
 import { loadPrompt, renderPrompt } from '../prompt.ts';
@@ -35,6 +40,17 @@ export async function readTemplateFiles(dir: string | undefined): Promise<string
   }
 }
 
+/** Skema dan migrasi template untuk 7b (T-043), dengan penanganan error yang sama. */
+export async function readTemplateSchema(dir: string | undefined): Promise<TemplateSchema> {
+  try {
+    return await templateSchema(dir?.trim() ?? '');
+  } catch (error) {
+    throw new StageFailedError(
+      `Skema database repo template tidak bisa dibaca (git), jadi detail task belum bisa dibuat: ${(error as Error).message.trim()} Periksa TEMPLATE_DIR di halaman Pengaturan.`,
+    );
+  }
+}
+
 export function stage7bDefinition(
   phase: { phase: number; name: string },
   { templateDir = () => process.env.TEMPLATE_DIR }: Stage6Options = {},
@@ -44,6 +60,7 @@ export function stage7bDefinition(
     phaseTasks(currentOutput<Stage7aOutput>(db, projectId, 'stage7a'), phase.phase);
   // Diisi `buildPrompt`, yang selalu berjalan sebelum `validate` di `runStage`.
   let files: string[] = [];
+  let schema: TemplateSchema | undefined;
   return {
     stage: 'stage7',
     runStage: 'stage7b',
@@ -61,10 +78,12 @@ export function stage7bDefinition(
         throw new StageFailedError(`Daftar task tidak punya task untuk fase ${phase.phase}.`);
       }
       files = await readTemplateFiles(templateDir());
+      schema = await readTemplateSchema(templateDir());
       const prd = latestDocument(db, projectId, 'prd')?.content ?? '';
       return renderPrompt(prompt, {
         conventions: sections,
         templateFiles: files.join('\n'),
+        templateSchema: formatTemplateSchema(schema),
         apiContract: apiContractSection(prd),
         phase: String(phase.phase),
         phaseName: phase.name,
@@ -73,6 +92,7 @@ export function stage7bDefinition(
       });
     },
     parse: (result) => extractJson(result) as Stage7bOutput,
-    validate: (output, { db, projectId }) => validateStage7b(output, tasksOf(db, projectId), files),
+    validate: (output, { db, projectId }) =>
+      validateStage7b(output, tasksOf(db, projectId), files, schema),
   };
 }

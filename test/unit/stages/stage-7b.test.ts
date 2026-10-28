@@ -18,6 +18,7 @@ import {
   type TaskDetail,
   validateStage7b,
 } from '../../../src/stages/stage-7b/validate.ts';
+import { TEMPLATE_MIGRATIONS, TEMPLATE_TABLES } from '../../helpers/template-repo.ts';
 
 /** Daftar file template nyata (fixture verifikasi T-036, hasil `templateFiles()`). */
 const TEMPLATE_FILES = (
@@ -296,6 +297,36 @@ describe('validateStage7b: aturan dari uji nyata T-018', () => {
     expect(validateStage7b(output, phaseTasks(list, 0)).errors).toEqual([]);
   });
 
+  it('migrasi dengan nomor yang sudah ada di template ditolak; detail 7b nyata uji ulang ketiga T-018 fase 0 (T-043)', () => {
+    const fixture = loadClaudeFixture('verification/t018-ketiga-stage7b-fase-0');
+    const output = JSON.parse(fixture.result.slice(fixture.result.indexOf('{')));
+    const ketiga = JSON.parse(loadClaudeFixture('verification/t018-ketiga-stage7a').result);
+    const schema = {
+      tables: TEMPLATE_TABLES,
+      migrations: TEMPLATE_MIGRATIONS,
+      nextMigration: '0003',
+    };
+    const message = (id: string, path: string) =>
+      `${id} files ${path} memakai nomor migrasi yang sudah ada di template; migrasi baru mulai dari 0003 (nomor akhirnya dibuat drizzle-kit lewat db:generate)`;
+    expect(validateStage7b(output, phaseTasks(ketiga, 0), TEMPLATE_FILES, schema).errors).toEqual([
+      message('T-001', 'apps/api/drizzle/0001_users_role_profile.sql'),
+      message('T-004', 'apps/api/drizzle/0002_drop_notes.sql'),
+    ]);
+    // Tanpa skema template, aturan ini tidak berlaku (output yang sama lolos).
+    expect(validateStage7b(output, phaseTasks(ketiga, 0), TEMPLATE_FILES).errors).toEqual([]);
+    // Nomor berikutnya, nomor lebih besar, dan penanda tanpa nomor diterima.
+    const first = () => detail(2).tasks[0] as TaskDetail;
+    for (const path of [
+      'apps/api/drizzle/0003_reservations.sql',
+      'apps/api/drizzle/0007_reservations.sql',
+      'apps/api/drizzle/NNNN_reservations.sql',
+    ]) {
+      const output2 = detail(2);
+      output2.tasks[0] = { ...first(), file_notes: null, files: [path] };
+      expect(validateStage7b(output2, phaseTasks(list(), 2), [], schema).errors, path).toEqual([]);
+    }
+  });
+
   it('fixture 7b gym dan uji ulang lain tidak terkena aturan file template (T-036)', () => {
     for (const phase of [0, 1, 2, 3]) {
       expect(
@@ -350,9 +381,13 @@ describe('validateStage7b: aturan dari uji nyata T-018', () => {
 });
 
 describe('prompts/stage-7b.md', () => {
-  it('versi 5; konvensi, file template, dan API Contract di awal (awalan sama antarfase), task fase, dan bagian PRD yang dirujuk', () => {
+  it('versi 6; konvensi, file template, skema template, dan API Contract di awal (awalan sama antarfase), task fase, dan bagian PRD yang dirujuk', () => {
     const prompt = loadPrompt('stage-7b');
-    expect(prompt.version).toBe('5');
+    expect(prompt.version).toBe('6');
+    // Skema dan migrasi template (T-043).
+    expect(prompt.body).toContain('SKEMA DATABASE DAN MIGRASI YANG SUDAH ADA DI REPO TEMPLATE');
+    expect(prompt.body).toContain('JANGAN memakai nomor migrasi yang sudah ada');
+    expect(prompt.body).toContain('JANGAN menambah kolom yang sudah ada di tabel template');
     // API Contract PRD utuh dan larangan menambah field di luarnya (T-042).
     expect(prompt.body).toContain('API CONTRACT DARI PRD (bagian 5, utuh, sama untuk semua fase)');
     expect(prompt.body).toContain('JANGAN menambah field yang tidak ada di sana');
@@ -384,6 +419,7 @@ describe('prompts/stage-7b.md', () => {
     expect([...prompt.body.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])).toEqual([
       'conventions',
       'templateFiles',
+      'templateSchema',
       'apiContract',
       'phase',
       'phaseName',
