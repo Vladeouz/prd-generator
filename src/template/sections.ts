@@ -40,8 +40,11 @@ export const CONVENTION_SECTIONS = {
   ],
   // Detail task per fase: path, pola, dan perintah test untuk `files` dan *done when*.
   // `## Database` sejak uji T-018: tanpa itu `files` menebak path skema (`schema.ts`).
+  // `## Autentikasi` sejak T-042: aturan token sebagai sumber email dan nama menentukan field profil
+  // yang bisa diubah (uji ulang ketiga T-018: `displayName` di PATCH).
   stage7b: [
     '## Struktur repo',
+    '## Autentikasi',
     '## Script dan perintah root',
     '## Database',
     '## Clean Architecture API',

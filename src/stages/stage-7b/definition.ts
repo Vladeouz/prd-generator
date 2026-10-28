@@ -1,7 +1,7 @@
 // Tahap 7b: detail task satu fase (FR-08, D-11), dijalankan per fase oleh job tahap 7 (job.ts).
 // - Prompt: bagian konvensi 7b dan daftar file template (D-15) di awal (sama untuk setiap fase,
-//   sehingga bisa dibaca dari cache), task fase itu dari output 7a yang berlaku, dan hanya bagian
-//   PRD yang dirujuk task-nya.
+//   sehingga bisa dibaca dari cache), lalu API Contract PRD utuh (T-042, juga sama untuk setiap
+//   fase), task fase itu dari output 7a yang berlaku, dan hanya bagian PRD lain yang dirujuk task-nya.
 // - Daftar file template yang dipakai prompt juga dipakai validator, sehingga keduanya sama.
 // - Run dicatat sebagai `stage7b` dengan `scope` nomor fase; percobaan ulang (D-08) per fase.
 import { STAGE_PROFILES } from '../../core/config/claude.ts';
@@ -13,7 +13,7 @@ import { loadPrompt, renderPrompt } from '../prompt.ts';
 import { currentOutput, type StageDefinition, StageFailedError } from '../run-stage.ts';
 import type { Stage6Options } from '../stage-6/definition.ts';
 import type { Stage7aOutput, Stage7aTask } from '../stage-7a/validate.ts';
-import { prdExcerpt } from './prd-excerpt.ts';
+import { apiContractSection, prdExcerpt } from './prd-excerpt.ts';
 import { type Stage7bOutput, validateStage7b } from './validate.ts';
 
 /** Task fase `phase` dari daftar 7a yang berlaku. */
@@ -61,13 +61,15 @@ export function stage7bDefinition(
         throw new StageFailedError(`Daftar task tidak punya task untuk fase ${phase.phase}.`);
       }
       files = await readTemplateFiles(templateDir());
+      const prd = latestDocument(db, projectId, 'prd')?.content ?? '';
       return renderPrompt(prompt, {
         conventions: sections,
         templateFiles: files.join('\n'),
+        apiContract: apiContractSection(prd),
         phase: String(phase.phase),
         phaseName: phase.name,
         tasks: JSON.stringify(tasks, null, 2),
-        prd: prdExcerpt(latestDocument(db, projectId, 'prd')?.content ?? '', tasks),
+        prd: prdExcerpt(prd, tasks),
       });
     },
     parse: (result) => extractJson(result) as Stage7bOutput,

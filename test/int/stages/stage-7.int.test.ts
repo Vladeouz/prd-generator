@@ -1,10 +1,14 @@
 // Job tahap 7 (T-027, D-11, T-033): 7a lalu detail 7b semua fase bersamaan dalam satu job, lalu
 // TASKS.md disusun aplikasi.
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { and, eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FakeClaudeRunner, FakeResponse } from '../../../src/claude/fake-runner.ts';
+import {
+  type FakeClaudeRunner,
+  type FakeResponse,
+  loadClaudeFixture,
+} from '../../../src/claude/fake-runner.ts';
 import {
   type ClaudeResult,
   ClaudeRunError,
@@ -15,10 +19,13 @@ import type { Clock } from '../../../src/core/clock.ts';
 import { documents, stageRuns } from '../../../src/core/db/schema.ts';
 import type { JobProgress, ProgressEvent } from '../../../src/jobs/progress.ts';
 import { composeTasks } from '../../../src/projects/compose-tasks.ts';
+import { latestDocument } from '../../../src/projects/documents.ts';
 import { STAGE7B_CONCURRENCY } from '../../../src/stages/attempts.ts';
 import { createStageRegistry } from '../../../src/stages/registry.ts';
 import type { Stage4Output } from '../../../src/stages/stage-4/validate.ts';
+import { prdSection } from '../../../src/stages/stage-6/validate.ts';
 import type { Stage7aOutput } from '../../../src/stages/stage-7a/validate.ts';
+import { stage7bDefinition } from '../../../src/stages/stage-7b/definition.ts';
 import { stage7Job } from '../../../src/stages/stage-7b/job.ts';
 import type { Stage7bOutput, TaskDetail } from '../../../src/stages/stage-7b/validate.ts';
 import { createTestDb, type TestDb } from '../../helpers/db.ts';
@@ -88,6 +95,9 @@ const tasksDocuments = () =>
     .where(and(eq(documents.projectId, 'p1'), eq(documents.kind, 'tasks')))
     .all()
     .sort((a, b) => a.version - b.version);
+
+/** Isi PRD terbaru proyek, yang dipakai prompt 7b. */
+const latestPrd = () => latestDocument(t.db, 'p1', 'prd')?.content ?? '';
 
 /** Run 7a dan 7b proyek, urut tahap, fase, dan percobaan (fase berjalan bersamaan, T-033). */
 const stage7Runs = () =>
@@ -185,7 +195,17 @@ describe('job tahap 7: 7a lalu detail semua fase bersamaan', () => {
       if (refs.has(fr)) expect(prompt).toContain(`### ${fr}: `);
       else expect(prompt).not.toContain(`### ${fr}: `);
     }
-    expect(prompt).not.toContain('## 5. API Contract');
+    // API Contract PRD utuh, sekali, di awalan yang sama untuk semua fase (T-042).
+    const prd = latestPrd();
+    const contract = prdSection(prd, '## 5. API Contract').trimEnd();
+    expect(contract.length).toBeGreaterThan(0);
+    expect(prompt).toContain(
+      `API CONTRACT DARI PRD (bagian 5, utuh, sama untuk semua fase). Ini satu-satunya sumber endpoint, field request, dan field respons:\n"""\n${contract}\n"""`,
+    );
+    expect(prompt.split('## 5. API Contract')).toHaveLength(2);
+    expect(prompt.indexOf('API CONTRACT DARI PRD')).toBeLessThan(
+      prompt.indexOf('Kamu adalah tahap'),
+    );
     // Daftar file template (D-15) setelah konvensi: hanya file kode yang di-commit, tanpa notes.
     expect(prompt).toContain(
       `FILE YANG SUDAH ADA DI REPO TEMPLATE (kode dan test aplikasi, tanpa fitur contoh notes yang dihapus salah satu task):\n"""\n${[...TEMPLATE_FILES].sort().join('\n')}\n"""`,
@@ -432,5 +452,58 @@ describe('detail fase bersamaan (T-033)', () => {
 
   it('bawaan STAGE7B_CONCURRENCY: semua fase', () => {
     expect(STAGE7B_CONCURRENCY).toBe(Number.POSITIVE_INFINITY);
+  });
+});
+
+describe('API Contract di prompt 7b (T-042)', () => {
+  it('PRD dan daftar task nyata uji ulang ketiga T-018: prompt fase 0 memuat PATCH /v1/users/me dengan body { phone }', async () => {
+    const flow = flowWith([]);
+    await projectReadyForTasks(flow);
+    // PRD v2 dan daftar 7a nyata proyek "Reservasi Massage 3", sebagai versi terbaru proyek ini.
+    const prd = readFileSync('test/fixtures/claude/verification/t018-ketiga-prd.md', 'utf8');
+    t.db
+      .insert(documents)
+      .values({
+        id: 'prd-ketiga',
+        projectId: 'p1',
+        kind: 'prd',
+        version: 99,
+        content: prd,
+        createdAt: clock(),
+      })
+      .run();
+    const list = loadClaudeFixture('verification/t018-ketiga-stage7a').result;
+    t.db
+      .insert(stageRuns)
+      .values({
+        id: 'stage7a-ketiga',
+        projectId: 'p1',
+        stage: 'stage7a',
+        attempt: 1,
+        promptVersion: '3',
+        model: 'sonnet',
+        effort: 'low',
+        status: 'succeeded',
+        outputRaw: list,
+        outputJson: list,
+        isCurrent: 1,
+        createdAt: clock(),
+      })
+      .run();
+
+    const prompt = await stage7bDefinition(
+      { phase: 0, name: 'Fondasi' },
+      { templateDir: () => template.dir },
+    ).buildPrompt({ db: t.db, projectId: 'p1' });
+    expect(prompt).toContain(
+      '| PATCH /v1/users/me | Body strict `{ phone }`, string 0–20 (`""` mengosongkan). Field lain termasuk `role` ditolak |',
+    );
+    // Seluruh tabel ikut, termasuk endpoint fase lain yang tidak disebut blok FR fase 0.
+    expect(prompt).toContain('| POST /v1/device-tokens |');
+    expect(prompt).toContain(prdSection(prd, '## 5. API Contract').trimEnd());
+    // Konvensi Autentikasi template ikut di konvensi 7b.
+    expect(prompt).toContain(TEMPLATE_SECTIONS.auth);
+    expect(prompt).toContain('JANGAN menambah field yang tidak ada di sana');
+    expect(prompt).not.toMatch(/\{\{\w+\}\}/);
   });
 });
