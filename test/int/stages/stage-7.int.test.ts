@@ -28,6 +28,7 @@ import type { Stage7aOutput } from '../../../src/stages/stage-7a/validate.ts';
 import { stage7bDefinition } from '../../../src/stages/stage-7b/definition.ts';
 import { stage7Job } from '../../../src/stages/stage-7b/job.ts';
 import type { Stage7bOutput, TaskDetail } from '../../../src/stages/stage-7b/validate.ts';
+import { formatTemplateSchema } from '../../../src/template/files.ts';
 import { createTestDb, type TestDb } from '../../helpers/db.ts';
 import {
   createFlow,
@@ -44,7 +45,9 @@ import {
   createTemplateRepo,
   EXPECTED_SECTIONS,
   TEMPLATE_FILES,
+  TEMPLATE_MIGRATIONS,
   TEMPLATE_SECTIONS,
+  TEMPLATE_TABLES,
   TEMPLATE_UNTRACKED_FILE,
   type TemplateRepo,
 } from '../../helpers/template-repo.ts';
@@ -212,6 +215,11 @@ describe('job tahap 7: 7a lalu detail semua fase bersamaan', () => {
     );
     expect(prompt).not.toContain('notes.route.ts');
     expect(prompt).not.toContain(TEMPLATE_UNTRACKED_FILE);
+    // Skema dan migrasi template (T-043) di awalan yang sama.
+    expect(prompt).toContain(
+      `SKEMA DATABASE DAN MIGRASI YANG SUDAH ADA DI REPO TEMPLATE:\n"""\n${formatTemplateSchema({ tables: TEMPLATE_TABLES, migrations: TEMPLATE_MIGRATIONS, nextMigration: '0003' })}\n"""`,
+    );
+    expect(prompt.indexOf('SKEMA DATABASE')).toBeLessThan(prompt.indexOf('Kamu adalah tahap'));
     // Konvensi dan daftar file sama persis di awal setiap prompt 7b (awalan yang bisa dibaca dari cache).
     const prefix = (p: string) => p.slice(0, p.indexOf('Kamu adalah tahap'));
     expect(new Set(prompts.slice(1).map(prefix)).size).toBe(1);

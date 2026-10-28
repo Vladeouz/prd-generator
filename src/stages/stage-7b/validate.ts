@@ -18,7 +18,12 @@
 // - file baru dengan peran yang sama dengan file template di folder yang sama ditolak (D-15);
 // - kriteria unit test API yang menguji request HTTP beserta status responsnya ditolak, karena
 //   perilaku route diuji di integration test (konvensi Test API).
-import { duplicatedTemplateFile } from '../../template/files.ts';
+import {
+  duplicatedTemplateFile,
+  migrationNumber,
+  TEMPLATE_MIGRATIONS_DIR,
+  type TemplateSchema,
+} from '../../template/files.ts';
 import type { StageValidation } from '../run-stage.ts';
 import type { Stage7aTask } from '../stage-7a/validate.ts';
 import { templateSetupOf } from '../task-rules.ts';
@@ -102,6 +107,7 @@ export function validateStage7b(
   output: unknown,
   phaseTasks: Stage7aTask[],
   templateFiles: readonly string[] = [],
+  schema?: TemplateSchema,
 ): StageValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -143,6 +149,15 @@ export function validateStage7b(
           if (pattern.test(path)) {
             errors.push(`${id} files ${path} bertentangan dengan konvensi template: ${correct}`);
           }
+        }
+        // Migrasi dengan nomor yang sudah dipakai template (T-043).
+        const number = path.startsWith(`${TEMPLATE_MIGRATIONS_DIR}/`)
+          ? migrationNumber(path)
+          : null;
+        if (schema && number !== null && number < Number(schema.nextMigration)) {
+          errors.push(
+            `${id} files ${path} memakai nomor migrasi yang sudah ada di template; migrasi baru mulai dari ${schema.nextMigration} (nomor akhirnya dibuat drizzle-kit lewat db:generate)`,
+          );
         }
         const existing = duplicatedTemplateFile(path, templateFiles);
         if (existing) {

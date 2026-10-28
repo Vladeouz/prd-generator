@@ -1,5 +1,5 @@
 ---
-version: 5
+version: 6
 ---
 KONVENSI PROYEK (bagian terpilih dari docs/conventions.md di repo template, apa adanya). Pakai path, pola, dan perintah test dari sini:
 """
@@ -9,6 +9,11 @@ KONVENSI PROYEK (bagian terpilih dari docs/conventions.md di repo template, apa 
 FILE YANG SUDAH ADA DI REPO TEMPLATE (kode dan test aplikasi, tanpa fitur contoh notes yang dihapus salah satu task):
 """
 {{templateFiles}}
+"""
+
+SKEMA DATABASE DAN MIGRASI YANG SUDAH ADA DI REPO TEMPLATE:
+"""
+{{templateSchema}}
 """
 
 API CONTRACT DARI PRD (bagian 5, utuh, sama untuk semua fase). Ini satu-satunya sumber endpoint, field request, dan field respons:
@@ -28,6 +33,8 @@ BAGIAN PRD YANG DIRUJUK TASK FASE INI:
 Aturan:
 - Tulis detail untuk SEMUA task di atas, dengan "id" yang sama, tanpa task lain dan tanpa mengubah judul.
 - "files": path utama yang disentuh, relatif dari root repo, PATH SAJA tanpa spasi, tanda kurung, atau backtick. Path harus mengikuti struktur dan pola di konvensi (misalnya skema database satu file per tabel di `apps/api/src/db/schema/<tabel>.ts`, bukan `schema.ts`). Keterangan singkat per file (opsional) ditulis di "file_notes": {"<path persis seperti di files>": "<keterangan>"}. Jangan menyentuh file setup template (pnpm-workspace.yaml, biome.json, docker-compose.yml, firebase.json, pipeline kontrak).
+- Migrasi baru ditulis `apps/api/drizzle/<nomor>_<nama>.sql`, dengan nomor 4 digit mulai dari "Nomor migrasi berikutnya" di atas; task sesudahnya yang juga membuat migrasi memakai nomor yang lebih besar. JANGAN memakai nomor migrasi yang sudah ada. Nomor akhirnya dibuat drizzle-kit (`db:generate`), jadi "done_when" tidak bergantung pada nomor persis.
+- JANGAN menambah kolom yang sudah ada di tabel template di atas (misalnya kolom `users` yang tercantum); task yang membutuhkannya cukup memakai kolom itu, dan hanya kolom baru yang ditambahkan.
 - Task yang mengubah fitur yang SUDAH ADA di template memakai file template di daftar di atas dengan nama yang sama. JANGAN membuat file baru dengan peran yang sama di folder yang sama: route (`*.route.ts`), test route (`*.route.test.ts`), dan repository (`*-repository.ts`) yang sudah ada diubah, bukan diganti file bernama lain. File baru hanya untuk hal yang belum ada di template.
 - Endpoint, field body request, dan field respons di "files", "file_notes", dan "done_when" HANYA yang ada di API CONTRACT di atas. JANGAN menambah field yang tidak ada di sana, walau terlihat berguna untuk layar (misalnya field profil yang tidak ada di body PATCH). Layar Flutter hanya mengirim field yang ada di body request kontrak.
 - Bila PRD dan konvensi (misalnya bagian Autentikasi) tampak bertentangan, JANGAN memutuskan sendiri: ikuti API Contract PRD, dan tulis pertentangannya di "file_notes" file yang terkait, diawali "Catatan pertentangan:", agar agent yang mengerjakan task menanyakannya ke user.

@@ -323,8 +323,13 @@ function taskDetailGym(phase) {
     .filter(({ task }) => task.phase === phase)
     .map(({ task, block }) => {
       const lines = block.split('\n');
-      const { files, notes } = parseFiles(
+      const { files: rawFiles, notes } = parseFiles(
         (lines.find((l) => l.startsWith('  - files: ')) ?? '').replace('  - files: ', ''),
+      );
+      // Prompt 7b versi 6 (T-043): migrasi baru mulai dari nomor berikutnya template (0003), bukan
+      // nomor yang sudah dipakai template (0000–0002).
+      const files = rawFiles.map((file) =>
+        file.replace(/^apps\/api\/drizzle\/000[0-2]_/, 'apps/api/drizzle/0003_'),
       );
       const doneWhen = (lines.find((l) => l.startsWith('  - done when: ')) ?? '')
         .replace('  - done when: ', '')
@@ -358,6 +363,7 @@ function taskDetailGym(phase) {
         `detail task fase ${phase} (id dari derived/stage7a-gym.json): files dan done when apa adanya, done when dipecah per "; "`,
         'prompt 7b versi 2: keterangan dalam kurung di files dipindah ke file_notes (files berisi path saja), dan `--` sebelum filter test dibuang',
         '"`pnpm check` hijau" di akhir done when dibuang (ditambahkan aplikasi)',
+        'prompt 7b versi 6: migrasi bernomor 0000–0002 (sudah dipakai template) diganti 0003',
         'penanda **(manual)** menjadi manual.criterion; langkah persiapan (.env, Docker) dan Flutter web dibuang (ditambahkan aplikasi), langkah lain menjadi manual.steps',
         'usage, total_cost_usd, dan duration_ms masih dari pemanggilan tahap 7 lama (TASKS utuh)',
       ],

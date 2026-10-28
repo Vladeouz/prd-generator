@@ -118,6 +118,62 @@ export const TEMPLATE_OTHER_FILES = [
   'apps/app/lib/core/config/app_config.g.dart',
   'packages/contract/openapi.json',
 ];
+/** Migrasi template (T-043): di luar folder kode, dibaca `templateSchema()`; `meta/` tidak dihitung. */
+export const TEMPLATE_MIGRATIONS = [
+  'apps/api/drizzle/0000_init.sql',
+  'apps/api/drizzle/0001_notes.sql',
+  'apps/api/drizzle/0002_timestamp_precision.sql',
+];
+const TEMPLATE_MIGRATION_META = 'apps/api/drizzle/meta/0002_snapshot.json';
+
+/** Isi skema Drizzle template (salinan `users.ts` template commit `0416d60`, dan tabel notes). */
+export const TEMPLATE_FILE_CONTENTS: Record<string, string> = {
+  'apps/api/src/db/schema/users.ts': `import { sql } from 'drizzle-orm';
+import { check, pgTable, text } from 'drizzle-orm/pg-core';
+import { createdAt, id, timestamptz, updatedAt } from './columns.js';
+
+// Identitas dan password dikelola Firebase Auth; baris dibuat lewat upsert saat request pertama.
+export const users = pgTable(
+  'users',
+  {
+    id: id(),
+    firebaseUid: text('firebase_uid').notNull().unique('users_firebase_uid_unique'),
+    // Diambil dari ID token. Nullable karena tidak semua provider Firebase memberi email.
+    email: text('email'),
+    displayName: text('display_name'),
+    lastSeenAt: timestamptz('last_seen_at').notNull().defaultNow(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [check('users_email_lowercase_check', sql\`\${table.email} = lower(\${table.email})\`)],
+);
+`,
+  'apps/api/src/db/schema/notes.ts': `import { pgTable, text } from 'drizzle-orm/pg-core';
+import { id } from './columns.js';
+
+export const notes = pgTable('notes', {
+  id: id(),
+  body: text('body').notNull(),
+});
+`,
+};
+
+/** Tabel template yang harus terbaca `templateSchema()`: notes tidak dibawa. */
+export const TEMPLATE_TABLES = [
+  {
+    name: 'users',
+    columns: [
+      'id',
+      'firebase_uid',
+      'email',
+      'display_name',
+      'last_seen_at',
+      'created_at',
+      'updated_at',
+    ],
+  },
+];
+
 /** File yang ada di folder kode tetapi belum di-commit: tidak dibawa. */
 export const TEMPLATE_UNTRACKED_FILE = 'apps/api/src/belum-di-commit.ts';
 
@@ -134,9 +190,14 @@ export function createTemplateRepo(conventions = TEMPLATE_CONVENTIONS): Template
   mkdirSync(join(dir, 'scripts'));
   writeFileSync(join(dir, 'docs', 'conventions.md'), conventions);
   writeFileSync(join(dir, 'scripts', 'init-project.mjs'), '// init\n');
-  for (const file of [...TEMPLATE_FILES, ...TEMPLATE_OTHER_FILES]) {
+  for (const file of [
+    ...TEMPLATE_FILES,
+    ...TEMPLATE_OTHER_FILES,
+    ...TEMPLATE_MIGRATIONS,
+    TEMPLATE_MIGRATION_META,
+  ]) {
     mkdirSync(dirname(join(dir, file)), { recursive: true });
-    writeFileSync(join(dir, file), '// isi\n');
+    writeFileSync(join(dir, file), TEMPLATE_FILE_CONTENTS[file] ?? '// isi\n');
   }
   git('init', '-q');
   git('config', 'core.autocrlf', 'false');

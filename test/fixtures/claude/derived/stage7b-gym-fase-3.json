@@ -46,6 +46,7 @@
       "detail task fase 3 (id dari derived/stage7a-gym.json): files dan done when apa adanya, done when dipecah per \"; \"",
       "prompt 7b versi 2: keterangan dalam kurung di files dipindah ke file_notes (files berisi path saja), dan `--` sebelum filter test dibuang",
       "\"`pnpm check` hijau\" di akhir done when dibuang (ditambahkan aplikasi)",
+      "prompt 7b versi 6: migrasi bernomor 0000–0002 (sudah dipakai template) diganti 0003",
       "penanda **(manual)** menjadi manual.criterion; langkah persiapan (.env, Docker) dan Flutter web dibuang (ditambahkan aplikasi), langkah lain menjadi manual.steps",
       "usage, total_cost_usd, dan duration_ms masih dari pemanggilan tahap 7 lama (TASKS utuh)"
     ]

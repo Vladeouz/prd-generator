@@ -2,9 +2,18 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   duplicatedTemplateFile,
+  formatTemplateSchema,
   isGenerated,
   isNotesExample,
+  migrationNumber,
+  nextMigrationNumber,
+  parseSchemaTables,
 } from '../../../src/template/files.ts';
+import {
+  TEMPLATE_FILE_CONTENTS,
+  TEMPLATE_MIGRATIONS,
+  TEMPLATE_TABLES,
+} from '../../helpers/template-repo.ts';
 
 /** Daftar file template nyata (fixture verifikasi T-036, hasil `templateFiles()`). */
 const REAL = (
@@ -74,5 +83,46 @@ describe('duplicatedTemplateFile (D-15)', () => {
     'apps/api/src/features/notes/http/notes-v2.route.ts',
   ])('%s → bukan duplikat', (path) => {
     expect(duplicatedTemplateFile(path, REAL)).toBeNull();
+  });
+});
+
+describe('skema dan migrasi template (T-043)', () => {
+  it('parseSchemaTables: nama kolom dari argumen kolom, atau snake_case nama properti untuk helper', () => {
+    expect(
+      parseSchemaTables(TEMPLATE_FILE_CONTENTS['apps/api/src/db/schema/users.ts'] ?? ''),
+    ).toEqual(TEMPLATE_TABLES);
+    expect(parseSchemaTables('export const x = 1;\n')).toEqual([]);
+  });
+
+  it('nomor migrasi berikutnya dari nomor terbesar, 4 digit', () => {
+    expect(nextMigrationNumber(TEMPLATE_MIGRATIONS)).toBe('0003');
+    expect(
+      nextMigrationNumber(['apps/api/drizzle/0009_a.sql', 'apps/api/drizzle/0010_b.sql']),
+    ).toBe('0011');
+    expect(nextMigrationNumber([])).toBe('0000');
+    expect(migrationNumber('apps/api/drizzle/0002_timestamp_precision.sql')).toBe(2);
+    expect(migrationNumber('apps/api/drizzle/NNNN_users.sql')).toBeNull();
+  });
+
+  it('formatTemplateSchema: tabel, migrasi, dan nomor berikutnya', () => {
+    expect(
+      formatTemplateSchema({
+        tables: TEMPLATE_TABLES,
+        migrations: TEMPLATE_MIGRATIONS,
+        nextMigration: '0003',
+      }),
+    ).toBe(
+      [
+        'Tabel dan kolom yang sudah ada (tanpa fitur contoh notes):',
+        '- users: id, firebase_uid, email, display_name, last_seen_at, created_at, updated_at',
+        '',
+        'Migrasi yang sudah ada:',
+        'apps/api/drizzle/0000_init.sql',
+        'apps/api/drizzle/0001_notes.sql',
+        'apps/api/drizzle/0002_timestamp_precision.sql',
+        '',
+        'Nomor migrasi berikutnya: 0003',
+      ].join('\n'),
+    );
   });
 });

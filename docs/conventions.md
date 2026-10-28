@@ -264,6 +264,16 @@ Berlaku untuk isi `prompts/*.md` dan semua yang dirender ke prompt (tabel kebija
     - konvensi `stage7b` membawa `## Autentikasi` (token sumber email dan nama);
     - ukuran: +9.008 karakter per fase dengan template `0416d60` (API Contract 6.011, Autentikasi 2.242);
     - regresi: `verification/t018-ketiga-prd.md` dan `t018-ketiga-stage7a.json` menghasilkan prompt fase 0 yang memuat `PATCH /v1/users/me` dengan body `{ phone }`;
+  - skema dan migrasi template (prompt versi 6, T-043):
+    - `templateSchema(dir)` (`src/template/files.ts`) membaca isi yang di-commit (`git ls-files`, lalu `git show HEAD:<path>`):
+      - tabel dan kolom dari `apps/api/src/db/schema/*.ts` (`parseSchemaTables`: nama dari argumen kolom, atau snake_case properti untuk helper seperti `id()`), tanpa notes;
+      - migrasi `apps/api/drizzle/*.sql` tanpa `meta/`, termasuk migrasi notes karena nomornya terpakai;
+      - `nextMigration`, nomor 4 digit setelah yang terbesar;
+    - `formatTemplateSchema` menulisnya ke prompt setelah daftar file template, di awalan yang sama untuk semua fase. Job tahap 7 membacanya sebelum 7a (`readTemplateSchema`), seperti daftar file;
+    - prompt meminta migrasi baru mulai dari nomor berikutnya (nomor akhirnya dari drizzle-kit, jadi *done when* tidak bergantung pada nomor persis) dan melarang menambah kolom yang sudah ada;
+    - `validateStage7b(output, tasks, files, schema)` menolak `apps/api/drizzle/<nomor>_…` dengan nomor di bawah `nextMigration`, dengan pesan yang menyebut nomor berikutnya. `NNNN_…` diterima;
+    - repo template test memuat isi `users.ts` template, tabel notes, dan migrasi 0000–0002 (`TEMPLATE_FILE_CONTENTS`, `TEMPLATE_MIGRATIONS`, `TEMPLATE_TABLES`). Fixture turunan gym fase 0 memakai `0003_*.sql`;
+    - regresi: `verification/t018-ketiga-stage7b-fase-0.json` ditolak karena `0001_users_role_profile.sql` (T-001) dan `0002_drop_notes.sql` (T-004);
   - output `{ tasks: [{ id, files, file_notes?, done_when, manual }] }`. `files` berisi path saja; keterangan per path di `file_notes`, dan `composeTasks` menulisnya sebagai `` `path` (keterangan) ``;
   - `validateStage7b` memeriksa: setiap task fase tepat sekali; `files` tanpa file setup template; `done_when` tanpa perintah `pnpm check` (`requiresPnpmCheck`: menyebutnya dalam anak kalimat larangan dengan `tidak`, `jangan`, `bukan`, atau `tanpa` diterima, T-033; regresi `verification/t018-ulang-stage7b-fase-4-attempt2.json`); `manual.steps` tanpa langkah persiapan;
   - aturan dari uji nyata T-018 (prompt versi 2): `files` tanpa spasi, tanda kurung, atau backtick; `file_notes` hanya untuk path di `files`; path yang bertentangan dengan konvensi template ditolak (`CONVENTION_PATHS`, misalnya `apps/api/src/db/schema.ts`); perintah test dengan `--` sebelum filter ditolak (`TEST_DASH`), karena pnpm meneruskan `--` ke vitest sehingga filternya tidak berlaku. Konvensi `stage7b` kini membawa `## Database`. Regresi: `verification/t018-stage7b-fase-{0..3}.json` harus ditolak. Prompt versi 3 (T-033) memberi contoh perintah test berfilter yang benar per jenis test (unit API, integration API, Flutter di `apps/app`) dan satu contoh yang salah;
