@@ -12,6 +12,7 @@
       "!docs/reference",
       "!docs/design/mockups",
       "!drizzle/meta",
+      "!spikes/conflict-review/results",
       "!test/fixtures/claude/**/*.json"
     ]
   },

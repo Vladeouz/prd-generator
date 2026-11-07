@@ -1,0 +1,86 @@
+[
+  {
+    "id": "C-01",
+    "task": "T-001",
+    "path": "apps/api/src/db/seed-admin.ts",
+    "text": "Catatan pertentangan: konvensi menyatakan db:migrate hanya membutuhkan DATABASE_URL; seed memakai pola serupa, bukan seluruh env server."
+  },
+  {
+    "id": "C-02",
+    "task": "T-002",
+    "path": "apps/api/src/features/users/http/me.route.ts",
+    "text": "Catatan pertentangan: PRD menyebut GET /v1/users/me tanpa tag/operationId; agent menentukan operationId getMe dan updateMe, tanyakan ke user bila ada preferensi."
+  },
+  {
+    "id": "C-03",
+    "task": "T-002",
+    "path": "apps/api/src/features/users/http/me.route.ts",
+    "text": "Catatan pertentangan: PRD berkata 'tidak ada null di body request' dan 'field opsional kosong tidak dikirim', tetapi respons PATCH wajib memuat phone: null saat dikosongkan; tanyakan ke user apakah phone dan email respons ditulis null (mengikuti acceptance criteria FR-01)."
+  },
+  {
+    "id": "C-04",
+    "task": "T-003",
+    "path": "apps/app/lib/core/router/app_router.dart",
+    "text": "Catatan pertentangan: konvensi menyebut redirect hanya berdasar status login, sedangkan PRD meminta guard per peran; tanyakan ke user bagaimana peran dimuat sebelum redirect (mis. state peran di AuthSessionCubit atau cubit sesi baru) sebelum implementasi. Rute beranda dan layar admin belum ada di fase 0, jadi pengalihan awal memakai placeholder bila beranda belum tersedia."
+  },
+  {
+    "id": "C-05",
+    "task": "T-005",
+    "path": "apps/api/src/features/services/http/admin-services.route.ts",
+    "text": "Catatan pertentangan: konvensi hanya mengenal user login tanpa role, sedangkan kontrak memakai users.role = admin; kolom role dan pengisian c.var.user.role pada users (users_role_check) belum ada di skema template dan tidak ada di daftar task fase ini, tanyakan ke user sebelum mengerjakan. Pastikan T-002 menyediakannya."
+  },
+  {
+    "id": "C-06",
+    "task": "T-006",
+    "path": "apps/app/lib/core/router/app_router.dart",
+    "text": "Catatan pertentangan: akses layar admin bergantung pada role pengguna, tetapi GET /v1/users/me di kontrak mengembalikan role dan fitur Flutter untuk membacanya tidak ada di task ini; tanyakan ke user bagaimana layar admin ditampilkan atau disembunyikan untuk pelanggan (API tetap 403)."
+  },
+  {
+    "id": "C-07",
+    "task": "T-007",
+    "path": "apps/app/lib/core/router/app_router.dart",
+    "text": "Catatan pertentangan: konvensi menyebut test router membuka beranda dengan fitur notes; tanyakan ke user layar beranda pengganti bila belum ditentukan oleh task lain."
+  },
+  {
+    "id": "C-08",
+    "task": "T-010",
+    "path": "apps/api/src/features/therapists/http/admin-therapists.route.ts",
+    "text": "Catatan pertentangan: konvensi menyebut tenancy via user_id dan tidak mengenal role admin, sedangkan kontrak memakai users.role = admin; pastikan mekanisme role dari T-002 dan tanyakan ke user bila belum ada."
+  },
+  {
+    "id": "C-09",
+    "task": "T-012",
+    "path": "apps/app/lib/features/therapists/presentation/pages/therapist_form_page.dart",
+    "text": "Catatan pertentangan: konvensi melarang fitur mengimpor fitur lain; tanyakan ke user apakah daftar layanan untuk pilihan dipindahkan ke core atau diambil lewat dependency yang diberikan router."
+  },
+  {
+    "id": "C-10",
+    "task": "T-014",
+    "path": "apps/app/lib/features/services/presentation/pages/service_detail_page.dart",
+    "text": "Catatan pertentangan: tujuan navigasi pemilihan terapis belum ada di fase ini; tanyakan ke user rute sementara yang dipakai."
+  },
+  {
+    "id": "C-11",
+    "task": "T-014",
+    "path": "apps/app/lib/core/router/app_router.dart",
+    "text": "Catatan pertentangan: pemisahan beranda pelanggan dan admin bergantung pada role pengguna, tanyakan ke user bila belum ditentukan."
+  },
+  {
+    "id": "C-12",
+    "task": "T-021",
+    "path": "apps/app/lib/core/router/app_router.dart",
+    "text": "Catatan pertentangan: bagian Autentikasi konvensi hanya mengenal user login tanpa peran, sedangkan PRD memakai users.role. Tanyakan ke user bagaimana layar admin tahu peran (kontrak GET /v1/users/me mengembalikan role) sebelum menyembunyikan menu; keputusan akses akhir tetap di server (403)."
+  },
+  {
+    "id": "C-13",
+    "task": "T-023",
+    "path": "apps/app/lib/features/reservations/presentation/pages/reservation_detail_page.dart",
+    "text": "Catatan pertentangan: kontrak tidak mengekspos BOOKING_CHANGE_CUTOFF_HOURS ke client; tanyakan ke user apakah tombol disembunyikan berdasarkan angka tetap 24 jam atau selalu tampil."
+  },
+  {
+    "id": "C-14",
+    "task": "T-028",
+    "path": "apps/api/src/app.ts",
+    "text": "Catatan pertentangan: kontrak PRD tidak memuat endpoint pembayaran yang memicu notifikasi dan FR-11 tidak mendaftarkan tipe notifikasi pembayaran, sedangkan judul task menyebut pembayaran; ikuti FR-11 dan tanyakan ke user sebelum menambah notifikasi pembayaran."
+  }
+]
