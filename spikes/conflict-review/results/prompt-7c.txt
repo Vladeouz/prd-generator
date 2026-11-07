@@ -1,0 +1,837 @@
+KONVENSI PROYEK (bagian terpilih dari docs/conventions.md di repo template, sama dengan yang dipakai tahap Detail Task):
+"""
+## Struktur repo
+
+```
+.
+├── CLAUDE.md                  # aturan kerja agent
+├── package.json               # script root: prereq, check, lint, format, contract:generate, contract:check, init-project
+├── pnpm-workspace.yaml        # workspace apps/*, packages/*; allowBuilds
+├── biome.json .editorconfig .gitattributes .nvmrc .env.example
+├── docker-compose.yml docker/firebase-emulator/Dockerfile
+├── firebase.json .firebaserc storage.rules
+├── scripts/                   # prereq.mjs, check.mjs, contract.mjs, init-project.mjs
+├── .github/workflows/ci.yml
+├── docs/                      # PRD.md, TASKS.md, logs/ (proyek), conventions.md, template-build/
+├── apps/api/                  # API Hono (lihat bagian API dan Clean Architecture API)
+├── packages/contract/         # openapi.json + package Dart api_client (hasil generate)
+└── apps/app/                  # Flutter (lihat bagian Flutter)
+```
+
+pnpm workspaces tanpa Turborepo (D-09). Paket: `api` (`apps/api`), `app` (`apps/app`, Flutter, bukan paket pnpm), dan `api_client` (`packages/contract/dart`, Dart).
+
+## Autentikasi
+
+- Semua route `/v1/*` dilindungi middleware `authenticate` (`apps/api/src/core/auth/authenticate.ts`) yang dipasang sekali di `app.ts` (`app.use('/v1/*', …)`); route tidak memasang auth sendiri. Route publik hanya di luar `/v1` dan wajib didaftarkan di `PUBLIC_ROUTES` pada `test/int/security/all-routes-require-auth.int.test.ts`.
+- Header `Authorization: Bearer <ID token>`. Header tidak ada atau bukan Bearer → `401` `Missing bearer token`; token tidak valid, kedaluwarsa, atau untuk project lain → `401` `Invalid or expired token`. Kegagalan verifikasi yang bukan kesalahan token (`auth/internal-error`, misalnya sertifikat Google tidak bisa diambil) → `500`.
+- Penolakan token dicatat `authenticate` di level `warn` dengan pesan `rejected ID token` dan field `reason` berisi kode error firebase-admin (`auth/id-token-expired`, `auth/argument-error`, `auth/id-token-revoked`, …), agar penyebab `401` bisa didiagnosis dari log. Hanya `code` yang dicatat, tidak pernah token, klaimnya, atau `message` firebase-admin (pesan itu bisa mengutip klaim `aud`/`iss`/`sub`). Header yang tidak ada atau bukan Bearer tidak dicatat. Dijaga `test/unit/core/auth/authenticate.test.ts` dan `test/int/users/me.int.test.ts` › mencatat kode error firebase-admin.
+- Verifikasi lewat port `TokenVerifier` (`core/auth/firebase-admin.ts`), implementasinya `createFirebaseTokenVerifier(auth)`. `verify(token)` mengembalikan `{ ok: true, identity }` atau `{ ok: false, reason }` (token ditolak, `reason` = kode error firebase-admin); `auth/internal-error` dan error selain `FirebaseAuthError` dilempar ulang (→ `500`). firebase-admin diinisialisasi dengan `projectId` saja (tanpa service account) lewat `createFirebaseAdmin(projectId)` dengan nama app unik.
+- Setelah token valid, use case `syncUser` (`features/users/usecases/sync-user.ts`) melakukan upsert `users` (`ON CONFLICT (firebase_uid)`) dengan email lowercase, `display_name` dari klaim `name`, dan `last_seen_at`; token adalah sumber kebenaran email dan nama. Hasilnya tersedia di handler sebagai `c.var.user` (entity `User`).
+- Route terautentikasi memakai `security: bearerSecurity` dan `401: errorResponse(…)` di `createRoute`. Contoh: `apps/api/src/features/users/http/me.route.ts`.
+
+## Script dan perintah root
+
+- Semua script otomatisasi ditulis dalam Node (`.mjs`) di `scripts/`, bukan shell, agar berjalan sama di CMD, PowerShell, Git Bash, dan Linux CI. Contoh: `scripts/prereq.mjs`.
+- Script memanggil perintah eksternal lewat `spawnSync(perintah, { shell: true })` agar `pnpm.cmd`, `flutter.bat`, dan sejenisnya ditemukan di Windows.
+- Nama script di `package.json` root tidak boleh sama dengan perintah bawaan pnpm (misalnya `doctor`, `init`, `test`, `ci`), karena perintah bawaan selalu menang. Cek dengan `pnpm help <nama>`: bila keluar `unrecognized subcommand`, nama itu aman (PRD D-14).
+- Nama file script sama dengan nama script-nya (`pnpm prereq` → `scripts/prereq.mjs`).
+- Perintah per paket dijalankan dari root dengan `pnpm --filter <paket> <script>` (`pnpm --filter api dev`); tidak ada script root `dev`.
+
+### `pnpm check` dan CI
+
+- `pnpm check` (`scripts/check.mjs`) adalah satu-satunya perintah verifikasi: Biome, typecheck API, unit test API, integration test API, `contract:check`, `flutter analyze`, `flutter test`. Semua langkah selalu dijalankan walaupun ada yang gagal; ringkasan di akhir menampilkan status dan waktu per langkah, dan output lengkap langkah yang gagal disimpan di `.check-logs/<waktu run>/` (di-ignore Git). Harus hijau sebelum task dicentang.
+- Langkah verifikasi baru (tool baru, paket baru) ditambahkan ke `STEPS` di `scripts/check.mjs`, bukan ke `ci.yml`.
+- CI (`.github/workflows/ci.yml`) hanya menjalankan `pnpm check` pada setiap push dan pull request, dengan PostgreSQL sebagai `services` dan emulator Firebase lewat `docker compose` (image di-build dengan cache GitHub Actions). Env tidak di-set di CI: default di `apps/api/test/setup/env.ts` sudah menunjuk layanan itu. Bila gagal, output langkahnya ada di artifact `check-logs`.
+- Versi Flutter di `ci.yml` diperbarui bersamaan dengan README dan tabel versi di atas. Action dipin ke major tag.
+- Runner dipin ke versi image (`runs-on: ubuntu-24.04`), bukan `ubuntu-latest`. Label `latest` dipindah GitHub ke versi Ubuntu baru tanpa perubahan di repo, sehingga versi Docker, Git, dan library sistem bisa berubah diam-diam dan CI gagal tanpa ada commit yang menjelaskannya. Naikkan versi runner secara sengaja dalam commit tersendiri, lalu pastikan `pnpm check` tetap hijau.
+
+## Database
+
+- Drizzle ORM + `pg` (node-postgres). Skema di `apps/api/src/db/schema/`, satu file per tabel, diekspor ulang dari `schema/index.ts`. Contoh: `apps/api/src/db/schema/users.ts`.
+- Tabel snake_case jamak; properti TypeScript camelCase dengan nama kolom ditulis eksplisit (`firebaseUid: text('firebase_uid')`).
+- Kolom bersama dari `schema/columns.ts`: `id()` (`uuid` default `gen_random_uuid()`), `createdAt()`, `updatedAt()` (`$onUpdate`, hanya berlaku lewat `db.update()` Drizzle), `timestamptz(nama)` untuk timestamp lain. Kolom `date` memakai `mode: 'string'`.
+- **Timestamp yang ditulis server diisi jam database (`now()`), tidak pernah `new Date()` host.** `defaultNow()` dan `$onUpdate(() => sql\`now()\`)` di `updatedAt()` memakai jam yang sama, jadi `updated_at` tidak pernah lebih kecil dari `created_at` atau nilai sebelumnya walau jam host API dan database berselisih. Hal yang sama berlaku untuk `set` manual (`updatedAt: sql\`now()\``, contoh: `apps/api/src/features/users/infrastructure/drizzle-user-repository.ts`) dan SQL mentah. Di dalam transaksi `now()` bernilai tetap (waktu mulai transaksi). Dijaga `test/int/db/schema.int.test.ts` › updated_at dari update() Drizzle memakai now() database.
+- **Semua timestamp presisi milidetik:** `timestamptz(3)` dengan `mode: 'date'`, selalu lewat helper di `schema/columns.ts`, tidak pernah `timestamp(...)` langsung. `Date` di JavaScript hanya milidetik, jadi nilai di database, entity, respons API, dan cursor pagination selalu sama persis; nilai yang lebih presisi dibulatkan PostgreSQL ke milidetik. Dijaga `test/int/db/schema.int.test.ts` › semua kolom timestamp di schema public berpresisi milidetik (tabel baru otomatis ikut diperiksa). Akibatnya dua penulisan bisa mendapat timestamp yang sama: test yang membandingkan `updated_at` sebelum dan sesudah update mengisi nilai awal di masa lalu, bukan mengandalkan `toBeGreaterThan` antara dua `now()`.
+- Constraint dan index diberi nama eksplisit `<tabel>_<kolom>_<jenis>` (`users_firebase_uid_unique`, `users_email_lowercase_check`, `notes_title_length_check`, `notes_user_id_fk`, `notes_user_id_created_at_id_index`) agar test dan penanganan error bisa merujuknya. Foreign key ditulis dengan `foreignKey({ name, columns, foreignColumns })`, bukan `.references()`, karena nama bawaan Drizzle tidak mengikuti pola ini. Enum ditulis sebagai `text` + `check`. Contoh: `apps/api/src/db/schema/notes.ts`.
+- Data milik user memakai `user_id` FK ke `users.id` `ON DELETE CASCADE`. Batas panjang teks ditegakkan dengan CHECK `char_length(...)` selain skema Zod route; batas Zod sama atau lebih ketat (Zod menghitung UTF-16 code unit, `char_length` menghitung karakter), jadi input yang lolos Zod tidak pernah melanggar CHECK.
+- Migrasi: ubah skema → `pnpm --filter api db:generate --name <ringkas>` → commit file `apps/api/drizzle/NNNN_<ringkas>.sql` beserta `meta/`. Migrasi yang sudah di-commit tidak diedit. `db:generate` tanpa perubahan skema harus mencetak `No schema changes`.
+- `pnpm --filter api db:migrate` (`src/db/migrate.ts`) menerapkan migrasi ke `DATABASE_URL`; idempoten. Hanya butuh `DATABASE_URL` (`loadDatabaseUrl()`), bukan seluruh env server.
+- Koneksi dibuat lewat `createDb(url)` dari `src/db/client.ts` (mengembalikan `{ db, pool, close }`).
+- Tabel pg-boss ada di schema `pgboss`, dikelola pg-boss sendiri, bukan lewat migrasi Drizzle.
+
+## Clean Architecture API
+
+Contoh lengkap: `apps/api/src/features/notes/` (fitur CONTOH yang ditiru lalu dihapus di proyek).
+
+```
+features/<fitur>/
+├── domain/<entity>.ts                         # entity, input, interface repository; tanpa import Hono/Drizzle
+├── usecases/<aksi>-<entity>.ts                # satu use case per file
+├── infrastructure/drizzle-<entity>-repository.ts
+└── http/<fitur>.route.ts                      # skema Zod, createRoute, DTO, registerXxxRoutes
+```
+
+- Arah dependency: `http` → `usecases` → `domain` ← `infrastructure`. Use case hanya mengimpor `domain`, `AppError` (`core/http/errors.ts`), port (`core/ports`), dan tipe `Page`/`CursorPosition` (`core/http/pagination.ts`); tidak pernah Hono, Drizzle, atau firebase-admin.
+- Use case adalah fungsi pabrik `xxxNote({ notes })` yang mengembalikan fungsi, dengan tipe `export type XxxNote = ReturnType<typeof xxxNote>`. Dependency (repository, port, `now`) masuk lewat objek pertama agar test bisa memberi versi palsu. Contoh: `features/notes/usecases/get-note.ts`.
+- Entity domain memakai `Date` untuk timestamp. Konversi ke JSON (`toISOString()`, membuang field internal seperti `userId`) hanya di `http` lewat fungsi `toXxxDto`.
+- Repository dibatasi pemilik: setiap metode menerima `userId` dan memfilter `user_id` di query yang sama (bukan ambil dulu lalu cek), lalu mengembalikan `null`/`false` bila tidak ada atau milik user lain. Use case mengubahnya menjadi `AppError('NOT_FOUND', ...)` (D-07: `404`, bukan `403`).
+- `createApp()` di `src/app.ts` adalah composition root: buat repository dari `db`, rakit use case, lalu `registerXxxRoutes(app, { ...useCases })`. Route menerima use case lewat parameter, bukan membuatnya sendiri.
+- Route: path param `id` divalidasi `z.uuid()` (bukan UUID → `422 details.id`); body POST/PATCH memakai `request.body.required: true`; PATCH memakai skema dengan semua field opsional + `.refine()` minimal satu field (→ `details._root`); `DELETE` mengembalikan `c.body(null, 204)`. Skema request dan respons diberi nama `.openapi('Note')`, `'CreateNoteInput'`, `'UpdateNoteInput'`, `'NotePage'`.
+- Teks wajib yang tidak boleh kosong memakai `.trim()` sebelum `.min()`/`.max()` (`z.string().trim().min(1).max(TITLE_MAX)`): teks berisi spasi saja → `422` `too_small`, nilai yang disimpan sudah dirapikan, dan panjang dihitung setelah dirapikan. Contoh: `Title` di `features/notes/http/notes.route.ts`, dijaga `test/int/notes/notes.int.test.ts`.
+
+### Pola lanjutan API (belum ada file contoh di template)
+
+Ditemukan saat fitur proyek pertama dibangun dari template; fitur notes tidak memakainya. Proyek yang pertama memakai pola ini mencatat filenya di sini sebagai file contoh.
+
+- **Pelanggaran keunikan → `409 CONFLICT`.** Keunikan ditegakkan constraint database bernama (`<tabel>_<kolom>_unique`, misalnya unique index `(user_id, lower(name))` untuk nama unik per user tanpa membedakan huruf besar-kecil), bukan cek "ambil dulu lalu insert" yang rawan balapan. Repository menangkap SQLSTATE `23505` dengan nama constraint itu dan melempar error domain yang didefinisikan di `domain/<entity>.ts`; use case mengubahnya menjadi `AppError('CONFLICT', …)`. Repository tidak mengimpor `AppError`, dan use case tidak mengenal kode PostgreSQL. Error lain dilempar ulang apa adanya. Interface repository di `domain/` menyebut error itu di komentar metodenya.
+
+  ```ts
+  // domain/<entity>.ts
+  export class ItemNameTakenError extends Error {
+    constructor() {
+      super('Item name already exists');
+      this.name = 'ItemNameTakenError';
+    }
+  }
+
+  // infrastructure/drizzle-<entity>-repository.ts: bungkus insert dan update.
+  // Drizzle membungkus error `pg` di `cause`.
+  async function mapNameTaken<T>(query: PromiseLike<T>): Promise<T> {
+    try {
+      return await query;
+    } catch (error) {
+      const pg = (error as { cause?: unknown }).cause ?? error;
+      const { code, constraint } = pg as { code?: string; constraint?: string };
+      if (code === '23505' && constraint === 'items_user_id_name_unique') {
+        throw new ItemNameTakenError();
+      }
+      throw error;
+    }
+  }
+
+  // usecases/create-<entity>.ts
+  try {
+    return await items.create(input);
+  } catch (error) {
+    if (error instanceof ItemNameTakenError) throw new AppError('CONFLICT', 'Item name already exists');
+    throw error;
+  }
+  ```
+
+  Test: unit test use case dengan repository palsu yang melempar error domain yang sama; integration test untuk tambah dan ubah dengan nama yang sudah ada → `409`, termasuk beda huruf besar-kecil bila berlaku. Di Flutter, `CONFLICT` sampai sebagai `FailureCode.conflict` (lihat Teks kegagalan khusus fitur di field).
+- **Endpoint aksi non-CRUD** (aksi atas banyak resource sekaligus, misalnya "hapus semua yang selesai"): `POST /v1/<resource>/<aksi>` dengan aksi kebab-case, `operationId` kata kerja camelCase (`clearDoneItems`). Respons skema bernama `<Operasi>Result` dengan huruf pertama kapital (`.openapi('ClearDoneItemsResult')`, berisi misalnya `{ deletedCount }`), sehingga kelas Dart-nya bernama sama. Aksi yang tidak menemukan apa pun tetap `200` (idempoten, `deletedCount: 0`), bukan `404`. Route tanpa body dan tanpa param hanya mendokumentasikan `401`. Repository menjalankan aksi dalam satu query yang dibatasi pemilik (`DELETE … WHERE user_id = $1 AND … RETURNING id`).
+
+### Aturan bisnis: API vs client
+
+- Aturan bisnis (wajib diisi, batas panjang, keunikan, hak akses, minimal satu field) ditegakkan di API: skema Zod route, use case, dan constraint database. API adalah satu-satunya sumber kebenaran dan harus aman walau client mengirim input apa pun.
+- Client (Flutter) boleh menormalisasi input sebelum dikirim (misalnya `trim` judul atau email) dan boleh menampilkan validasi lokal yang sama dengan API untuk umpan balik cepat, tetapi **tidak boleh lebih ketat dari API**: input yang diterima API tidak boleh ditolak client. Bila aturan berubah, ubah API dulu; error validasi API (`details`) tetap ditampilkan per field.
+
+### Organisasi dan tenancy (pola, belum ada di template)
+
+D-11: template hanya mengenal "user yang login" dengan data milik user (`notes.user_id`). Proyek yang butuh organisasi, tim, atau peran memakai pola berikut. Belum ada file contohnya; tiru fitur notes dengan `user_id` diganti `organization_id`, dan catat implementasi pertamanya di sini sebagai file contoh.
+
+- Tabel `organizations` (`id`, `name`, timestamp) dan `memberships` (`organization_id` dan `user_id`, keduanya FK `ON DELETE CASCADE`; `role` sebagai `text` + CHECK, misalnya `owner`/`admin`/`member`; UNIQUE `(organization_id, user_id)`). Data milik organisasi memakai `organization_id` FK `ON DELETE CASCADE`, dengan index pagination `(organization_id, created_at DESC, id DESC)`.
+- Path bersarang `/v1/organizations/{organizationId}/<resource>`, sehingga tetap di bawah `authenticate`. Middleware keanggotaan di `/v1/organizations/:organizationId/*` membaca membership user login dan menaruhnya di context (`c.var.membership`); `organizationId` yang bukan UUID → `422 details.organizationId`.
+- Bukan anggota → `404 NOT_FOUND` (sama dengan resource milik user lain, D-07). Anggota dengan peran yang tidak cukup → `403 FORBIDDEN`. Pemeriksaan peran ada di use case (`AppError('FORBIDDEN', …)`), bukan di route, agar teruji di unit test.
+- Repository dibatasi organisasi dengan cara yang sama seperti dibatasi pemilik: setiap metode menerima `organizationId` dan memfilternya di query yang sama.
+- Integration test minimal: bukan anggota → `404`, peran kurang → `403`, anggota organisasi lain tidak melihat data. Route baru otomatis diperiksa `all-routes-require-auth.int.test.ts`.
+- Organisasi "aktif" di Flutter disimpan di state presentation (bukan di token) dan dikirim sebagai path, bukan header.
+
+## Test API
+
+- Unit test di `apps/api/test/unit/`, mengikuti struktur `src/` (`src/core/http/errors.ts` → `test/unit/core/http/errors.test.ts`). Dijalankan `pnpm --filter api test`.
+- Integration test di `apps/api/test/int/<area>/` dengan akhiran `.int.test.ts`, dijalankan `pnpm --filter api test:int` (butuh `docker compose up -d --wait`). Contoh: `test/int/db/schema.int.test.ts`.
+- Global setup `test/setup/db.ts` membuat ulang database `<nama database DATABASE_URL>_test` (default `template_test`) setiap run dan menjalankan migrasi yang di-commit. Database utama hanya dipakai untuk `DROP`/`CREATE DATABASE`; datanya tidak disentuh. Bila PostgreSQL tidak bisa dihubungi, pesan error menyebut Docker.
+- Setiap file integration test memanggil `const getDb = useTestDb();` (`test/helpers/db.ts`) di level atas: membuka pool ke database test dan men-`TRUNCATE` semua tabel `public` sebelum setiap test. File berjalan berurutan (`fileParallelism: false`).
+- Pelanggaran constraint diperiksa lewat SQLSTATE dan nama constraint (`23505` unique, `23514` check, `23503` FK).
+- `test/setup/env.ts` mengisi env default test tanpa menimpa nilai dari shell.
+- `createTestApp()` memakai `db` yang belum terkoneksi dan `rejectAllTokens`, jadi unit test tidak butuh Docker. Integration test yang butuh login memberi `db: getDb().db` dan `tokenVerifier: createEmulatorTokenVerifier()`.
+- Token login dibuat lewat Auth Emulator dengan `signUp()` / `updateAccount()` dari `test/helpers/emulator-token.ts` (email acak, emulator tidak dibersihkan). Token kedaluwarsa atau untuk project lain dibuat dengan `unsignedIdToken({ exp, aud, … })`. Contoh: `test/int/users/me.int.test.ts`.
+- Test HTTP memanggil `app.request()` pada `createTestApp()`, bukan server sungguhan. Route khusus test didaftarkan di app hasil `createTestApp()` di dalam file test-nya (contoh: `test/unit/core/http/errors.test.ts`).
+- Log diperiksa dengan `captureLogger()` (`test/helpers/capture-logger.ts`): logger yang menampung setiap baris JSON di `lines`, dengan `raw()` untuk memastikan nilai sensitif tidak muncul. Berikan ke `createTestApp({ logger })`. Contoh: `test/unit/core/logger.test.ts`, `test/unit/core/auth/authenticate.test.ts`.
+- Setiap use case punya unit test dengan repository palsu di memori yang meniru perilaku implementasi Drizzle (pembatasan pemilik, urutan, cursor). Repository palsu fitur ditaruh di `test/unit/features/<fitur>/fake-<nama>-repository.ts` (bukan `*.test.ts`, jadi tidak dijalankan sendiri). Contoh: `test/unit/features/notes/fake-note-repository.ts`, `test/unit/features/notes/usecases/*.test.ts`.
+- Unit test route memeriksa pemetaan DTO dan dokumen OpenAPI (operationId, security, status, nama skema); perilaku route yang butuh login diuji di integration test. Contoh: `test/unit/features/notes/http/notes.route.test.ts`, `test/int/notes/notes.int.test.ts`.
+- Unit test yang menjalankan proses anak (`spawnSync`) memberi timeout per test lebih besar dari `timeout` proses anaknya, bukan menaikkan `testTimeout` global; start dingin `tsx` di Windows bisa lebih dari 5 detik bawaan Vitest. Contoh: `test/unit/server.test.ts`.
+- Integration test yang memeriksa keadaan server PostgreSQL (`pg_stat_activity` dan sejenisnya) membatasi ke `datname = current_database()`, karena API dev bisa berjalan bersamaan di database utama. Contoh: `test/int/jobs/boss.int.test.ts`.
+- Tidak ada retry otomatis untuk test yang gagal acak; cari dan perbaiki penyebabnya (output lengkap di `.check-logs/`).
+- Keadaan awal integration test dibuat dengan `insertUser`, `insertNote`, `insertNotes` dari `test/helpers/factories.ts`; data yang diuji lewat HTTP tetap dibuat lewat route. Integration test yang butuh `userId` login memanggil `GET /v1/me` dulu (helper `login()` di `test/int/notes/notes.int.test.ts`).
+
+## Kontrak dan client Dart
+
+D-01, D-02: route Hono adalah satu-satunya sumber kebenaran. `packages/contract/openapi.json` (OpenAPI 3.1) dan package Dart `api_client` di `packages/contract/dart/` adalah hasil generate yang di-commit; jangan diedit manual.
+
+- `pnpm contract:generate` (`scripts/contract.mjs`): `apps/api/scripts/export-openapi.ts` menulis `openapi.json` dari `createApp()` (tanpa `.env`, Docker, atau koneksi database), lalu `dart pub get`, hapus `dart/lib/src/api/`, `dart run swagger_parser`, `dart run build_runner build`, dan `dart analyze`. Jalankan setiap kali route atau skema Zod berubah, lalu commit hasilnya bersama perubahan route.
+- `pnpm contract:check`: generate ulang di salinan sementara (working tree tidak disentuh), lalu membandingkan byte per byte `openapi.json` dan semua file di `dart/lib/src/api/`. Gagal (exit 1) dengan daftar file yang berbeda, belum ada di repo, atau tidak lagi dihasilkan generator.
+- `openapi.json` diformat Biome setelah export (lewat stdin, memakai `biome.json`), sehingga `pnpm lint` bersih dan hasilnya deterministik.
+- File Dart hasil generate **tidak** diformat ulang (`dart format` tidak dijalankan pada `lib/src/api/`); `contract:check` membandingkan hasil generate apa adanya. Hasilnya deterministik selama versi generator sama, karena itu `dart/pubspec.lock` di-commit.
+- Yang ditulis tangan di package: `pubspec.yaml`, `swagger_parser.yaml`, `lib/api_client.dart` (mengekspor `src/api/export.dart`), dan `test/api_client_test.dart`. Test dijalankan dengan `dart test` di `packages/contract/dart`.
+- Nama komponen OpenAPI menjadi nama kelas Dart: setiap skema request, respons, dan objek bersarang yang penting diberi `.openapi('Nama')`. Tanpa nama, swagger_parser membuat nama sendiri (objek error tanpa nama menjadi kelas `Error` yang menutupi `dart:core`). Satu tag OpenAPI menjadi satu client (`NotesClient`, `UsersClient`, `SystemClient`), dirangkum `ApiClient`.
+- `ErrorCode` menjadi enum Dart dengan nilai `$unknown` untuk kode yang belum dikenal (`unknown_enum_value: true`); Flutter memetakan `$unknown` ke teks umum. Respons error sampai di dio sebagai `DioException` dengan `response.data` berupa `Map`, dibaca dengan `ErrorBody.fromJson`.
+- Field opsional yang `null` tidak dikirim di body request (`include_if_null: true` di `swagger_parser.yaml` → `@JsonKey(includeIfNull: false)`), karena API menolak `null` pada field `optional()` (`invalid_type`). Field wajib yang nullable (`nextCursor`, `User.email`) tetap ditulis sebagai `null`. Dijaga `packages/contract/dart/test/api_client_test.dart` dan `apps/app/test/features/notes/data/note_remote_data_source_test.dart`.
+- Waktu: `build_runner` pertama ~35–45 detik (kompilasi builder; juga berlaku untuk `contract:check` bila `dart/.dart_tool` belum ada, misalnya di CI). Setelah itu `contract:check` ~6 detik karena `.dart_tool` ikut disalin ke folder sementara.
+
+## Flutter
+
+Aplikasi di `apps/app` (package `app`, platform web, Android, iOS), dibuat dengan `flutter create --empty`. Lint `flutter_lints` + `strict-casts`, `strict-inference`, `strict-raw-types`, `always_use_package_imports`, `prefer_single_quotes` (`analysis_options.yaml`); format dengan `dart format` (lebar bawaan 80). `flutter analyze` dan `flutter test` dijalankan di `apps/app`.
+
+- **iOS belum terverifikasi.** Folder `apps/app/ios` disertakan, tetapi belum pernah di-build atau dijalankan karena template dikembangkan di Windows (build iOS butuh macOS dan Xcode); yang sudah diverifikasi hanya web dan Android. Opsi verifikasi tanpa Mac: job CI terpisah di runner macOS GitHub Actions (misalnya `runs-on: macos-15`, versi Flutter sama dengan job `check`) yang menjalankan `flutter build ios --simulator --dart-define-from-file=config/dev.json` di `apps/app`. Build simulator tidak butuh signing; menit runner macOS dihitung lebih mahal daripada Linux, jadi jalankan hanya pada pull request ke `master` atau lewat `workflow_dispatch`. Proyek yang menargetkan iOS mencatat hasil verifikasi pertamanya di sini.
+
+```
+lib/
+├── main.dart                 # config → Firebase → useAuthEmulator → tunggu authStateChanges().first → configureDependencies → runApp
+├── app.dart                  # MaterialApp.router: tema, locale id, router
+└── core/
+    ├── config/app_config.dart
+    ├── di/injection.dart
+    ├── error/                # failure.dart, result.dart, failure_log.dart
+    ├── l10n/                 # app_locale.dart, failure_messages.dart
+    ├── network/              # create_dio.dart, auth_interceptor.dart, token_provider.dart, error_mapper.dart, api_call.dart
+    ├── router/app_router.dart
+    ├── theme/app_theme.dart
+    └── widgets/              # failure_view.dart, load_more_footer.dart (dipakai lebih dari satu fitur)
+```
+
+Widget yang dipakai lebih dari satu fitur ditaruh di `lib/core/widgets/`, tanpa mengimpor fitur mana pun (menerima nilai biasa seperti `Failure` dan `bool`, bukan state Cubit fitur). Fitur tidak mengimpor widget fitur lain; bila widget fitur dibutuhkan fitur kedua, pindahkan ke `core/widgets/` (beserta test-nya di `test/core/widgets/`) dalam task yang sama, bukan disalin.
+
+Arah dependency (Clean Architecture): `presentation` (widget + Cubit) → `domain` ← `data`. `domain` berisi Dart murni: tidak mengimpor Flutter, dio, firebase, atau `api_client`. State Cubit adalah sealed class Dart 3. Teks UI Bahasa Indonesia.
+
+Fitur di `lib/features/<fitur>/` (contoh lengkap: `features/auth/`):
+
+```
+features/auth/
+├── auth_dependencies.dart    # registerAuthDependencies(GetIt), dipanggil configureDependencies
+├── domain/
+│   ├── entities/             # auth_user.dart (Dart murni + equatable)
+│   ├── repositories/         # auth_repository.dart (abstract interface class)
+│   └── usecases/             # satu kelas per file, satu metode call: sign_in.dart, register.dart, sign_out.dart, watch_auth_user.dart
+├── data/                     # auth_mapper.dart (SDK/DTO → entity, exception → Failure), firebase_auth_repository.dart
+└── presentation/
+    ├── cubit/                # <nama>_cubit.dart + <nama>_state.dart (sealed)
+    ├── pages/                # satu halaman per rute
+    └── widgets/
+```
+
+### Config
+
+- D-04: nilai dibaca dari `--dart-define-from-file=config/dev.json` (`flutter run -d chrome --web-port 8081 --web-browser-flag=--incognito --dart-define-from-file=config/dev.json`; flag incognito wajib, lihat Lingkungan Flutter dan Android). Kunci: `API_BASE_URL`, `FIREBASE_PROJECT_ID` (`demo-template`), `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID` (dummy, satu nilai untuk semua platform), `USE_EMULATOR`, `AUTH_EMULATOR_HOST`, `AUTH_EMULATOR_PORT`. Tanpa `flutterfire configure` dan `google-services.json`.
+- `AppConfig.fromEnvironment()` (`core/config/app_config.dart`) membaca `String.fromEnvironment`, lalu `AppConfig.fromMap()` memvalidasi. Nilai kosong atau salah → `ConfigException` yang menyebut nama kunci. Kunci baru ditambahkan bersamaan ke `config/dev.json`, `fromEnvironment`, `fromMap`, dan test-nya.
+- Di Android (bukan web), host `localhost`/`127.0.0.1` di `API_BASE_URL` dan `AUTH_EMULATOR_HOST` diganti `10.0.2.2` oleh kode (`resolveHost`), bukan config terpisah per platform.
+- Build debug Android mengizinkan HTTP (`android:usesCleartextTraffic="true"` hanya di `android/app/src/debug/AndroidManifest.xml`) karena API lokal dan Auth Emulator memakai HTTP.
+- `useAuthEmulator` dipanggil di `main.dart` setelah `Firebase.initializeApp` dan sebelum operasi Auth apa pun. Peringatan Android `FirebaseApp failed to initialize because no default options were found` wajar.
+
+### Result dan Failure
+
+- Repository dan use case mengembalikan `Result<T>` (`core/error/result.dart`): sealed `Ok(value)` / `Err(failure)`, dibaca dengan `switch`. Exception tidak dilempar melewati batas repository.
+- `Failure` (`core/error/failure.dart`) adalah kelas Dart murni (tanpa dio atau DTO) berisi `FailureCode`, `message` (Inggris, untuk log), dan `fieldErrors` (`Map<String, List<FieldIssue>>`, dari `details` 422 dengan kunci path yang sama: `title`, `items.0.name`, `_root`).
+- `FailureCode` = setiap `ErrorCode` kontrak + `network` (gagal koneksi/timeout) + `unknown` (kode belum dikenal atau body tidak terbaca).
+- **`Failure` dicatat di batas tempat exception menjadi `Failure`**, lewat `logFailure(failure)` (`core/error/failure_log.dart`): `debugPrint` baris `Failure <code>: <message> (fields: …)` hanya di mode debug (`kDebugMode`); di mode rilis tidak mencatat apa pun. Tujuannya agar penyebab kegagalan yang tampil ke user sebagai teks umum (misalnya `unknown` → "Terjadi kesalahan") tetap terlihat di konsol `flutter run`. Batas yang ada: `apiCall` (`core/network/api_call.dart`) dan `FirebaseAuthRepository._failure` (`features/auth/data/firebase_auth_repository.dart`). Sumber data baru (SDK lain, penyimpanan lokal) yang mengubah exception menjadi `Failure` memanggil `logFailure` di tempat yang sama. Jangan memanggilnya di mapper (`failureFromDioException`, `failureFromFirebaseAuth` tetap fungsi murni), di Cubit, atau di konstruktor `Failure` (dipakai domain), agar setiap kegagalan tercatat tepat sekali. Yang dicatat hanya kode, `Failure.message`, dan nama field; tidak pernah token atau header. Test: `test/core/error/failure_log_test.dart` dan `captureDebugPrint()` (`test/core/error/debug_print_capture.dart`) di test batasnya (`test/core/network/api_call_test.dart`, `test/features/auth/data/firebase_auth_repository_test.dart`). Karena test berjalan dalam mode debug, output `flutter test` memuat baris `Failure …` dari test yang menguji kegagalan; itu wajar.
+
+### Network
+
+- Dio dibuat `createDio()` (`core/network/create_dio.dart`) dengan `baseUrl` dari config dan `AuthInterceptor`; `ApiClient` dari `api_client` memakai Dio itu.
+- `AuthInterceptor` menambahkan `Authorization: Bearer <ID token>` dari `TokenProvider` (`FirebaseTokenProvider` → `currentUser.getIdToken()`) bila user login. Respons `401` → token di-refresh sekali (`forceRefresh`) dan request diulang sekali (penanda `extra['authRetried']`); `401` kedua, gagal refresh, atau user tidak login → error diteruskan.
+- Repository memanggil `api_client` lewat `apiCall(() => client.notes.getNote(id: id), map: noteFromDto)` (`core/network/api_call.dart`): `DioException` → `Err(failureFromDioException(e))`, dicatat `logFailure`. Exception lain (bug mapper) tidak ditangkap.
+- `failureFromDioException` (`core/network/error_mapper.dart`) membaca body `ErrorBody` dan memetakan `ErrorCode` lewat `failureCodeOf` (switch tanpa `default`: kode baru di kontrak membuat `flutter analyze` gagal sampai dipetakan).
+
+### Teks UI dan l10n
+
+- Teks UI Bahasa Indonesia ditulis langsung di widget (satu bahasa, tanpa ARB). `AppLocale` (`core/l10n/app_locale.dart`) memasang locale `id` dan delegate Material/Cupertino agar teks bawaan widget juga Bahasa Indonesia.
+- D-03: teks kegagalan untuk user hanya dari `failureMessage(FailureCode)` dan `fieldIssueMessage(FieldIssue)` di `core/l10n/failure_messages.dart`, dengan `genericFailureMessage` sebagai cadangan. `Failure.message` dari server tidak pernah ditampilkan ke user; hanya dicatat di konsol saat mode debug (`logFailure`). Satu-satunya pengecualian adalah teks yang bergantung pada konteks fitur di field form, yang tetap dipilih dari `failure.code` (lihat Teks kegagalan khusus fitur di field).
+
+### DI dan router
+
+- get_it dengan registrasi manual. `configureDependencies({config, auth, container})` (`core/di/injection.dart`) mendaftarkan `AppConfig`, `FirebaseAuth`, `TokenProvider`, `Dio`, `ApiClient`, lalu memanggil `registerXxxDependencies(container)` setiap fitur. `FirebaseAuth` diberikan dari luar agar test memakai mock; test memakai `GetIt.asNewInstance()`.
+- `getIt` hanya dipanggil di composition root (`main.dart`, router, `registerXxxDependencies`); widget dan Cubit menerima dependency lewat konstruktor.
+- go_router: path di `AppRoutes`, rute di `createRouter({container, initialLocation})` (`core/router/app_router.dart`), rute tidak dikenal → `NotFoundPage`. `App` menerima `router` opsional untuk test.
+- Registrasi: repository dan use case `registerLazySingleton`; Cubit halaman `registerFactory` dan dipasang router dengan `BlocProvider(create: (_) => c<LoginCubit>(), child: const LoginPage())`; Cubit sepanjang umur app (`AuthSessionCubit`) `registerLazySingleton` dengan `dispose`.
+
+### Autentikasi Flutter
+
+- Firebase Auth email/password lewat `AuthRepository` (`features/auth/domain/repositories/auth_repository.dart`); implementasi `FirebaseAuthRepository` memakai SDK Firebase langsung sebagai data source. `FirebaseAuthException.code` → `FailureCode` di `failureFromFirebaseAuth` (`features/auth/data/auth_mapper.dart`); `invalid-credential`/`wrong-password`/`user-not-found` sama-sama `invalidCredentials` (tidak membocorkan apakah akun ada).
+- `FailureCode` memuat kode Firebase Auth (`invalidCredentials`, `emailAlreadyInUse`, `weakPassword`, `invalidEmail`, `tooManyRequests`) di samping kode API, sehingga semua teks kegagalan tetap di `failure_messages.dart`.
+- Status login: `AuthSessionCubit` (sealed `Authenticated(user)` / `Unauthenticated`), state awal dari `currentUser`; `main.dart` menunggu `authStateChanges().first` sebelum `runApp` agar sesi tersimpan (web) sudah dipulihkan. Logout lewat `AuthSessionCubit.signOut()` (`SignOutButton`); state berubah lewat stream user, bukan langsung.
+- Rute terlindungi secara default: `redirect` di `createRouter` mengarahkan semua rute selain `AppRoutes.public` (`/login`, `/register`) ke login bila belum login, dan rute publik ke beranda bila sudah login. Dievaluasi ulang setiap `AuthSessionCubit` berubah (`refreshListenable`). Rute terlindungi ditaruh di `ShellRoute` yang memasang `AuthSessionCubit` (untuk `SignOutButton`). Halaman terlindungi memasang `SignOutButton` di `AppBar.actions`.
+- Form login dan daftar: `AuthForm` + `AuthFormState` (sealed `Idle`/`Submitting`/`Failed(failure)`/`Succeeded`). Validasi lokal hanya "wajib diisi"; aturan lain dari Firebase. Perpindahan halaman setelah berhasil dilakukan router, bukan halaman.
+- Cubit yang menunggu `Future` memeriksa `isClosed` sebelum `emit` dan mengabaikan submit kedua saat `Submitting` (`features/auth/presentation/cubit/login_cubit.dart`).
+
+### Fitur berbasis API (contoh: notes)
+
+Contoh lengkap: `apps/app/lib/features/notes/` (fitur CONTOH, pasangan `apps/api/src/features/notes/`).
+
+```
+features/notes/
+├── notes_dependencies.dart           # registerNotesDependencies(GetIt)
+├── domain/
+│   ├── entities/                     # note.dart, note_page.dart
+│   ├── repositories/                 # note_repository.dart
+│   └── usecases/                     # list_notes, get_note, create_note, update_note, delete_note
+├── data/
+│   ├── note_remote_data_source.dart  # membungkus NotesClient, mengembalikan DTO, melempar DioException
+│   ├── note_mapper.dart              # DTO → entity (noteFromDto, notePageFromDto)
+│   └── api_note_repository.dart      # apiCall(() => _remote.xxx(), map: ...) → Result
+└── presentation/
+    ├── cubit/                        # notes_list_cubit (daftar + pagination), note_form_cubit (buat/ubah/hapus)
+    ├── pages/                        # notes_page.dart (/notes), note_form_page.dart (/notes/new, /notes/:id)
+    └── widgets/                      # note_tile, note_form (FailureView, LoadMoreFooter dari core/widgets)
+```
+
+- Data source satu kelas per resource di atas client hasil generate (`c<ApiClient>().notes`): menerima parameter Dart biasa, membuat DTO input (`CreateNoteInput`, `UpdateNoteInput`), dan mengembalikan DTO respons. Tidak menangkap exception.
+- Repository impl memanggil data source lewat `apiCall`/`apiCallRaw`, tanpa pemetaan error per fitur: `NOT_FOUND` → `FailureCode.notFound`, `VALIDATION_ERROR` → `FailureCode.validation` dengan `fieldErrors` dari `details` (kunci `title`, `_root`, `cursor`), semuanya lewat `failureFromDioException`.
+- File di `data/` mengimpor `api_client` dengan prefix (`import 'package:api_client/api_client.dart' as dto;`) karena nama DTO sama dengan entity (`dto.Note` vs `Note`). `domain/` tidak pernah mengimpor `api_client`.
+- Entity memakai `DateTime` UTC dari DTO apa adanya; konversi ke waktu lokal hanya di presentation. Daftar memakai entity halaman sendiri (`NotePage`: `items`, `nextCursor`, `hasMore`).
+- Parameter opsional `null` berarti "tidak dikirim": `limit` `null` = bawaan API (20), `body` `null` saat membuat = tidak dikirim (API menyimpan `''`), field `null` saat mengubah = tidak diubah.
+- Use case hanya menormalisasi input (`title.trim()`) lalu meneruskan ke repository; wajib diisi, batas panjang, dan minimal satu field ditegakkan API (lihat Aturan bisnis: API vs client).
+
+Presentation (`features/notes/presentation/`):
+
+- **Daftar dengan pagination** (`NotesListCubit`): state sealed `Loading` / `LoadFailed(failure)` / `Loaded(items, nextCursor, loadingMore, loadMoreFailure)`. `load()` memuat halaman pertama (juga untuk "Coba lagi"); `loadMore()` memakai `nextCursor` dan diabaikan bila sudah halaman terakhir atau sedang memuat. Gagal di halaman berikutnya tidak menghapus daftar: `loadMoreFailure` tampil di baris terakhir dengan tombol "Coba lagi", tanpa coba ulang otomatis. Setelah `await`, Cubit membaca `state` lagi karena daftar bisa berubah selama menunggu.
+- **Muat saat digulir:** baris terakhir `ListView.builder` (`LoadMoreFooter` di `core/widgets/load_more_footer.dart`, diberi `loadingMore` dan `failure` dari state `Loaded`) memanggil `loadMore()` setelah frame pertama ia dibangun. `ListView.builder` baru membangunnya saat digulir mendekati bawah, jadi tidak perlu `ScrollController`, dan halaman pertama yang tidak memenuhi layar langsung memuat halaman berikutnya. Jangan memanggil Cubit langsung di `build`.
+- **Gagal memuat halaman** (jaringan, `NOT_FOUND`): `FailureView` (`core/widgets/failure_view.dart`) menampilkan `failureMessage(code)` dan tombol "Coba lagi".
+- **Form** (`NoteFormCubit`): state sealed `Loading` / `LoadFailed` / `Editing(note?, status, failure)` / `Saved(note)` / `Deleted(id)`; `note` `null` = membuat baru. Error validasi API (`failure.fieldErrors['title']`) tampil sebagai `errorText` di field-nya lewat `fieldIssueMessage`; kegagalan yang tidak punya field (jaringan, `NOT_FOUND`, `_root`) tampil di atas tombol simpan. Validasi lokal hanya "wajib diisi" dan `maxLength` sama dengan API. Hapus selalu lewat dialog konfirmasi. Fitur tanpa `GET` per item memakai varian tanpa `Loading`/`LoadFailed` (lihat Pola lanjutan presentation).
+- **Navigasi form ↔ daftar:** daftar membuka form dengan `context.push<NoteFormState>(AppRoutes.note(id), extra: note)`; form menutup dirinya dengan `context.pop(NoteFormSaved/NoteFormDeleted)`, lalu daftar menerapkan hasilnya (`noteSaved`, `noteDeleted`) tanpa memuat ulang dari API. Rute ubah membaca note dari `extra`; bila kosong (URL dibuka langsung atau dimuat ulang di web), router memanggil `cubit.load(id)` sehingga note diambil lewat `GetNote`.
+- **Kembali ke daftar tanpa hasil → muat ulang halaman pertama.** Ada dua jalur, keduanya di `NotesPage` (`features/notes/presentation/pages/notes_page.dart`): (1) `push` dari daftar selesai tanpa state (tombol kembali, tombol kembali browser) → `cubit.load()`; (2) form dibuka lewat URL (`/notes/<id>`, `/notes/new`) sehingga daftar di bawahnya tidak memanggil `push` dan hasil `context.pop(state)` tidak sampai ke mana pun. Untuk jalur kedua, halaman daftar memantau `ModalRoute.isCurrentOf(context)` di `didChangeDependencies`: saat rutenya kembali paling atas dan form tidak dibuka lewat `_openForm`, daftar memanggil `cubit.load()`. Flag `_openedHere` mencegah muat ganda saat form dibuka dari daftar (jalur pertama sudah menanganinya). Dijaga `notes_flow_test.dart` › kembali dari form tanpa hasil, dan › dibuka lewat URL › `/notes/<id>`, simpan, kembali. Fitur lain dengan pola daftar ↔ form memakai pola yang sama.
+- **Rute anak:** halaman form adalah rute anak (`new`, `:id`) dari rute daftar di dalam `ShellRoute` terlindungi, sehingga membuka URL form langsung tetap menaruh daftar di bawahnya. `new` didaftarkan sebelum `:id`. `GoRouter.optionURLReflectsImperativeAPIs = true` (di `createRouter`) agar `push` ikut mengubah URL di web.
+- **Waktu:** `updatedAt.toLocal()` diformat dengan `MaterialLocalizations.formatMediumDate` (locale `id`), tanpa package `intl`.
+
+### Pola lanjutan presentation (belum ada file contoh di template)
+
+Ditemukan saat fitur proyek pertama dibangun dari template; fitur notes tidak memakainya. Proyek yang pertama memakai pola ini mencatat filenya di sini sebagai file contoh, menggantikan potongan kode di bawah.
+
+- **Daftar berpagination dengan filter** (pasangan API: `PaginationQuerySchema.extend({ status: … })`, lihat Pagination). Filter adalah enum domain sendiri (`domain/entities/`), bukan enum kontrak; `data/` memetakannya ke enum DTO dengan switch tanpa `default`, dan filter `null` = tidak dikirim (bawaan API). Di Cubit:
+  - Filter disimpan di state dan dibawa **setiap** state (`Loading(filter)`, `LoadFailed(filter, failure)`, `Loaded(filter, …)`), agar pilihan filter tetap tampil saat memuat atau gagal.
+  - `setFilter(filter)` diabaikan bila filter sama; selain itu memuat ulang halaman pertama.
+  - Hasil permintaan lama dibuang lewat penghitung generasi: setiap muat ulang halaman pertama menaikkan `_generation`; setiap `await` (halaman pertama, `loadMore`, aksi) menyimpan nilainya sebelum menunggu dan membuang hasilnya bila sudah berubah. Tanpa ini, jawaban filter lama yang datang belakangan menimpa daftar filter baru, atau halaman berikutnya filter lama tersambung ke daftar filter baru.
+  - Item yang tidak lagi cocok dengan filter setelah diubah (lewat form atau aksi di daftar) dibuang dari daftar.
+
+  ```dart
+  int _generation = 0;
+
+  Future<void> _loadFirstPage(ItemFilter filter) async {
+    final generation = ++_generation;
+    emit(ItemsLoading(filter));
+    final result = await _listItems(filter: filter);
+    if (isClosed || generation != _generation) return;
+    emit(switch (result) {
+      Ok(value: final page) => ItemsLoaded(filter, items: page.items, nextCursor: page.nextCursor),
+      Err(:final failure) => ItemsLoadFailed(filter, failure),
+    });
+  }
+  ```
+
+  Test (`blocTest`): ganti filter selagi halaman pertama filter lama belum menjawab → hanya hasil filter baru yang tampil; `loadMore` filter lama yang menjawab setelah filter diganti dibuang.
+- **Aksi di daftar** (centang, hapus massal, dan sejenisnya, tanpa membuka form): diterapkan ke daftar setelah API menjawab, tanpa memuat ulang dan tanpa optimistis. Item yang sedang diproses dinonaktifkan (misalnya `Set<String> updatingIds` di `Loaded`; aksi massal memakai flag sendiri). Kegagalan aksi **tidak** menghapus daftar dan tidak mengganti state menjadi `LoadFailed`: simpan di `Loaded.actionFailure` (dikosongkan saat aksi baru dimulai), lalu halaman menampilkannya sebagai SnackBar lewat `BlocConsumer`/`BlocListener`:
+
+  ```dart
+  listenWhen: (previous, current) =>
+      current is ItemsLoaded &&
+      current.actionFailure != null &&
+      (previous is! ItemsLoaded || previous.actionFailure != current.actionFailure),
+  listener: (context, state) {
+    final failure = (state as ItemsLoaded).actionFailure!;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(failureMessage(failure.code))));
+  },
+  ```
+
+  Aksi massal yang menghapus item (misalnya hapus yang selesai) membuang item itu dari daftar yang sudah dimuat dan mempertahankan `nextCursor`, karena cursor berbasis posisi (`created_at`, `id`) sehingga halaman berikutnya dari API sudah tanpa item itu. Aksi yang merusak (hapus) tetap lewat dialog konfirmasi.
+- **Teks kegagalan khusus fitur di field.** Bila PRD meminta teks tertentu untuk kegagalan tertentu (misalnya `CONFLICT` → "Nama ini sudah dipakai." di field nama), teksnya didefinisikan sebagai konstanta di widget form fitur (`const itemNameConflictMessage = '…';`) dan dipilih dari `failure.code`, **tidak pernah** dari `Failure.message` server (D-03). Urutan: teks khusus dari `code` → `fieldIssueMessage` dari `fieldErrors[<field>]` → kegagalan tanpa field di atas tombol simpan. Kegagalan yang sudah tampil di field tidak ditampilkan lagi di atas tombol. Teks umum tetap di `failure_messages.dart`; hanya teks yang bergantung pada konteks fitur yang ditaruh di fitur. Test: widget test memeriksa `TextField.decoration.errorText` field itu.
+
+  ```dart
+  final nameError = failure?.code == FailureCode.conflict
+      ? itemNameConflictMessage
+      : _fieldError(failure, 'name');
+  final showGeneral = failure != null && nameError == null;
+  ```
+- **Form untuk fitur tanpa `GET` per item.** Notes punya `GET /v1/notes/{id}`, jadi form-nya punya state `Loading`/`LoadFailed` dan rute ubah memanggil `cubit.load(id)` bila `extra` kosong. Fitur yang API-nya tidak punya `GET` per item (tidak dibuat hanya untuk form) memakai varian lebih sederhana:
+  - State form hanya `Editing(item?, status, failure)` / `Saved(item)` / `Deleted(id)`; tidak ada `Loading`/`LoadFailed` dan tidak ada use case `GetXxx`.
+  - Rute ubah (`/<fitur>/:id`) yang dibuka tanpa item di `extra` (URL langsung, muat ulang di web) diarahkan kembali ke daftar lewat `redirect` di `GoRoute`-nya (`state.extra is! Item` → `AppRoutes.items`). Rute buat (`/<fitur>/new`) tetap bisa dibuka lewat URL.
+  - Pola "kembali ke daftar tanpa hasil → muat ulang halaman pertama" tetap berlaku (jalur kedua hanya terjadi lewat `/<fitur>/new`).
+  - Bila form ubah perlu bisa dibuka lewat URL, tambahkan `GET` per item di API (mengubah kontrak) lalu pakai pola notes.
+
+### Test Flutter
+
+- Test di `apps/app/test/` mengikuti struktur `lib/` (`lib/core/network/auth_interceptor.dart` → `test/core/network/auth_interceptor_test.dart`). Helper test yang bukan test tanpa akhiran `_test.dart` (contoh: `test/core/network/fake_http_adapter.dart`).
+- Mock dengan `mocktail` (`class MockFirebaseAuth extends Mock implements FirebaseAuth {}`). Mock per fitur dikumpulkan di `test/features/<fitur>/mocks.dart` (`MockAuthRepository`, `MockLoginCubit extends MockCubit<AuthFormState> implements LoginCubit`).
+- Use case: satu file test per use case, repository di-mock (`test/features/auth/domain/usecases/sign_in_test.dart`). Cubit: `blocTest` (`test/features/auth/presentation/cubit/login_cubit_test.dart`). Halaman: widget test dengan Cubit mock + `whenListen` (`test/features/auth/presentation/pages/login_page_test.dart`).
+- Router: widget test dengan wiring fitur asli (`registerAuthDependencies` pada `GetIt.asNewInstance()`) dan repository diganti fake dalam memori (`test/features/auth/fake_auth_repository.dart`), lalu `App(router: createRouter(container: c))` (`test/core/router/app_router_test.dart`).
+- HTTP diuji lewat Dio sungguhan dengan `FakeHttpAdapter` (mencatat request, menjawab per request), bukan mock Dio. Contoh: `test/core/network/auth_interceptor_test.dart`, `test/core/network/error_mapper_test.dart`.
+- Fitur berbasis API: use case dengan repository di-mock (`test/features/notes/domain/usecases/*_test.dart`); repository impl dengan data source di-mock yang melempar `DioException.badResponse` berisi body error standar (`test/features/notes/data/api_note_repository_test.dart`); data source dengan `NotesClient` asli + `FakeHttpAdapter` untuk memeriksa method, path, query, dan body request (`test/features/notes/data/note_remote_data_source_test.dart`). Fixture entity dan JSON (`testNote`, `noteJson`, `noteNo(i)`) di `test/features/notes/mocks.dart`.
+- Presentation fitur berbasis API: Cubit dengan use case di-mock (`test/features/notes/presentation/cubit/*_test.dart`); halaman dengan Cubit mock (`pages/*_test.dart`). Halaman yang menutup dirinya dengan `context.pop(hasil)` dipasang di atas `GoRouter` kecil di dalam test agar hasilnya bisa diperiksa (`note_form_page_test.dart`). Error di field diperiksa lewat `TextField.decoration.errorText` field itu, bukan sekadar teks ada di layar. Halaman dengan indikator berputar tidak memakai `pumpAndSettle` (tidak pernah selesai).
+- Widget di `core/widgets/` diuji sendiri di `test/core/widgets/` dengan nilai biasa (tanpa Cubit), agar tetap teruji setelah fitur contoh dihapus (`test/core/widgets/load_more_footer_test.dart`).
+- Alur fitur lengkap lewat router, Cubit, dan use case asli dengan repository palsu yang meniru API (`test/features/notes/fake_note_repository.dart`, `test/features/notes/presentation/notes_flow_test.dart`). Test router yang membuka beranda juga mendaftarkan fitur notes dengan repository palsu itu.
+- Test `config/dev.json` membaca file aslinya, jadi kunci yang hilang terdeteksi (`test/core/config/app_config_test.dart`).
+"""
+
+API CONTRACT DARI PRD (bagian 5, utuh):
+"""
+## 5. API Contract
+
+Semua route di bawah `/v1` dilindungi `authenticate` (401 `UNAUTHENTICATED`). Path `{id}` bukan UUID → `422`. "Admin" berarti `users.role = admin`. Pelanggan yang memanggil route admin mendapat `403 FORBIDDEN` (pemeriksaan di use case). Daftar paginasi memakai `?limit&cursor` dan respons `{ items, nextCursor }` (docs/conventions.md bagian Pagination). Waktu memakai ISO 8601 UTC. Field opsional yang kosong tidak dikirim, dan tidak ada `null` di body request.
+
+| Endpoint | Request | Response | Error | Akses |
+| --- | --- | --- | --- | --- |
+| GET /v1/users/me | - | `User` {id, email, displayName, phone, role} | 401 | Semua pengguna login |
+| PATCH /v1/users/me | Body strict `{ phone }`, string 0–20 (`""` mengosongkan). Field lain termasuk `role` ditolak | `User` | 401, 422 (field tak dikenal, `role`, body kosong) | Semua pengguna login |
+| GET /v1/services | Query: limit, cursor | `ServicePage` (hanya layanan aktif) | 401, 422 | Semua pengguna login |
+| GET /v1/services/{serviceId} | - | `Service` {id, name, category, description, durationMinutes, priceIdr, isActive} | 401, 404 (tidak ada atau nonaktif), 422 | Semua pengguna login |
+| GET /v1/admin/services | Query: limit, cursor | `ServicePage` (aktif dan nonaktif) | 401, 403, 422 | Admin |
+| GET /v1/admin/services/{serviceId} | - | `Service` (termasuk nonaktif, RV2-04) | 401, 403, 404, 422 | Admin |
+| POST /v1/admin/services | `CreateServiceInput` {name, category?, description?, durationMinutes, priceIdr} | 201 `Service` (aktif) | 401, 403, 409 (nama sudah ada, tanpa beda huruf), 422 | Admin |
+| PATCH /v1/admin/services/{serviceId} | `UpdateServiceInput`: salah satu dari name, category, description (`""` mengosongkan), durationMinutes, priceIdr, isActive | `Service` | 401, 403, 404, 409, 422 | Admin |
+| GET /v1/therapists | Query: limit, cursor, serviceId? | `TherapistPage` (terapis aktif; dengan `serviceId` hanya yang mengerjakan layanan itu) | 401, 422 | Semua pengguna login |
+| GET /v1/admin/therapists | Query: limit, cursor | `TherapistPage` (aktif dan nonaktif) | 401, 403, 422 | Admin |
+| GET /v1/admin/therapists/{therapistId} | - | `TherapistDetail` {id, name, isActive, serviceIds, workingHours[{weekday, startTime, endTime}], daysOff[{id, dayOff, reason}]} | 401, 403, 404, 422 | Admin |
+| POST /v1/admin/therapists | `{ name }` | 201 `Therapist` {id, name, isActive} | 401, 403, 422 | Admin |
+| PATCH /v1/admin/therapists/{therapistId} | Salah satu dari name, isActive | `Therapist` | 401, 403, 404, 422 | Admin |
+| PUT /v1/admin/therapists/{therapistId}/services | `{ serviceIds: uuid[] }` (mengganti seluruh daftar, boleh kosong) | `TherapistDetail` | 401, 403, 404, 422 (layanan tidak ada atau duplikat) | Admin |
+| PUT /v1/admin/therapists/{therapistId}/working-hours | `{ hours: [{weekday, startTime "HH:MM", endTime "HH:MM"}] }` (mengganti seluruh jadwal, boleh kosong, maks satu entri per hari) | `TherapistDetail` | 401, 403, 404, 422 | Admin |
+| POST /v1/admin/therapists/{therapistId}/days-off | `{ dayOff "YYYY-MM-DD", reason? }` | 201 `DayOff` {id, dayOff, reason} | 401, 403, 404, 409 (tanggal sudah libur), 422 | Admin |
+| DELETE /v1/admin/therapists/{therapistId}/days-off/{dayOffId} | - | 204 | 401, 403, 404, 422 | Admin |
+| GET /v1/slots | Query wajib: therapistId, serviceId, date `YYYY-MM-DD`. Opsional: excludeReservationId (RV2-05) | `SlotList` {slots: [{startAt, endAt}]} urut naik | 401, 404 (terapis/layanan tidak ada atau nonaktif, atau excludeReservationId bukan milik pemanggil), 422 (terapis tidak mengerjakan layanan, tanggal di luar rentang) | Semua pengguna login |
+| POST /v1/reservations | `{ serviceId, therapistId, startAt }` | 201 `Reservation` (status `pending`) | 401, 404, 409 (slot terisi), 422 (`startAt` bukan slot valid) | Semua pengguna login (atas nama pemanggil) |
+| GET /v1/reservations | Query: limit, cursor, status? | `ReservationPage` milik pemanggil | 401, 422 | Semua pengguna login |
+| GET /v1/reservations/{reservationId} | - | `Reservation` | 401, 404 (bukan milik pemanggil), 422 | Pemilik |
+| POST /v1/reservations/{reservationId}/cancel | - | `Reservation` (status `cancelled`) | 401, 404, 409 (status bukan pending/confirmed, atau lewat batas waktu) | Pemilik |
+| POST /v1/reservations/{reservationId}/reschedule | `{ startAt }` | `Reservation` (status `pending`, jam baru) | 401, 404, 409 (status tidak valid, lewat batas waktu, atau slot terisi), 422 | Pemilik |
+| GET /v1/admin/reservations | Query: limit, cursor, date?, therapistId?, status? | `ReservationPage` semua reservasi | 401, 403, 422 | Admin |
+| POST /v1/admin/reservations/{reservationId}/confirm | - | `Reservation` (status `confirmed`) | 401, 403, 404, 409 (status bukan `pending`), 422 | Admin |
+| POST /v1/admin/reservations/{reservationId}/reject | `{ reason? }` (1–500) | `Reservation` (status `rejected`) | 401, 403, 404, 409 (status bukan `pending`), 422 | Admin |
+| PATCH /v1/admin/reservations/{reservationId}/payment | `{ paymentStatus: "unpaid" \| "paid" }` | `Reservation` | 401, 403, 404, 409 (status bukan `confirmed`), 422 | Admin |
+| GET /v1/notifications | Query: limit, cursor | `NotificationPage` milik pemanggil, item {id, type, title, body, reservationId, readAt, createdAt} | 401, 422 | Semua pengguna login |
+| POST /v1/notifications/{notificationId}/read | - | `Notification` (idempoten) | 401, 404, 422 | Pemilik |
+| POST /v1/notifications/read-all | - | `ReadAllNotificationsResult` {updatedCount}, `200` walau 0 | 401 | Semua pengguna login |
+| POST /v1/device-tokens | `{ token, platform }` (upsert per token; kepemilikan pindah ke pemanggil) | 204 | 401, 422 | Semua pengguna login |
+| POST /v1/device-tokens/unregister | `{ token }` | `200` `UnregisterDeviceTokenResult` {deletedCount}, idempoten | 401, 422 | Semua pengguna login |
+
+`Reservation` = {id, service {id, name, durationMinutes}, therapist {id, name}, customer {id, displayName, phone}, startAt, endAt, priceIdr, status, paymentStatus, rejectionReason, createdAt, updatedAt}.
+"""
+
+DAFTAR TASK (JSON, dari tahap Daftar Task: id, judul, layer, depends_on, tables):
+[
+  {
+    "id": "T-001",
+    "title": "Aturan peran admin dan pelanggan: kolom role di tabel users, middleware otorisasi admin, dan penetapan admin lewat konfigurasi",
+    "layer": "db",
+    "depends_on": [],
+    "tables": []
+  },
+  {
+    "id": "T-002",
+    "title": "API profil pelanggan GET dan PATCH /v1/users/me, penetapan peran admin, dan test all-routes-require-auth",
+    "layer": "api",
+    "depends_on": [
+      "T-001"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-003",
+    "title": "Layar login dan profil pelanggan di Flutter serta pengalihan layar berdasarkan peran",
+    "layer": "app",
+    "depends_on": [
+      "T-002"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-004",
+    "title": "Skema dan migrasi tabel services",
+    "layer": "db",
+    "depends_on": [
+      "T-001"
+    ],
+    "tables": [
+      "services"
+    ]
+  },
+  {
+    "id": "T-005",
+    "title": "API admin layanan: GET/POST /v1/admin/services, GET/PATCH /v1/admin/services/{serviceId}",
+    "layer": "api",
+    "depends_on": [
+      "T-004",
+      "T-002"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-006",
+    "title": "Layar admin daftar dan form layanan di Flutter",
+    "layer": "app",
+    "depends_on": [
+      "T-005",
+      "T-003"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-007",
+    "title": "Hapus fitur contoh notes",
+    "layer": "app",
+    "depends_on": [
+      "T-006"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-008",
+    "title": "Skema dan migrasi tabel therapists dan therapist_services",
+    "layer": "db",
+    "depends_on": [
+      "T-004"
+    ],
+    "tables": [
+      "therapists",
+      "therapist_services"
+    ]
+  },
+  {
+    "id": "T-009",
+    "title": "Skema dan migrasi tabel therapist_working_hours dan therapist_days_off",
+    "layer": "db",
+    "depends_on": [
+      "T-008"
+    ],
+    "tables": [
+      "therapist_working_hours",
+      "therapist_days_off"
+    ]
+  },
+  {
+    "id": "T-010",
+    "title": "API admin terapis: GET/POST /v1/admin/therapists, GET/PATCH /v1/admin/therapists/{therapistId}, PUT .../services",
+    "layer": "api",
+    "depends_on": [
+      "T-008",
+      "T-002"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-011",
+    "title": "API jam kerja dan hari libur terapis: PUT .../working-hours, POST dan DELETE .../days-off",
+    "layer": "api",
+    "depends_on": [
+      "T-009",
+      "T-010"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-012",
+    "title": "Layar admin daftar dan form terapis, pilihan layanan, jam kerja, dan hari libur di Flutter",
+    "layer": "app",
+    "depends_on": [
+      "T-010",
+      "T-011",
+      "T-006"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-013",
+    "title": "API daftar layanan pelanggan: GET /v1/services dan GET /v1/services/{serviceId}",
+    "layer": "api",
+    "depends_on": [
+      "T-004",
+      "T-002"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-014",
+    "title": "Layar daftar dan detail layanan untuk pelanggan di Flutter",
+    "layer": "app",
+    "depends_on": [
+      "T-013",
+      "T-003"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-015",
+    "title": "API GET /v1/therapists dan GET /v1/slots dengan perhitungan slot kosong berdasarkan VENUE_TIMEZONE",
+    "layer": "api",
+    "depends_on": [
+      "T-011",
+      "T-013"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-016",
+    "title": "Layar pilih terapis dan pilih slot kosong di Flutter",
+    "layer": "app",
+    "depends_on": [
+      "T-015",
+      "T-014"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-017",
+    "title": "Skema dan migrasi tabel reservations dengan constraint anti-bentrok",
+    "layer": "db",
+    "depends_on": [
+      "T-009",
+      "T-004"
+    ],
+    "tables": [
+      "reservations"
+    ]
+  },
+  {
+    "id": "T-018",
+    "title": "API POST /v1/reservations, GET /v1/reservations, dan GET /v1/reservations/{reservationId} dengan isolasi data",
+    "layer": "api",
+    "depends_on": [
+      "T-017",
+      "T-015"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-019",
+    "title": "Layar konfirmasi pemesanan dan riwayat reservasi pelanggan di Flutter",
+    "layer": "app",
+    "depends_on": [
+      "T-018",
+      "T-016"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-020",
+    "title": "API admin reservasi: GET /v1/admin/reservations, confirm, reject, dan PATCH payment",
+    "layer": "api",
+    "depends_on": [
+      "T-018"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-021",
+    "title": "Layar admin daftar reservasi, konfirmasi, penolakan, dan pembayaran di Flutter",
+    "layer": "app",
+    "depends_on": [
+      "T-020",
+      "T-012"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-022",
+    "title": "API POST /v1/reservations/{reservationId}/cancel untuk pembatalan oleh pelanggan",
+    "layer": "api",
+    "depends_on": [
+      "T-018"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-023",
+    "title": "Aksi batalkan reservasi di layar detail reservasi pelanggan di Flutter",
+    "layer": "app",
+    "depends_on": [
+      "T-022",
+      "T-019"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-024",
+    "title": "API POST /v1/reservations/{reservationId}/reschedule untuk ubah jadwal tanpa bentrok",
+    "layer": "api",
+    "depends_on": [
+      "T-018"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-025",
+    "title": "Layar ubah jadwal reservasi pelanggan di Flutter",
+    "layer": "app",
+    "depends_on": [
+      "T-024",
+      "T-019"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-026",
+    "title": "Skema dan migrasi tabel notifications dan device_tokens",
+    "layer": "db",
+    "depends_on": [
+      "T-017"
+    ],
+    "tables": [
+      "notifications",
+      "device_tokens"
+    ]
+  },
+  {
+    "id": "T-027",
+    "title": "API notifikasi: GET /v1/notifications, POST read dan read-all, POST /v1/device-tokens dan unregister",
+    "layer": "api",
+    "depends_on": [
+      "T-026",
+      "T-002"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-028",
+    "title": "Pembuatan notifikasi dan pengiriman push FCM pada konfirmasi, penolakan, pembayaran, pembatalan, dan ubah jadwal",
+    "layer": "api",
+    "depends_on": [
+      "T-027",
+      "T-020",
+      "T-022",
+      "T-024"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-029",
+    "title": "Layar daftar notifikasi, penanda baca, dan pendaftaran token push di Flutter",
+    "layer": "app",
+    "depends_on": [
+      "T-028",
+      "T-019"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-030",
+    "title": "Job pengingat reservasi otomatis dengan pg-boss yang membuat notifikasi dan push",
+    "layer": "api",
+    "depends_on": [
+      "T-028"
+    ],
+    "tables": []
+  },
+  {
+    "id": "T-031",
+    "title": "Test integrasi lintas fitur: anti-bentrok paralel, isolasi data, dan cakupan acceptance criteria FR-01 sampai FR-12",
+    "layer": "test",
+    "depends_on": [
+      "T-030",
+      "T-025",
+      "T-021",
+      "T-029"
+    ],
+    "tables": []
+  }
+]
+
+Kamu adalah tahap "Tinjau Pertentangan" di aplikasi PRD Generator.
+Tahap Detail Task menulis "Catatan pertentangan" di keterangan file task, yaitu hal yang menurutnya bertentangan antara PRD dan konvensi template, atau belum diputuskan. Tanpa tinjauan, setiap catatan menjadi pertanyaan terpisah untuk user saat Claude Code mengerjakan task. Tugasmu: gabungkan catatan per akar masalah, lalu susun satu pertanyaan yang bisa dijawab user di generator SEBELUM task diekspor.
+
+CATATAN PERTENTANGAN (JSON; "id" catatan, task, path file tempat catatan ditulis, dan isi catatan):
+[
+  {
+    "id": "C-01",
+    "task": "T-001",
+    "path": "apps/api/src/db/seed-admin.ts",
+    "text": "Catatan pertentangan: konvensi menyatakan db:migrate hanya membutuhkan DATABASE_URL; seed memakai pola serupa, bukan seluruh env server."
+  },
+  {
+    "id": "C-02",
+    "task": "T-002",
+    "path": "apps/api/src/features/users/http/me.route.ts",
+    "text": "Catatan pertentangan: PRD menyebut GET /v1/users/me tanpa tag/operationId; agent menentukan operationId getMe dan updateMe, tanyakan ke user bila ada preferensi."
+  },
+  {
+    "id": "C-03",
+    "task": "T-002",
+    "path": "apps/api/src/features/users/http/me.route.ts",
+    "text": "Catatan pertentangan: PRD berkata 'tidak ada null di body request' dan 'field opsional kosong tidak dikirim', tetapi respons PATCH wajib memuat phone: null saat dikosongkan; tanyakan ke user apakah phone dan email respons ditulis null (mengikuti acceptance criteria FR-01)."
+  },
+  {
+    "id": "C-04",
+    "task": "T-003",
+    "path": "apps/app/lib/core/router/app_router.dart",
+    "text": "Catatan pertentangan: konvensi menyebut redirect hanya berdasar status login, sedangkan PRD meminta guard per peran; tanyakan ke user bagaimana peran dimuat sebelum redirect (mis. state peran di AuthSessionCubit atau cubit sesi baru) sebelum implementasi. Rute beranda dan layar admin belum ada di fase 0, jadi pengalihan awal memakai placeholder bila beranda belum tersedia."
+  },
+  {
+    "id": "C-05",
+    "task": "T-005",
+    "path": "apps/api/src/features/services/http/admin-services.route.ts",
+    "text": "Catatan pertentangan: konvensi hanya mengenal user login tanpa role, sedangkan kontrak memakai users.role = admin; kolom role dan pengisian c.var.user.role pada users (users_role_check) belum ada di skema template dan tidak ada di daftar task fase ini, tanyakan ke user sebelum mengerjakan. Pastikan T-002 menyediakannya."
+  },
+  {
+    "id": "C-06",
+    "task": "T-006",
+    "path": "apps/app/lib/core/router/app_router.dart",
+    "text": "Catatan pertentangan: akses layar admin bergantung pada role pengguna, tetapi GET /v1/users/me di kontrak mengembalikan role dan fitur Flutter untuk membacanya tidak ada di task ini; tanyakan ke user bagaimana layar admin ditampilkan atau disembunyikan untuk pelanggan (API tetap 403)."
+  },
+  {
+    "id": "C-07",
+    "task": "T-007",
+    "path": "apps/app/lib/core/router/app_router.dart",
+    "text": "Catatan pertentangan: konvensi menyebut test router membuka beranda dengan fitur notes; tanyakan ke user layar beranda pengganti bila belum ditentukan oleh task lain."
+  },
+  {
+    "id": "C-08",
+    "task": "T-010",
+    "path": "apps/api/src/features/therapists/http/admin-therapists.route.ts",
+    "text": "Catatan pertentangan: konvensi menyebut tenancy via user_id dan tidak mengenal role admin, sedangkan kontrak memakai users.role = admin; pastikan mekanisme role dari T-002 dan tanyakan ke user bila belum ada."
+  },
+  {
+    "id": "C-09",
+    "task": "T-012",
+    "path": "apps/app/lib/features/therapists/presentation/pages/therapist_form_page.dart",
+    "text": "Catatan pertentangan: konvensi melarang fitur mengimpor fitur lain; tanyakan ke user apakah daftar layanan untuk pilihan dipindahkan ke core atau diambil lewat dependency yang diberikan router."
+  },
+  {
+    "id": "C-10",
+    "task": "T-014",
+    "path": "apps/app/lib/features/services/presentation/pages/service_detail_page.dart",
+    "text": "Catatan pertentangan: tujuan navigasi pemilihan terapis belum ada di fase ini; tanyakan ke user rute sementara yang dipakai."
+  },
+  {
+    "id": "C-11",
+    "task": "T-014",
+    "path": "apps/app/lib/core/router/app_router.dart",
+    "text": "Catatan pertentangan: pemisahan beranda pelanggan dan admin bergantung pada role pengguna, tanyakan ke user bila belum ditentukan."
+  },
+  {
+    "id": "C-12",
+    "task": "T-021",
+    "path": "apps/app/lib/core/router/app_router.dart",
+    "text": "Catatan pertentangan: bagian Autentikasi konvensi hanya mengenal user login tanpa peran, sedangkan PRD memakai users.role. Tanyakan ke user bagaimana layar admin tahu peran (kontrak GET /v1/users/me mengembalikan role) sebelum menyembunyikan menu; keputusan akses akhir tetap di server (403)."
+  },
+  {
+    "id": "C-13",
+    "task": "T-023",
+    "path": "apps/app/lib/features/reservations/presentation/pages/reservation_detail_page.dart",
+    "text": "Catatan pertentangan: kontrak tidak mengekspos BOOKING_CHANGE_CUTOFF_HOURS ke client; tanyakan ke user apakah tombol disembunyikan berdasarkan angka tetap 24 jam atau selalu tampil."
+  },
+  {
+    "id": "C-14",
+    "task": "T-028",
+    "path": "apps/api/src/app.ts",
+    "text": "Catatan pertentangan: kontrak PRD tidak memuat endpoint pembayaran yang memicu notifikasi dan FR-11 tidak mendaftarkan tipe notifikasi pembayaran, sedangkan judul task menyebut pembayaran; ikuti FR-11 dan tanyakan ke user sebelum menambah notifikasi pembayaran."
+  }
+]
+
+Aturan:
+- Gabungkan catatan yang akar masalahnya sama menjadi SATU pertentangan, walau ditulis di task atau file yang berbeda. Contoh akar masalah: satu konsep yang belum ada di konvensi template dan dibutuhkan beberapa task.
+- Setiap id catatan masuk TEPAT SATU pertentangan di "note_ids": tidak ada yang terlewat, tidak ada yang muncul di dua pertentangan. Jangan membuat pertentangan tanpa catatan.
+- "source", pilih satu:
+  - "prd": PRD tidak lengkap atau bertentangan dengan dirinya sendiri (misalnya aturan umum kontrak berbeda dengan contoh atau acceptance criteria). Jawabannya mengubah PRD.
+  - "template": PRD membutuhkan sesuatu yang tidak diatur atau berbeda dengan konvensi template. Jawabannya menjadi keputusan proyek yang menambah atau menyimpangi konvensi.
+  - "generator": akibat cara task dipecah atau diurutkan (misalnya sesuatu yang dibutuhkan task belum dibuat task sebelumnya, atau judul task menyebut hal yang tidak ada di PRD).
+  - "pilihan_bebas": bukan pertentangan; pilihan yang tidak mengubah perilaku atau kontrak (misalnya penamaan), sehingga agent boleh memutuskan sendiri.
+- "question": satu pertanyaan untuk user, dalam bahasa yang dipahami orang yang menulis PRD, tanpa istilah internal generator.
+- "options": 2–3 opsi yang berbeda nyata, masing-masing dengan "label" singkat dan "impact" (apa yang berubah di task, kontrak, atau pekerjaan agent bila opsi itu dipilih). "recommended": id opsi yang kamu rekomendasikan, beserta alasannya di "recommendation_reason".
+- "affected_tasks": id task yang isinya berubah bergantung jawaban (dari DAFTAR TASK), termasuk task yang tidak menulis catatan.
+- "answered_by": bila pertentangan itu sebenarnya sudah dijawab oleh task lain di DAFTAR TASK (misalnya task yang sudah menambah kolom atau endpoint yang ditanyakan), isi {"task": "<id>", "explanation": "<bagaimana task itu menjawabnya, dan apa yang masih perlu ditanyakan bila ada>"}; bila tidak, null.
+- Urutkan pertentangan dari yang paling banyak memengaruhi task.
+
+Bahasa Indonesia yang jelas.
+JANGAN memakai tool apa pun. JANGAN membaca atau menulis file.
+
+Balas HANYA satu objek JSON valid tanpa teks lain dan tanpa blok kode:
+{"conflicts":[{"id":"K-01","topic":"...","note_ids":["C-01"],"source":"template","question":"...","options":[{"id":"a","label":"...","impact":"..."},{"id":"b","label":"...","impact":"..."}],"recommended":"a","recommendation_reason":"...","affected_tasks":["T-003"],"answered_by":null}]}
